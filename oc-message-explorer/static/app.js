@@ -17,6 +17,9 @@ let sortAscending = false;
 let searchModeRaw = false;
 let displayModeRaw = true;
 let hideEmptyResponses = true;
+let viewportObserver = null;
+let loadingViewportNodes = new Set();
+
 
 function init() {
     connectWebSocket();
@@ -370,6 +373,8 @@ function renderTree() {
     rootNodes.forEach(node => {
         container.appendChild(createNodeElement(node, messages, true));
     });
+
+    observeVisibleNodes();
 }
 
 function applyFilters(messages) {
@@ -433,13 +438,7 @@ function createNodeElement(node, messages, isRoot = false) {
 
     let displayContent;
     if (displayModeRaw) {
-        if (node.content && node.content.trim() !== '') {
-            displayContent = node.content;
-        } else if (node.hasLoaded) {
-            displayContent = node.summary || '(No content)';
-        } else {
-            displayContent = '(Click to load raw)';
-        }
+        displayContent = node.content && node.content.trim() !== '' ? node.content : (node.summary || '(No content)');
     } else {
         displayContent = node.summary ? node.summary : (node.content ? node.content : '(No content)');
     }
@@ -538,6 +537,54 @@ function getFolderInfo(nodeId) {
         }
     }
     return null;
+}
+
+function setupViewportObserver() {
+    if (viewportObserver) {
+        viewportObserver.disconnect();
+    }
+
+    const options = {
+        root: document.getElementById('treeContainer'),
+        rootMargin: '300px 0px 300px 0px',
+        threshold: 0.01
+    };
+
+    viewportObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const nodeId = entry.target.dataset.nodeId;
+            if (entry.isIntersecting && !loadingViewportNodes.has(nodeId)) {
+                loadNodeContentForViewport(nodeId);
+            }
+        });
+    }, options);
+}
+
+function observeVisibleNodes() {
+    if (!viewportObserver) {
+        setupViewportObserver();
+    }
+
+    document.querySelectorAll('.node-content[data-node-id]').forEach(el => {
+        viewportObserver.observe(el);
+    });
+}
+
+function loadNodeContentForViewport(nodeId) {
+    loadingViewportNodes.add(nodeId);
+    loadNodeContent(nodeId).then(() => {
+        loadingViewportNodes.delete(nodeId);
+        const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
+        if (nodeEl && displayModeRaw) {
+            const node = allMessages[nodeId];
+            if (node && node.content && node.content.trim() !== '') {
+                const textEl = nodeEl.querySelector('.node-text');
+                if (textEl) {
+                    textEl.textContent = node.content;
+                }
+            }
+        }
+    });
 }
 
 function updateGraph() {

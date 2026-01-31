@@ -157,13 +157,13 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 06:00 UTC
-**Summary**: Auto-start browser and improve raw message display
+**Time**: 2026-01-31 06:30 UTC
+**Summary**: Implement viewport-based lazy loading for raw content
 **Status**: Complete
 
 ### Context
 
-Added automatic browser opening on startup with minimal delay. Improved "Show raw" display to show "(Click to load raw)" for unloaded content instead of summary, making it clearer when raw content needs to be loaded.
+User wanted to see raw content automatically without clicking. Implemented Intersection Observer to detect visible nodes and load raw content as user scrolls through the message tree.
 
 ### Planning
 
@@ -182,7 +182,8 @@ Current features implemented:
 - **Collapsible Options panel for cleaner UI**
 - **Full raw message text display (no truncation)**
 - **Auto-start browser on application launch**
-- **Clear indication when raw content needs to be loaded**
+- **Viewport-based lazy loading: raw content loads automatically as you scroll**
+- **300px buffer margin for smooth scrolling experience**
 
 ### Pending Tasks
 

@@ -106,7 +106,7 @@ This file maintains query history and tracks ongoing work across AI agent sessio
 - **Auto-start browser**: Added openBrowser() function that works cross-platform (Windows: cmd /c start, macOS: open, Linux: xdg-open)
   - Browser opens automatically after 500ms delay once server starts
   - Uses runtime.GOOS to determine correct command for the platform
-- **Improved raw message display**: 
+- **Improved raw message display**:
   - When "Show raw" is enabled, unloaded messages now show "(Click to load raw)" instead of summary
   - Makes it clear which messages have raw content loaded vs need to be clicked to load
   - Differentiates between truly empty content and unloaded content
@@ -116,29 +116,52 @@ This file maintains query history and tracks ongoing work across AI agent sessio
 
 ---
 
+### [2026-01-31 06:30 UTC] - Query: Implement viewport-based lazy loading for messages
+
+**Query**: I want to see the raw, not click to see it, the point is seeing my messages, it does not necessarily have to be optimized, maybe as I scroll, it shows and hides the details from the viewport plus a few more for fast scrolling
+
+**Context**: User wants raw content visible automatically without clicking, with lazy loading based on viewport visibility. Content should load as user scrolls, showing visible messages plus buffer for smooth scrolling.
+
+**Outcome**: Completed
+- **Intersection Observer Implementation**: Added viewportObserver using Intersection Observer API
+  - Observes all node elements in the message tree
+  - Detects when nodes enter/exit viewport
+  - 300px root margin buffer (loads content before it's visible, unloads after it's far away)
+- **Lazy Loading Functions**:
+  - `setupViewportObserver()`: Creates observer with 300px buffer and 1% threshold
+  - `observeVisibleNodes()`: Observes all .node-content elements after tree render
+  - `loadNodeContentForViewport()`: Fetches raw content for visible nodes and updates display
+- **Auto-display Updates**: When raw content loads, automatically updates node's text element if in raw mode
+- **Removed click-to-load**: No more "(Click to load raw)" fallback - summary shows until content loads
+- **Performance Optimization**: Uses loadingViewportNodes Set to prevent duplicate loads
+- **Files modified**:
+  - `oc-message-explorer/static/app.js`: Added viewportObserver, lazy loading functions, observeVisibleNodes call in renderTree
+
+---
+
 ## Current Focus
 
 ### Last Query
 
-**Query**: Auto-start browser and improve raw message display
-**Time**: 2026-01-31 06:00 UTC
-**Summary**: Added auto browser start and improved raw content display
+**Query**: Implement viewport-based lazy loading for messages
+**Time**: 2026-01-31 06:30 UTC
+**Summary**: Added automatic raw content loading as user scrolls
 
 ### Context
 
-User requested two improvements:
-1. Auto-start browser without delay once site is ready
-2. Show raw for everything with clear indication of unloaded content
+User wants to see raw content automatically without clicking to load. Implemented Intersection Observer API to detect which messages are visible in viewport and load their raw content dynamically.
 
 Implementation:
-- Added openBrowser() function using os/exec and runtime.GOOS
-- Cross-platform browser auto-start after 500ms delay (cmd/start on Windows, open on macOS, xdg-open on Linux)
-- Updated displayContent to check hasLoaded flag
-- Unloaded messages show "(Click to load raw)" instead of summary in raw mode
+- Added viewportObserver using Intersection Observer API
+- 300px root margin buffer for smooth scrolling (loads before visible)
+- loadNodeContentForViewport() fetches content for visible nodes
+- observeVisibleNodes() observes all node elements after render
+- Removed "(Click to load raw)" fallback - content shows summary until loaded
+- Raw content updates node text element automatically when loaded
 
 ### Planning
 
-UX improvements complete. Browser opens automatically on launch and raw message display is clearer.
+Lazy loading system complete. As users scroll, raw content loads automatically for visible messages plus buffer.
 
 ### Remaining Items
 
