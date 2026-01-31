@@ -1,0 +1,30 @@
+{
+  "name": "project-scaffolding",
+  "version": "0.0.1",
+  "license": "UNLICENSED",
+  "description": "Project scaffolding template with AI agent memory system and development tooling",
+  "type": "commonjs",
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "lint:fix": "eslint src --ext ts --fix",
+    "test": "node --test",
+    "prepare": "husky install",
+    "buildrelease": "npm version patch && npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^8.19.1",
+    "@typescript-eslint/parser": "^8.19.1",
+    "commitlint": "^19.6.1",
+    "eslint": "^9.17.0",
+    "husky": "^9.1.7",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.19.1"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}
