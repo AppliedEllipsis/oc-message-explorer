@@ -1252,7 +1252,7 @@ function saveSettings() {
 }
 
 function loadSettings() {
-    fetch('/api/config')
+    return fetch('/api/config')
         .then(res => res.json())
         .then(config => {
             configManager.config = config;
