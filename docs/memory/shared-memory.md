@@ -150,6 +150,90 @@ Information relevant to other tools continuing this work
 **Related Entries**: (optional)
 Links to related entries in shared memory or tool-specific memory
 
+### [2026-01-31 09:00 UTC] - Tool: Opencode - Build release v0.0.2
+
+**Tool**: Opencode
+**Task Type**: User-Directed Task
+**Status**: Complete
+
+**Summary**: Built release v0.0.2 - version bump from 0.0.1 to 0.0.2
+
+**Context**: User requested to build release. Project has no TypeScript source files yet (scaffolding phase), so compilation step expectedly fails.
+
+**Outcome**: Version bumped to 0.0.2. Compilation error expected (no source files to compile).
+
+**Notes**:
+- src/ directory only contains .gitkeep - no TypeScript source files yet
+- buildrelease script runs: npm version patch && npm run compile
+- Version incremented successfully: 0.0.1 → 0.0.2
+- This is expected behavior for scaffolding/documentation project
+
+---
+
+### [2026-01-31 09:15 UTC] - Tool: Opencode - Update message truncation logic
+
+**Tool**: Opencode
+**Task Type**: User-Directed Task
+**Status**: Complete
+
+**Summary**: Changed message truncation from line-based to character-based with improved formatting
+
+**Context**: User requested truncation look at characters instead of lines, break in the middle with "...", and AI summary in [] brackets at top.
+
+**Decisions Made**:
+- Changed from 9-line limit to 300-character limit for better consistency
+- Truncates by taking first 150 chars + last 150 chars with "..." in between
+- AI summary now wrapped in [] brackets and placed at top
+
+**Files Changed**:
+- Modified: [`oc-message-explorer/static/app.js`](oc-message-explorer/static/app.js:547)
+
+**Outcome**: Message truncation now uses character-based approach with clearer visual indicators.
+
+---
+
+### [2026-01-31 09:30 UTC] - Tool: Opencode - Add weighted search ranking
+
+**Tool**: Opencode
+**Task Type**: User-Directed Task
+**Status**: Complete
+
+**Summary**: Implemented weighted scoring for search results, exact matches rank higher
+
+**Context**: User requested weighted matches on search where exact matches should be ranked higher.
+
+**Decisions Made**:
+- Content matches weighted 150 (exact) / 100 (fuzzy)
+- Summary matches weighted 90 (exact) / 60 (fuzzy)
+- Type matches weighted 50 (exact) / 30 (fuzzy)
+- Tag matches weighted 35 (exact) / 20 (fuzzy)
+- fuzzy match quality factor based on gap streak between characters
+
+**Files Changed**:
+- Modified: [`oc-message-explorer/main.go`](oc-message-explorer/main.go:597)
+- Added: `calculateMatchScore` function
+- Added: `scoreMatch` function
+
+**Outcome**: Search results now weighted - exact matches and better fuzzy matches rank higher.
+
+---
+
+## Current Focus
+
+**Summary**: Changed message truncation from line-based to character-based with improved formatting
+
+**Context**: User requested truncation look at characters instead of lines, break in the middle with "...", and AI summary in [] brackets at top.
+
+**Decisions Made**:
+- Changed from 9-line limit to 300-character limit for better consistency
+- Truncates by taking first 150 chars + last 150 chars with "..." in between
+- AI summary now wrapped in [] brackets and placed at top
+
+**Files Changed**:
+- Modified: [`oc-message-explorer/static/app.js`](oc-message-explorer/static/app.js:547)
+
+**Outcome**: Message truncation now uses character-based approach with clearer visual indicators.
+
 ---
 
 ## Current Focus
@@ -157,13 +241,13 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 08:30 UTC
-**Summary**: Fixed API test and model fetching
+**Time**: 2026-01-31 09:00 UTC
+**Summary**: Build release v0.0.2
 **Status**: Complete
 
 ### Context
 
-User reported that AI endpoints and test don't seem to do anything. Investigation revealed inconsistencies in how API keys and base URLs were read between testApiKey(), fetchModels(), and showSettingsModal().
+Release v0.0.2 built with version bump from 0.0.1. Project is in scaffolding phase with no TypeScript source files yet.
 
 ### Planning
 
@@ -185,9 +269,10 @@ Current features implemented:
 - **Viewport-based lazy loading: raw content loads automatically as you scroll**
 - **300px buffer margin for smooth scrolling experience**
 - **Security confirmed: no credential leaks in git history**
-- **Message truncation for list view (9+ lines truncated in center with AI summary prefix if long)**
+- **Message truncation for list view (300+ chars truncated: first 150 + "..." + last 150, summary in [] brackets at top)**
 - **Editor reorganized: AI summary on right (280px sidebar), raw message on left (prominent)**
 - **Search filtering fixed: now properly shows empty state when no results found**
+- **加权搜索: 完整匹配优先，内容匹配加权最高(150/100)，其次是总结(90/60)**
 - **API test and model fetching fixed: improved error messages, consistent data sources**
 
 ### Pending Tasks

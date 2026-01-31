@@ -547,18 +547,19 @@ function getFolderInfo(nodeId) {
 function truncateContent(content, summary) {
     if (!content) return content;
 
-    const lines = content.split('\n');
-    const isLong = lines.length > 9;
+    const MAX_CHARS = 300;
+    const isLong = content.length > MAX_CHARS;
 
     let truncatedContent = content;
     if (isLong) {
-        const firstLines = lines.slice(0, 3);
-        const lastLines = lines.slice(-3);
-        truncatedContent = firstLines.join('\n') + '\n... (click to view full message) ...\n' + lastLines.join('\n');
-    }
+        const half = Math.floor(MAX_CHARS / 2);
+        const firstPart = content.slice(0, half);
+        const lastPart = content.slice(-half);
 
-    if (summary && isLong) {
-        return `${summary}\n\n${truncatedContent}`;
+        const prefix = summary && summary.trim() ? `[${summary.trim()}]\n\n` : '';
+        truncatedContent = prefix + firstPart + '\n...\n' + lastPart;
+    } else if (summary && summary.trim()) {
+        truncatedContent = `[${summary.trim()}]\n\n${content}`;
     }
 
     return truncatedContent;

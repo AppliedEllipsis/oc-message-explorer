@@ -594,6 +594,12 @@ func (s *Store) loadMessageContent(nodeID string) *MessageNode {
 	return nil
 }
 
+type SearchResult struct {
+	Node    *MessageNode `json:"node"`
+	Score   float64      `json:"score"`
+	Matched []string     `json:"matched"`
+}
+
 func (s *Store) searchMessages(query string, searchRaw bool) map[string]*MessageNode {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -607,27 +613,95 @@ func (s *Store) searchMessages(query string, searchRaw bool) map[string]*Message
 
 	for _, folder := range s.Folders {
 		for _, node := range folder.Nodes {
-			s.mu.RUnlock()
-			contentMatch := fuzzyMatch(queryLower, strings.ToLower(node.Content))
-			summaryMatch := fuzzyMatch(queryLower, strings.ToLower(node.Summary))
-			typeMatch := fuzzyMatch(queryLower, strings.ToLower(node.Type))
-			tagMatch := fuzzyTagsMatch(queryLower, node.Tags)
-
-			var shouldInclude bool
-			if searchRaw {
-				shouldInclude = contentMatch || typeMatch || tagMatch
-			} else {
-				shouldInclude = contentMatch || summaryMatch || typeMatch || tagMatch
-			}
-
-			if shouldInclude {
+			score, _ := calculateMatchScore(queryLower, node, searchRaw)
+			if score > 0 {
 				results[node.ID] = node
 			}
-			s.mu.RLock()
 		}
 	}
 
 	return results
+}
+
+func calculateMatchScore(queryLower string, node *MessageNode, searchRaw bool) (float64, []string) {
+	var score float64
+	matched := []string{}
+
+	scoreContent, exactContent := scoreMatch(queryLower, strings.ToLower(node.Content))
+	if scoreContent > 0 {
+		weight := 100.0
+		if exactContent {
+			weight = 150.0
+		}
+		score += scoreContent * weight
+		matched = append(matched, "content")
+	}
+
+	if !searchRaw {
+		scoreSummary, exactSummary := scoreMatch(queryLower, strings.ToLower(node.Summary))
+		if scoreSummary > 0 {
+			weight := 60.0
+			if exactSummary {
+				weight = 90.0
+			}
+			score += scoreSummary * weight
+			matched = append(matched, "summary")
+		}
+	}
+
+	scoreType, exactType := scoreMatch(queryLower, strings.ToLower(node.Type))
+	if scoreType > 0 {
+		weight := 30.0
+		if exactType {
+			weight = 50.0
+		}
+		score += scoreType * weight
+		matched = append(matched, "type")
+	}
+
+	for _, tag := range node.Tags {
+		scoreTag, exactTag := scoreMatch(queryLower, strings.ToLower(tag))
+		if scoreTag > 0 {
+			weight := 20.0
+			if exactTag {
+				weight = 35.0
+			}
+			score += scoreTag * weight
+			matched = append(matched, "tag")
+			break
+		}
+	}
+
+	return score, matched
+}
+
+func scoreMatch(query, text string) (float64, bool) {
+	if strings.Contains(text, query) {
+		if query == text {
+			return 2.0, true
+		}
+		return 1.0, true
+	}
+
+	queryRunes := []rune(query)
+	textRunes := []rune(text)
+	queryIdx := 0
+	gapStreak := 0
+
+	for _, r := range textRunes {
+		if queryIdx < len(queryRunes) && r == queryRunes[queryIdx] {
+			queryIdx++
+			gapStreak = 0
+		} else if queryIdx > 0 {
+			gapStreak++
+		}
+	}
+
+	if queryIdx >= len(queryRunes) {
+		return 0.5 / (1.0 + float64(gapStreak)), false
+	}
+
+	return 0.0, false
 }
 
 func fuzzyMatch(query, text string) bool {
