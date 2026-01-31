@@ -211,10 +211,57 @@ Links to related entries in shared memory or tool-specific memory
 
 **Files Changed**:
 - Modified: [`oc-message-explorer/main.go`](oc-message-explorer/main.go:597)
-- Added: `calculateMatchScore` function
-- Added: `scoreMatch` function
+- Modified: [`oc-message-explorer/static/app.js`](oc-message-explorer/static/app.js:547)
+- Modified: [`docs/memory/shared-memory.md`](docs/memory/shared-memory.md)
 
 **Outcome**: Search results now weighted - exact matches and better fuzzy matches rank higher.
+
+---
+
+### [2026-01-31 09:45 UTC] - Tool: Opencode - Commit and push changes
+
+**Tool**: Opencode
+**Task Type**: Maintenance
+**Status**: Complete
+
+**Summary**: Committed and pushed search weighting and message truncation improvements
+
+**Context**: User requested commit and push of recent changes.
+
+**Commit**: `7cc3bd6` - "~ [ search weighting and message truncation ]:"
+
+**Changes Pushed**:
+- Weighted search scoring with exact match priority
+- Character-based message truncation (300 chars)
+- AI summary in [] brackets at top
+- Shared memory documentation updates
+
+**Outcome**: All changes committed and pushed to origin/master successfully.
+
+---
+
+### [2026-01-31 10:00 UTC] - Tool: Opencode - Fix checkbox selection for combining
+
+**Tool**: Opencode
+**Task Type**: Bug Fix
+**Status**: Complete
+
+**Summary**: Fixed checkbox selection allowing multiple message selection for combining
+
+**Context**: User reported inability to select checkboxes to combine multiple messages. Investigation revealed the checkbox click handler was relying on toggleSelection which called updateMessage and renderTree, causing complete UI rebuild and potential state loss.
+
+**Decisions Made**:
+- Read checkbox.checked state directly from DOM instead of calculating
+- Use e.preventDefault() to ensure native checkbox behavior works
+- Manually toggle 'selected' class on contentDiv for immediate visual feedback
+- Avoid full re-render on checkbox click to preserve state
+
+**Files Changed**:
+- Modified: [`oc-message-explorer/static/app.js`](oc-message-explorer/static/app.js:489)
+
+**Outcome**: Checkboxes now work correctly for selecting multiple messages for combining. Binary rebuilt and ready.
+
+**Testing Required**: User should test multiple checkbox selection and Combine functionality.
 
 ---
 

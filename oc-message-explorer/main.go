@@ -184,22 +184,22 @@ func (cm *ConfigManager) setEnv(key, value string) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	if key == "OPENAI_API_KEY" {
+	if key == "OPENAI_API_KEY" || key == "openAIAPIKey" {
 		cm.config.OpenAIAPIKey = value
 	}
-	if key == "OPENAI_BASE_URL" {
+	if key == "OPENAI_BASE_URL" || key == "openaiBaseUrl" {
 		cm.config.OpenAIBaseURL = value
 	}
-	if key == "OPENAI_MODEL" {
+	if key == "OPENAI_MODEL" || key == "openaiModel" {
 		cm.config.OpenAIModel = value
 	}
-	if key == "OPTIMIZATION_PROMPT" {
+	if key == "OPTIMIZATION_PROMPT" || key == "optimizationPrompt" {
 		cm.config.OptimizationPrompt = value
 	}
-	if key == "PROJECT_PATH" {
+	if key == "PROJECT_PATH" || key == "projectPath" {
 		cm.config.ProjectPath = value
 	}
-	if key == "AGENTS_PATH" {
+	if key == "AGENTS_PATH" || key == "agentsPath" {
 		cm.config.AgentsPath = value
 	}
 

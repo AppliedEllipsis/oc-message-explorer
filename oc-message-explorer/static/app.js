@@ -488,7 +488,25 @@ function createNodeElement(node, messages, isRoot = false) {
 
     checkbox.onclick = (e) => {
         e.stopPropagation();
-        toggleSelection(node.id);
+        e.preventDefault();
+        const isChecked = checkbox.checked;
+        node.selected = isChecked;
+        contentDiv.classList.toggle('selected', isChecked);
+        
+        for (const folderId in folders) {
+            if (folders[folderId].nodes[node.id]) {
+                folders[folderId].nodes[node.id] = node;
+                break;
+            }
+        }
+        allMessages[node.id] = node;
+        
+        fetch(`/api/messages/${node.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(node)
+        }).catch(err => console.error('Failed to save selection:', err));
+        
         updateGraph();
     };
 
@@ -958,8 +976,7 @@ function copySelected() {
 }
 
 function showCombineModal() {
-    const messages = getMessagesToDisplay();
-    const selected = Object.values(messages).filter(m => m.selected);
+    const selected = Object.values(allMessages).filter(m => m.selected);
 
     if (selected.length === 0) {
         showNotification('No messages selected');
@@ -1033,6 +1050,50 @@ function removeFromCombine(index) {
     updateCombinedPreview();
 }
 
+function sortCombineByTime() {
+    combineOrder.sort((a, b) => {
+        const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return dateA - dateB;
+    });
+    renderCombineList();
+    updateCombinedPreview();
+}
+
+function sortCombineByType() {
+    const typeOrder = { user: 1, prompt: 2, auto: 3, response: 4 };
+    combineOrder.sort((a, b) => {
+        const orderA = typeOrder[a.type] || 99;
+        const orderB = typeOrder[b.type] || 99;
+        return orderA - orderB;
+    });
+    renderCombineList();
+    updateCombinedPreview();
+}
+
+function sortCombineByFolder() {
+    combineOrder.sort((a, b) => {
+        const folderA = getFolderInfo(a.id);
+        const folderB = getFolderInfo(b.id);
+        const nameA = folderA ? folderA.name.toLowerCase() : '';
+        const nameB = folderB ? folderB.name.toLowerCase() : '';
+        return nameA.localeCompare(nameB);
+    });
+    renderCombineList();
+    updateCombinedPreview();
+}
+
+function sortCombineByType() {
+    const typeOrder = { user: 1, prompt: 2, response: 3 };
+    combineOrder.sort((a, b) => {
+        const orderA = typeOrder[a.type] || 99;
+        const orderB = typeOrder[b.type] || 99;
+        return orderA - orderB;
+    });
+    renderCombineList();
+    updateCombinedPreview();
+}
+
 function updateCombinedPreview() {
     const preview = document.getElementById('combinedPreview');
     const combined = combineOrder.map(node => node.content).join('\n\n---\n\n');
@@ -1068,7 +1129,7 @@ function optimizeCombinedPrompts() {
 }
 
 function optimizePrompts() {
-    const apiKey = configManager.config.openAIAPIKey || localStorage.getItem('openaiApiKey');
+    const apiKey = configManager.config.openAIAPIKey;
     const baseUrl = configManager.config.openaiBaseUrl || 'https://api.openai.com/v1';
     const model = document.getElementById('openaiModel').value || configManager.config.openaiModel;
     const optimizationPrompt = document.getElementById('optimizationPrompt').value;
@@ -1089,11 +1150,19 @@ function optimizePrompts() {
 
     const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'chat/completions' : baseUrl + '/chat/completions';
 
-    // First fetch agents.md content
-    fetch('/api/agents-content')
-        .then(res => res.json())
+    const fullSystemPrompt = optimizationPrompt;
+
+    return fetch('/api/agents-content')
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`Failed to load AGENTS.md: ${res.status}`);
+            }
+            return res.json();
+        })
         .then(data => {
-            const fullSystemPrompt = `${optimizationPrompt}\n\n=== AGENTS.md Content ===\n\n${data.content}`;
+            const finalSystemPrompt = fullSystemPrompt ? 
+                `${fullSystemPrompt}\n\n=== AGENTS.md Content ===\n\n${data.content}` :
+                data.content;
 
             return fetch(apiUrl, {
                 method: 'POST',
@@ -1104,14 +1173,21 @@ function optimizePrompts() {
                 body: JSON.stringify({
                     model: model,
                     messages: [
-                        { role: 'system', content: fullSystemPrompt },
+                        { role: 'system', content: finalSystemPrompt },
                         { role: 'user', content: `Combine and optimize these prompts according to the system instructions:\n\n${combinedText}` }
                     ],
                     temperature: 0.7
                 })
             });
         })
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) {
+                return res.text().then(text => {
+                    throw new Error(`API error: ${res.status} - ${text}`);
+                });
+            }
+            return res.json();
+        })
         .then(data => {
             if (data.choices && data.choices[0]) {
                 const optimized = data.choices[0].message.content;
@@ -1124,13 +1200,15 @@ function optimizePrompts() {
 
                 document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
                 showNotification('Optimization complete');
+            } else if (data.error) {
+                throw new Error(data.error.message || data.error);
             } else {
                 throw new Error('No response from API');
             }
         })
         .catch(err => {
             console.error('Optimization error:', err);
-            resultDiv.innerHTML = `<div style="color: var(--danger); text-align: center; padding: 40px;">Error: ${escapeHtml(err.message)}</div>`;
+            resultDiv.innerHTML = `<div style="color: var(--danger); text-align: center; padding: 40px;">Error: ${escapeHtml(err.message || err.toString())}</div>`;
             showNotification('Optimization failed');
         });
 }

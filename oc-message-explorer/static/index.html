@@ -861,10 +861,25 @@
             flex: 1;
         }
 
-        .combine-list {
+.combine-list {
             flex: 1;
             overflow-y: auto;
             padding: 8px;
+        }
+
+        .combine-sort-controls {
+            display: flex;
+            gap: 6px;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .combine-sort-controls .btn {
+            font-size: 12px;
+            padding: 6px 10px;
+            flex: 1;
+            min-width: 80px;
         }
 
         .combine-item {
@@ -1399,6 +1414,11 @@
             <div class="combine-container">
                 <div class="combine-list-sidebar">
                     <div class="sidebar-header">Order</div>
+                    <div class="combine-sort-controls">
+                        <button class="btn" onclick="sortCombineByTime()">Sort by Time</button>
+                        <button class="btn" onclick="sortCombineByType()">Sort by Type</button>
+                        <button class="btn" onclick="sortCombineByFolder()">Sort by Folder</button>
+                    </div>
                     <div id="combineList" class="combine-list"></div>
                     <div class="combine-actions">
                         <button class="btn primary" onclick="copyCombined()">Copy Combined</button>
