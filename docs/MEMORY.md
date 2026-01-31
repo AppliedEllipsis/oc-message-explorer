@@ -85,7 +85,7 @@ This file maintains query history and tracks ongoing work across AI agent sessio
   - Search box remains always visible
   - All filter options hidden/collapsed by default
   - Options panel includes: Raw only, User only, Show raw, No empty res, Newest first toggles, date inputs, and New Prompt button
-- **Full message text display**: 
+- **Full message text display**:
   - Removed CSS text truncation (overflow: hidden, text-overflow: ellipsis)
   - Updated .node-text to use word-break: break-word and pre-wrap for proper wrapping
   - Modified displayContent logic to show full raw message content without 100-character limit
@@ -96,31 +96,49 @@ This file maintains query history and tracks ongoing work across AI agent sessio
 
 ---
 
+### [2026-01-31 06:00 UTC] - Query: Auto-start browser and improve raw message display
+
+**Query**: Auto-start browser without delay once site is ready. Show raw should show raw for everything, not just selected or options.
+
+**Context**: User wants the browser to open automatically when the app starts. Also wants "Show raw" to properly display raw content for all messages, making it clear when raw content needs to be loaded.
+
+**Outcome**: Completed
+- **Auto-start browser**: Added openBrowser() function that works cross-platform (Windows: cmd /c start, macOS: open, Linux: xdg-open)
+  - Browser opens automatically after 500ms delay once server starts
+  - Uses runtime.GOOS to determine correct command for the platform
+- **Improved raw message display**: 
+  - When "Show raw" is enabled, unloaded messages now show "(Click to load raw)" instead of summary
+  - Makes it clear which messages have raw content loaded vs need to be clicked to load
+  - Differentiates between truly empty content and unloaded content
+- **Files modified**:
+  - `oc-message-explorer/main.go`: Added imports (os/exec, runtime), openBrowser() function, auto-start call with 500ms delay
+  - `oc-message-explorer/static/app.js`: Updated displayContent logic to check hasLoaded flag and show appropriate text
+
+---
+
 ## Current Focus
 
 ### Last Query
 
-**Query**: Add options panel and show full raw messages
-**Time**: 2026-01-31 05:30 UTC
-**Summary**: Added collapsible Options button and fixed message text display
+**Query**: Auto-start browser and improve raw message display
+**Time**: 2026-01-31 06:00 UTC
+**Summary**: Added auto browser start and improved raw content display
 
 ### Context
 
-User requested:
-1. Hide options, toggles, filtering (except search) behind an options button
-2. Show raw long messages in the message list instead of truncated text
+User requested two improvements:
+1. Auto-start browser without delay once site is ready
+2. Show raw for everything with clear indication of unloaded content
 
 Implementation:
-- Added "Options ⚙️" toggle button to toolbar
-- Moved all filter options into collapsible options panel
-- Search box remains always visible
-- Removed CSS text truncation (ellipsis)
-- Modified displayContent logic to show full raw message content
-- Updated .node-text CSS to use word-break and pre-wrap for proper text wrapping
+- Added openBrowser() function using os/exec and runtime.GOOS
+- Cross-platform browser auto-start after 500ms delay (cmd/start on Windows, open on macOS, xdg-open on Linux)
+- Updated displayContent to check hasLoaded flag
+- Unloaded messages show "(Click to load raw)" instead of summary in raw mode
 
 ### Planning
 
-UI improvements completed. The interface is now cleaner with options hidden by default, and full message content is visible without truncation.
+UX improvements complete. Browser opens automatically on launch and raw message display is clearer.
 
 ### Remaining Items
 

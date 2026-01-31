@@ -157,13 +157,13 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 05:30 UTC
-**Summary**: Add options panel and show full raw messages
+**Time**: 2026-01-31 06:00 UTC
+**Summary**: Auto-start browser and improve raw message display
 **Status**: Complete
 
 ### Context
 
-Added collapsible Options button to hide/filter/display options keeping search always visible. Fixed message text display to show full content instead of truncating at 100 characters.
+Added automatic browser opening on startup with minimal delay. Improved "Show raw" display to show "(Click to load raw)" for unloaded content instead of summary, making it clearer when raw content needs to be loaded.
 
 ### Planning
 
@@ -181,7 +181,8 @@ Current features implemented:
 - Task-oriented prompt optimization with AGENTS.md context
 - **Collapsible Options panel for cleaner UI**
 - **Full raw message text display (no truncation)**
-- **Message text wraps appropriately**
+- **Auto-start browser on application launch**
+- **Clear indication when raw content needs to be loaded**
 
 ### Pending Tasks
 

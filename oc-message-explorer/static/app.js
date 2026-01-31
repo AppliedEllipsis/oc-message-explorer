@@ -433,7 +433,13 @@ function createNodeElement(node, messages, isRoot = false) {
 
     let displayContent;
     if (displayModeRaw) {
-        displayContent = node.content && node.content.trim() !== '' ? node.content : (node.summary ? node.summary : '(No content)');
+        if (node.content && node.content.trim() !== '') {
+            displayContent = node.content;
+        } else if (node.hasLoaded) {
+            displayContent = node.summary || '(No content)';
+        } else {
+            displayContent = '(Click to load raw)';
+        }
     } else {
         displayContent = node.summary ? node.summary : (node.content ? node.content : '(No content)');
     }
