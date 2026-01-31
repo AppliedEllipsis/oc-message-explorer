@@ -12,6 +12,7 @@ let userOnlyFilter = false;
 let dateRangeFilter = { start: null, end: null };
 let combineOrder = [];
 let combineDraggedIndex = null;
+let selectedTags = [];
 
 function init() {
     connectWebSocket();
@@ -19,6 +20,7 @@ function init() {
     setupDragAndDrop();
     setupDateFilter();
     setupCombineDragAndDrop();
+    loadSettings();
 }
 
 function connectWebSocket() {
@@ -37,6 +39,7 @@ function connectWebSocket() {
             renderFolders();
             renderTree();
             updateGraph();
+            updateTagCloud();
             hideLoadingScreen();
         } else if (message.type === 'progress') {
             handleProgress(message.data);
@@ -97,6 +100,58 @@ function selectFolder(id) {
     renderFolders();
     renderTree();
     updateGraph();
+    updateTagCloud();
+}
+
+function updateTagCloud() {
+    const container = document.getElementById('tagCloud');
+    const tagCounts = {};
+
+    for (const id in allMessages) {
+        const node = allMessages[id];
+        if (node.tags) {
+            node.tags.forEach(tag => {
+                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            });
+        }
+
+        if (node.type) {
+            tagCounts[node.type] = (tagCounts[node.type] || 0) + 1;
+        }
+    }
+
+    const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+
+    let html = `<div class="tag-cloud-item ${selectedTags.length === 0 ? 'active' : ''}" onclick="clearTagFilter()">Clear All</div>`;
+
+    sortedTags.forEach(([tag, count]) => {
+        const isActive = selectedTags.includes(tag);
+        html += `
+            <div class="tag-cloud-item ${isActive ? 'active' : ''}" onclick="toggleTagFilter('${escapeHtml(tag)}')">
+                ${escapeHtml(tag)}
+                <span class="tag-count">${count}</span>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function toggleTagFilter(tag) {
+    const index = selectedTags.indexOf(tag);
+    if (index === -1) {
+        selectedTags.push(tag);
+    } else {
+        selectedTags.splice(index, 1);
+    }
+    updateTagCloud();
+    renderTree();
+}
+
+function clearTagFilter() {
+    selectedTags = [];
+    updateTagCloud();
+    renderTree();
 }
 
 function toggleUserFilter() {
@@ -140,6 +195,14 @@ function getMessagesToDisplay() {
 
         if (userOnlyFilter && node.type !== 'prompt') {
             include = false;
+        }
+
+        if (include && selectedTags.length > 0) {
+            const hasTag = node.tags && node.tags.some(t => selectedTags.includes(t));
+            const hasType = selectedTags.includes(node.type);
+            if (!hasTag && !hasType) {
+                include = false;
+            }
         }
 
         if (include && dateRangeFilter.start && node.timestamp) {
@@ -200,7 +263,7 @@ function renderTree() {
     let messages;
 
     if (searchQuery && Object.keys(searchResults).length > 0) {
-        messages = applyDateAndUserFilter(searchResults);
+        messages = applyFilters(searchResults);
     } else {
         messages = getMessagesToDisplay();
     }
@@ -208,7 +271,7 @@ function renderTree() {
     if (Object.keys(messages).length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <h3>${searchQuery ? 'No messages match your search' : 'No messages yet'}</h3>
+                <h3>${searchQuery || selectedTags.length > 0 ? 'No messages match your filters' : 'No messages yet'}</h3>
                 <p>${searchQuery ? 'Try a different search term' : 'Reload to load your OpenChat history'}</p>
             </div>
         `;
@@ -230,7 +293,7 @@ function renderTree() {
     });
 }
 
-function applyDateAndUserFilter(messages) {
+function applyFilters(messages) {
     let filtered = {};
 
     for (const id in messages) {
@@ -239,6 +302,14 @@ function applyDateAndUserFilter(messages) {
 
         if (userOnlyFilter && node.type !== 'prompt') {
             include = false;
+        }
+
+        if (include && selectedTags.length > 0) {
+            const hasTag = node.tags && node.tags.some(t => selectedTags.includes(t));
+            const hasType = selectedTags.includes(node.type);
+            if (!hasTag && !hasType) {
+                include = false;
+            }
         }
 
         if (include && dateRangeFilter.start && node.timestamp) {
@@ -800,6 +871,86 @@ function copyCombined() {
     });
 }
 
+function optimizeCombinedPrompts() {
+    const combined = combineOrder.map(node => node.content).join('\n\n---\n\n');
+    
+    document.getElementById('optimizerPreview').textContent = combined;
+    
+    if (window.marked) {
+        document.getElementById('optimizerPreview').innerHTML = window.marked.parse(combined);
+    }
+    
+    document.getElementById('optimizeModal').classList.add('active');
+}
+
+function optimizePrompts() {
+    const apiKey = localStorage.getItem('openaiApiKey');
+    const model = document.getElementById('openaiModel').value;
+    const optimizationPrompt = document.getElementById('optimizationPrompt').value;
+    const combinedText = document.getElementById('optimizerPreview').textContent;
+
+    if (!apiKey) {
+        showNotification('Please set OpenAI API key in settings');
+        return;
+    }
+
+    if (!model) {
+        showNotification('Please select a model');
+        return;
+    }
+
+    const resultDiv = document.getElementById('optimizerResult');
+    resultDiv.innerHTML = '<div style="text-align: center; padding: 40px;">Optimizing...</div>';
+
+    fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: model,
+            messages: [
+                { role: 'system', content: optimizationPrompt },
+                { role: 'user', content: `Optimize these prompts:\n\n${combinedText}` }
+            ],
+            temperature: 0.7
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.choices && data.choices[0]) {
+            const optimized = data.choices[0].message.content;
+            
+            if (window.marked) {
+                resultDiv.innerHTML = window.marked.parse(optimized);
+            } else {
+                resultDiv.textContent = optimized;
+            }
+            
+            document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
+            showNotification('Optimization complete');
+        } else {
+            throw new Error('No response from API');
+        }
+    })
+    .catch(err => {
+        console.error('Optimization error:', err);
+        resultDiv.innerHTML = `<div style="color: var(--danger); text-align: center; padding: 40px;">Error: ${escapeHtml(err.message)}</div>`;
+        showNotification('Optimization failed');
+    });
+}
+
+function copyOptimizedResult() {
+    const result = document.getElementById('optimizerResult').textContent;
+    navigator.clipboard.writeText(result).then(() => {
+        showNotification('Optimized result copied');
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        showNotification('Failed to copy');
+    });
+}
+
 function setupCombineDragAndDrop() {
     const container = document.getElementById('combineList');
 
@@ -865,6 +1016,125 @@ function importData(event) {
 
 function reloadData() {
     location.reload();
+}
+
+function showSettingsModal() {
+    const apiKey = localStorage.getItem('openaiApiKey') || '';
+    const model = localStorage.getItem('openaiModel') || '';
+    const optimizationPrompt = localStorage.getItem('optimizationPrompt') || 
+        'Please optimize and rewrite these prompts for clarity, conciseness, and effectiveness. Maintain the key intent while improving phrasing.';
+
+    document.getElementById('openaiApiKey').value = apiKey;
+    document.getElementById('openaiModel').value = model;
+    document.getElementById('optimizationPrompt').value = optimizationPrompt;
+
+    if (apiKey) {
+        document.getElementById('modelSelectGroup').style.display = 'block';
+        fetchModels(false);
+    }
+
+    document.getElementById('settingsModal').classList.add('active');
+}
+
+function saveSettings() {
+    const apiKey = document.getElementById('openaiApiKey').value.trim();
+    const model = document.getElementById('openaiModel').value;
+    const optimizationPrompt = document.getElementById('optimizationPrompt').value.trim();
+
+    localStorage.setItem('openaiApiKey', apiKey);
+    localStorage.setItem('openaiModel', model);
+    localStorage.setItem('optimizationPrompt', optimizationPrompt);
+
+    showNotification('Settings saved');
+    hideModal('settingsModal');
+}
+
+function loadSettings() {
+    const apiKey = localStorage.getItem('openaiApiKey');
+    if (apiKey) {
+        fetchModels(false);
+    }
+}
+
+function testApiKey() {
+    const apiKey = document.getElementById('openaiApiKey').value.trim();
+
+    if (!apiKey) {
+        showNotification('Please enter API key');
+        return;
+    }
+
+    fetch('https://api.openai.com/v1/models', {
+        headers: {
+            'Authorization': `Bearer ${apiKey}`
+        }
+    })
+    .then(res => {
+        if (res.ok) {
+            showNotification('API key is valid');
+            return res.json();
+        } else {
+            throw new Error('Invalid API key');
+        }
+    })
+    .then(data => {
+        document.getElementById('modelSelectGroup').style.display = 'block';
+        populateModels(data.data);
+    })
+    .catch(err => {
+        console.error('API key test failed:', err);
+        showNotification('API key is invalid');
+    });
+}
+
+function fetchModels(showNotificationOnSuccess = true) {
+    const apiKey = localStorage.getItem('openaiApiKey');
+
+    if (!apiKey) {
+        return;
+    }
+
+    fetch('https://api.openai.com/v1/models', {
+        headers: {
+            'Authorization': `Bearer ${apiKey}`
+        }
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch models');
+        return res.json();
+    })
+    .then(data => {
+        populateModels(data.data);
+        if (showNotificationOnSuccess) {
+            showNotification('Models loaded');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to fetch models:', err);
+        if (showNotificationOnSuccess) {
+            showNotification('Failed to load models');
+        }
+    });
+}
+
+function populateModels(models) {
+    const select = document.getElementById('openaiModel');
+    const currentModel = select.value;
+
+    const gptModels = models.filter(m => m.id.startsWith('gpt-'));
+    
+    select.innerHTML = '<option value="">Select a model</option>';
+    
+    gptModels.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model.id;
+        option.textContent = model.id;
+        select.appendChild(option);
+    });
+
+    if (currentModel) {
+        select.value = currentModel;
+    }
 }
 
 function showNotification(message) {
