@@ -157,13 +157,13 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 01:57 UTC
-**Summary**: Completed markdown rendering and message combine features
-**Status**: Complete - All current features implemented
+**Time**: 2026-01-31 02:07 UTC
+**Summary**: Completed .env configuration backend, todo list, and AGENTS.md integration
+**Status**: Complete - All features implemented
 
 ### Context
 
-OC Message Explorer is now feature-complete for current phase. Added markdown rendering for responses and a combine modal with drag-and-drop reordering for selected messages.
+OC Message Explorer now has full configuration management via .env file, todo list functionality for task tracking, and AGENTS.md integration into prompt optimization. Settings are persisted to .env file and config.json.
 
 ### Planning
 
@@ -175,15 +175,30 @@ Current features implemented and tested:
 - Markdown rendering for all responses
 - Combine modal with drag-and-drop reordering
 - Copy combined text with separators
+- .env file configuration management via web UI
+- Todo list functionality with priority levels
+- AGENTS.md content loading and viewing
+- Task-oriented prompt optimization with AGENTS.md context
+- OpenAI API model listing and selection
 - Clean, minimalist UI design
 
 ### Pending Tasks
 
-- [ ] Add tag cloud widget for filtering by tags/message types
-- [ ] Add OpenAI API configuration in settings modal
-- [ ] Implement model listing from OpenAI API endpoint
-- [ ] Add prompt rewriting/optimization using selected model
-- [ ] Create project settings modal for API key management
+- [ ] Add tag cloud widget for filtering by tags/message types (tags already display in messages, need dedicated filter UI)
+- [ ] Enhanced search with advanced options (regex, filters)
+- [ ] Export in additional formats (PDF, plain text)
+- [ ] Message versioning and comparison
+
+### Configuration Files
+
+**.env** - Environment variables stored here:
+- OPENAI_API_KEY - OpenAI API key
+- OPENAI_MODEL - Default model for optimization
+- OPTIMIZATION_PROMPT - Custom optimization prompt
+- PROJECT_PATH - Path to project directory
+- AGENTS_PATH - Path to AGENTS.md file
+
+**config.json** - Internal config storage for todos and settings backup
 
 ---
 
