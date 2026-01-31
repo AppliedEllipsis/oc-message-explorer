@@ -338,8 +338,12 @@ function renderTree() {
     const container = document.getElementById('treeContainer');
     let messages;
 
-    if (searchQuery && Object.keys(searchResults).length > 0) {
-        messages = applyFilters(searchResults);
+    if (searchQuery && searchQuery.length >= 2) {
+        if (Object.keys(searchResults).length > 0) {
+            messages = applyFilters(searchResults);
+        } else {
+            messages = {};
+        }
     } else {
         messages = getMessagesToDisplay();
     }
@@ -439,7 +443,7 @@ function createNodeElement(node, messages, isRoot = false) {
     let displayContent;
     if (displayModeRaw) {
         displayContent = node.content && node.content.trim() !== '' ? node.content : (node.summary || '(No content)');
-        displayContent = truncateContent(displayContent);
+        displayContent = truncateContent(displayContent, node.summary);
     } else {
         displayContent = node.summary ? node.summary : (node.content ? node.content : '(No content)');
     }
@@ -540,16 +544,24 @@ function getFolderInfo(nodeId) {
     return null;
 }
 
-function truncateContent(content) {
+function truncateContent(content, summary) {
     if (!content) return content;
 
     const lines = content.split('\n');
-    if (lines.length <= 9) return content;
+    const isLong = lines.length > 9;
 
-    const firstLines = lines.slice(0, 3);
-    const lastLines = lines.slice(-3);
+    let truncatedContent = content;
+    if (isLong) {
+        const firstLines = lines.slice(0, 3);
+        const lastLines = lines.slice(-3);
+        truncatedContent = firstLines.join('\n') + '\n... (click to view full message) ...\n' + lastLines.join('\n');
+    }
 
-    return firstLines.join('\n') + '\n... (click to view full message) ...\n' + lastLines.join('\n');
+    if (summary && isLong) {
+        return `${summary}\n\n${truncatedContent}`;
+    }
+
+    return truncatedContent;
 }
 
 function setupViewportObserver() {
@@ -593,7 +605,7 @@ function loadNodeContentForViewport(nodeId) {
             if (node && node.content && node.content.trim() !== '') {
                 const textEl = nodeEl.querySelector('.node-text');
                 if (textEl) {
-                    textEl.textContent = truncateContent(node.content);
+                    textEl.textContent = truncateContent(node.content, node.summary);
                 }
             }
         }
@@ -747,15 +759,7 @@ function openEditor(nodeId) {
         currentEditingNodeId = nodeId;
         const updatedNode = allMessages[nodeId];
         document.getElementById('nodeType').value = updatedNode.type;
-
-        let content = updatedNode.content || '';
-        if (updatedNode.summary && content) {
-            content = `=== AI Summary ===\n${updatedNode.summary}\n\n=== Raw Content ===\n${content}`;
-        } else if (updatedNode.summary && !content) {
-            content = `=== AI Summary ===\n${updatedNode.summary}`;
-        }
-
-        document.getElementById('nodeContent').value = content;
+        document.getElementById('nodeContent').value = updatedNode.content || '';
         document.getElementById('nodeSummary').value = updatedNode.summary || '';
         document.getElementById('nodeTags').value = (updatedNode.tags || []).join(', ');
         document.getElementById('editorPanel').style.display = 'flex';
@@ -773,27 +777,11 @@ function saveNode() {
     const node = allMessages[currentEditingNodeId];
     if (!node) return;
 
-    let content = document.getElementById('nodeContent').value;
-    const summary = document.getElementById('nodeSummary').value;
-
-    // Strip out AI Summary prefix if present (from our display formatting)
-    const summaryPrefix = '=== AI Summary ===\n';
-    const contentPrefix = '\n=== Raw Content ===\n';
-    if (content.startsWith(summaryPrefix)) {
-        const summaryEndIndex = content.indexOf(contentPrefix);
-        if (summaryEndIndex !== -1) {
-            content = content.substring(summaryEndIndex + contentPrefix.length);
-        } else {
-            // Only summary, no content
-            content = content.substring(summaryPrefix.length);
-        }
-    }
-
     const updatedNode = {
         ...node,
         type: document.getElementById('nodeType').value,
-        content,
-        summary,
+        content: document.getElementById('nodeContent').value,
+        summary: document.getElementById('nodeSummary').value,
         tags: document.getElementById('nodeTags').value.split(',').map(t => t.trim()).filter(t => t)
     };
 

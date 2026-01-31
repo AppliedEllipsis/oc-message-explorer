@@ -194,29 +194,56 @@ This file maintains query history and tracks ongoing work across AI agent sessio
 
 ---
 
+### [2026-01-31 08:00 UTC] - Query: Editor layout reorganization and search filter fix
+
+**Query**: ai summary on right should be the first box and smaller, and the raw should be a longer box and more prominent. search also doesn't seem to be filtering
+
+**Context**: User wants AI summary on right sidebar (smaller), raw message as main prominent area (larger). Search is not filtering - showing all messages when no results found instead of empty state.
+
+**Outcome**: Completed
+- **Editor Layout Reorganization**: Converted to two-column layout
+  - Left main area: Raw message content (large, prominent, 100% height with min 400px)
+  - Right sidebar (280px): AI Summary at top, Type selector below, Tags input below
+  - Editor panel width increased from 450px to 700px
+  - Raw message textarea uses flex to fill available space
+- **Search Filtering Fix**: Fixed renderTree() logic
+  - Changed condition to check `searchQuery.length >= 2` to properly detect search mode
+  - When search is active but no results found, now shows empty state instead of all messages
+  - Previously fell through to getMessagesToDisplay() when searchResults was empty
+  - Now correctly shows "No messages match your filters" when search yields no results
+- **CSS Updates**:
+  - Added .editor-main and .editor-sidebar classes for layout
+  - Updated .editor-content to use flexbox with row direction
+  - Editor textarea styling for main vs sidebar textareas
+  - Form group adjustments for flex layout
+- **Files modified**:
+  - `oc-message-explorer/static/index.html`: Reorganized editor HTML structure, added CSS classes
+  - `oc-message-explorer/static/app.js`: Fixed renderTree() search filtering logic
+
+---
+
 ## Current Focus
 
 ### Last Query
 
-**Query**: Message truncation and AI summary in editor
-**Time**: 2026-01-31 07:30 UTC
-**Summary**: Added truncation for list view, full content with AI summary on click
+**Query**: Editor layout and search filter fixes
+**Time**: 2026-01-31 08:00 UTC
+**Summary**: Reorganized editor layout and fixed search filtering
 
 ### Context
 
-User wants long messages (> 9 lines) truncated in list view with center omitted ("..."), but displayed fully when clicked. Also requested AI summary be appended to top of full content.
+Two issues addressed: 1) AI summary should be on right sidebar (smaller), raw message prominent on left (larger). 2) Search not filtering properly - showing all messages when no results found.
 
 Implementation:
-- Added truncateContent() function that slices first 3 lines + "..." + last 3 lines for messages > 9 lines
-- Updated createNodeElement to apply truncation in display mode
-- Updated loadNodeContentForViewport to use truncation when content loads
-- Modified openEditor() to prepend "=== AI Summary ===" and "=== Raw Content ===" headers
-- Updated saveNode() to strip out header prefixes before saving to avoid corrupting content
-- Editor now shows organized layout with summary on top, raw content below
+- Reorganized editor into two-column layout (main + sidebar)
+- Fixed renderTree() to properly show empty state when search returns no results
+- Search now checks `searchQuery.length >= 2` before using search results
+- Raw message textarea takes full available height in main area
+- AI Summary, Type, Tags in 280px right sidebar
 
 ### Planning
 
-Message display optimized. List view shows compact previews, editor shows full content with AI summary at top.
+Editor now has better layout emphasizing raw content. Search properly filters and shows appropriate empty state.
 
 ### Remaining Items
 
