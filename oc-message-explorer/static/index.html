@@ -1083,22 +1083,22 @@
         }
 
         .optimize-modal {
-            max-width: 700px;
-            max-height: 85vh;
+            max-width: 900px;
+            max-height: 95vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            height: 95vh;
         }
 
         .optimizer-section {
-            flex: 1;
+            flex: 0 0 auto;
             overflow: hidden;
             display: flex;
             flex-direction: column;
         }
 
         .optimizer-preview {
-            flex: 1;
             overflow-y: auto;
             padding: 12px;
             background: var(--bg-primary);
@@ -1106,8 +1106,23 @@
             border-radius: 6px;
             font-size: 15px;
             line-height: 1.6;
-            max-height: 250px;
-            min-height: 150px;
+            word-wrap: break-word;
+            overflow-x: hidden;
+        }
+
+        #optimizerPreview {
+            max-height: 200px;
+            min-height: 100px;
+        }
+
+        #optimizerResult {
+            height: auto;
+            flex: 1;
+        }
+
+        #optimizerResult div[style*="padding: 12px"] {
+            height: 100%;
+            overflow-y: auto;
         }
 
         .optimizer-preview h1,
@@ -1504,20 +1519,20 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
     </div>
 
     <div class="modal" id="optimizeModal">
-        <div class="modal-content optimize-modal" style="width: 700px;">
+        <div class="modal-content optimize-modal" style="width: 900px; max-height: 95vh;">
             <div class="modal-header">
                 Optimize Prompts
                 <button class="close-btn" onclick="hideModal('optimizeModal')">&times;</button>
             </div>
-            <div class="optimizer-section">
+            <div class="optimizer-section" style="flex: 0 0 auto; max-height: 200px;">
                 <label class="form-label">Combined Text</label>
                 <div class="optimizer-preview" id="optimizerPreview"></div>
             </div>
-            <div class="form-group">
+            <div class="form-group" style="flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; padding: 16px 0 0;">
                 <label class="form-label">Optimized Result</label>
-                <div class="optimizer-preview" id="optimizerResult">
+                <div class="optimizer-preview" id="optimizerResult" style="height: 100%;">
                     <div style="color: var(--text-muted); text-align: center; padding: 40px;">
-                        Click "Optimize" to generate an optimized version
+                        Click "Optimize" to combine your notes
                     </div>
                 </div>
             </div>

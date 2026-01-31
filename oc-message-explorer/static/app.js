@@ -1147,22 +1147,25 @@ function copyCombined() {
 
 function optimizeCombinedPrompts() {
     const combined = combineOrder.map(node => node.content).join('\n\n---\n\n');
-    
+
+    hideModal('combineModal');
+
     document.getElementById('optimizerPreview').textContent = combined;
-    
+
     if (window.marked) {
         document.getElementById('optimizerPreview').innerHTML = window.marked.parse(combined);
     }
-    
+
     document.getElementById('optimizeModal').classList.add('active');
+
+    setTimeout(() => optimizePrompts(), 500);
 }
 
 function optimizePrompts() {
     const apiKey = configManager.config.openAIAPIKey;
     const baseUrl = configManager.config.openaiBaseUrl || 'https://api.openai.com/v1';
     const model = document.getElementById('openaiModel').value || configManager.config.openaiModel;
-    const optimizationPrompt = document.getElementById('optimizationPrompt').value;
-    const combinedText = document.getElementById('optimizerPreview').textContent;
+    const combinedText = combineOrder.map(node => node.content).join('\n\n---\n\n');
 
     if (!apiKey) {
         showNotification('Please set OpenAI API key in settings');
@@ -1171,6 +1174,11 @@ function optimizePrompts() {
 
     if (!model) {
         showNotification('Please select a model');
+        return;
+    }
+
+    if (combineOrder.length === 0) {
+        showNotification('No messages to combine');
         return;
     }
 
@@ -1183,112 +1191,90 @@ function optimizePrompts() {
     }
 
     resultDiv.innerHTML = `
-        <div style="text-align: center; padding: 40px;">
-            <div style="font-size: 32px; margin-bottom: 16px; animation: spin 1s linear infinite;">⏳</div>
-            <div style="color: var(--text-secondary);">Loading AGENTS.md...</div>
+        <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;">
+            <div style="font-size: 32px; margin-bottom: 16px; animation: spin 1s linear infinite;">🤖</div>
+            <div style="color: var(--text-secondary);">AI is combining your notes...</div>
+            <div style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">${combineOrder.length} message(s) to combine</div>
         </div>
     `;
 
     showNotification('Starting optimization...');
 
     const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'chat/completions' : baseUrl + '/chat/completions';
-    const fullSystemPrompt = optimizationPrompt;
 
-    fetch('/api/agents-content')
-        .then(res => {
-            if (!res.ok) {
-                throw new Error(`Failed to load AGENTS.md: ${res.status}`);
-            }
-            return res.json();
+    console.log('Calling optimization API with model:', model);
+    console.log('Combining', combineOrder.length, 'messages');
+
+    fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: model,
+            messages: [
+                { role: 'system', content: 'You are a helpful assistant that combines and summarizes multiple notes into a clear, organized, and cohesive summary. Focus on extracting the key information and creating a unified document that flows well. Do not explain your process - just provide the combined summary.' },
+                { role: 'user', content: `Combine and summarize these notes:\n\n${combinedText}` }
+            ],
+            temperature: 0.7
         })
-        .then(data => {
-            showNotification('AGENTS.md loaded, calling AI...');
-
-            resultDiv.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <div style="font-size: 32px; margin-bottom: 16px; animation: spin 1s linear infinite;">🤖</div>
-                    <div style="color: var(--text-secondary);">AI is optimizing your prompts...</div>
-                    <div style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">This may take a few seconds</div>
-                </div>
-            `;
-
-            const finalSystemPrompt = fullSystemPrompt ?
-                `${fullSystemPrompt}\n\n=== AGENTS.md Content ===\n\n${data.content}` :
-                data.content;
-
-            console.log('Calling optimization API with model:', model);
-
-            return fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        { role: 'system', content: finalSystemPrompt },
-                        { role: 'user', content: `Combine and optimize these prompts according to the system instructions:\n\n${combinedText}` }
-                    ],
-                    temperature: 0.7
-                })
-            });
-        })
-        .then(res => {
-            if (!res.ok) {
-                return res.text().then(text => {
-                    console.error('API error response:', text);
-                    if (res.status === 401) {
-                        throw new Error('Invalid API key');
-                    } else if (res.status === 404) {
-                        throw new Error('Model not found - check model name and base URL');
-                    } else if (res.status === 429) {
-                        throw new Error('Rate limit exceeded - try again later');
-                    } else {
-                        throw new Error(`API error: ${res.status} - ${text}`);
-                    }
-                });
-            }
-            return res.json();
-        })
-        .then(data => {
-            console.log('Optimization response:', data);
-
-            if (data.choices && data.choices[0]) {
-                const optimized = data.choices[0].message.content;
-
-                if (window.marked) {
-                    resultDiv.innerHTML = window.marked.parse(optimized);
+    })
+    .then(res => {
+        if (!res.ok) {
+            return res.text().then(text => {
+                console.error('API error response:', text);
+                if (res.status === 401) {
+                    throw new Error('Invalid API key');
+                } else if (res.status === 404) {
+                    throw new Error('Model not found - check model name and base URL');
+                } else if (res.status === 429) {
+                    throw new Error('Rate limit exceeded - try again later');
                 } else {
-                    resultDiv.textContent = optimized;
+                    throw new Error(`API error: ${res.status} - ${text}`);
                 }
+            });
+        }
+        return res.json();
+    })
+    .then(data => {
+        console.log('Optimization response:', data);
 
-                showNotification('✓ Optimization complete!');
-                document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
-            } else if (data.error) {
-                throw new Error(data.error.message || JSON.stringify(data.error));
+        if (data.choices && data.choices[0]) {
+            const optimized = data.choices[0].message.content;
+
+            if (window.marked) {
+                resultDiv.innerHTML = `<div style="padding: 12px;">${window.marked.parse(optimized)}</div>`;
             } else {
-                throw new Error('No choices in API response');
+                resultDiv.innerHTML = `<div style="padding: 12px;">${optimized}</div>`;
             }
-        })
-        .catch(err => {
-            console.error('Optimization error:', err);
-            resultDiv.innerHTML = `
-                <div style="color: var(--danger); text-align: center; padding: 40px;">
-                    <div style="font-size: 32px; margin-bottom: 16px;">❌</div>
-                    <div style="font-weight: 600; margin-bottom: 8px;">Optimization Failed</div>
-                    <div style="color: var(--text-secondary); font-size: 14px;">${escapeHtml(err.message || err.toString())}</div>
-                    <div style="color: var(--text-muted); font-size: 13px; margin-top: 16px;">Check your settings and try again</div>
-                </div>
-            `;
-            showNotification(`✗ Optimization failed: ${err.message}`);
-        })
-        .finally(() => {
-            if (optimizeBtn) {
-                optimizeBtn.disabled = false;
-                optimizeBtn.textContent = 'Optimize';
-            }
-        });
+
+            showNotification('✓ Notes combined successfully!');
+            document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
+        } else if (data.error) {
+            throw new Error(data.error.message || JSON.stringify(data.error));
+        } else {
+            throw new Error('No choices in API response');
+        }
+    })
+    .catch(err => {
+        console.error('Optimization error:', err);
+        resultDiv.innerHTML = `
+            <div style="color: var(--danger); text-align: center; padding: 40px;">
+                <div style="font-size: 32px; margin-bottom: 16px;">❌</div>
+                <div style="font-weight: 600; margin-bottom: 8px;">Optimization Failed</div>
+                <div style="color: var(--text-secondary); font-size: 14px;">${escapeHtml(err.message || err.toString())}</div>
+                <div style="color: var(--text-muted); font-size: 13px; margin-top: 16px;">Check your settings and try again</div>
+            </div>
+        `;
+        showNotification(`✗ Optimization failed: ${err.message}`);
+    })
+    .finally(() => {
+        if (optimizeBtn) {
+            optimizeBtn.disabled = false;
+            optimizeBtn.textContent = 'Optimize';
+        }
+    });
 }
 
 function copyOptimizedResult() {
