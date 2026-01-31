@@ -16,6 +16,7 @@ let selectedTags = [];
 let sortAscending = false;
 let searchModeRaw = false;
 let displayModeRaw = false;
+let hideEmptyResponses = true;
 
 function init() {
     connectWebSocket();
@@ -166,6 +167,14 @@ function toggleUserFilter() {
     updateGraph();
 }
 
+function toggleHideEmptyResponses() {
+    hideEmptyResponses = document.getElementById('hideEmptyResponses').checked;
+    const toggle = document.getElementById('emptyToggle');
+    toggle.classList.toggle('active', !hideEmptyResponses);
+    renderTree();
+    updateGraph();
+}
+
 function toggleSortOrder() {
     sortAscending = document.getElementById('sortAscending').checked;
     renderTree();
@@ -218,6 +227,13 @@ function getMessagesToDisplay() {
 
         if (userOnlyFilter && node.type !== 'user' && node.type !== 'auto' && node.type !== 'prompt') {
             include = false;
+        }
+
+        if (include && hideEmptyResponses && node.type === 'response') {
+            const isEmpty = !node.content || node.content.trim() === '' || node.content.length === 0;
+            if (isEmpty) {
+                include = false;
+            }
         }
 
         if (include && selectedTags.length > 0) {
@@ -365,6 +381,13 @@ function applyFilters(messages) {
 
         if (userOnlyFilter && node.type !== 'user' && node.type !== 'auto' && node.type !== 'prompt') {
             include = false;
+        }
+
+        if (include && hideEmptyResponses && node.type === 'response') {
+            const isEmpty = !node.content || node.content.trim() === '' || node.content.length === 0;
+            if (isEmpty) {
+                include = false;
+            }
         }
 
         if (include && selectedTags.length > 0) {
