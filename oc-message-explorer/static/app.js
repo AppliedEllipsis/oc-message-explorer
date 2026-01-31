@@ -10,12 +10,15 @@ let searchTimeout = null;
 let searchResults = {};
 let userOnlyFilter = false;
 let dateRangeFilter = { start: null, end: null };
+let combineOrder = [];
+let combineDraggedIndex = null;
 
 function init() {
     connectWebSocket();
     setupColorPicker();
     setupDragAndDrop();
     setupDateFilter();
+    setupCombineDragAndDrop();
 }
 
 function connectWebSocket() {
@@ -64,7 +67,6 @@ function updateAllMessages() {
 
 function renderFolders() {
     const list = document.getElementById('folderList');
-
     list.innerHTML = `
         <li class="folder-item ${currentFolderId === 'all' ? 'active' : ''}" data-folder="all" onclick="selectFolder('all')">
             <div class="folder-name">All Messages</div>
@@ -300,6 +302,9 @@ function createNodeElement(node, messages, isRoot = false) {
 
     contentDiv.onclick = (e) => {
         if (e.target !== checkbox && e.target !== expandIconEl) {
+            if (node.type === 'response') {
+                loadNodeContent(node.id);
+            }
             openEditor(node.id);
         }
     };
@@ -695,6 +700,112 @@ function copySelected() {
         console.error('Failed to copy:', err);
         showNotification('Failed to copy messages');
     });
+}
+
+function showCombineModal() {
+    const messages = getMessagesToDisplay();
+    const selected = Object.values(messages).filter(m => m.selected);
+
+    if (selected.length === 0) {
+        showNotification('No messages selected');
+        return;
+    }
+
+    combineOrder = [...selected];
+    renderCombineList();
+    updateCombinedPreview();
+    document.getElementById('combineModal').classList.add('active');
+}
+
+function renderCombineList() {
+    const container = document.getElementById('combineList');
+    container.innerHTML = '';
+
+    combineOrder.forEach((node, index) => {
+        const div = document.createElement('div');
+        div.className = 'combine-item';
+        div.dataset.index = index;
+        div.draggable = true;
+        div.innerHTML = `
+            <div class="combine-item-drag">⋮⋮</div>
+            <div class="combine-item-content">
+                <span class="combine-item-type ${node.type}">${node.type}</span>
+                <span class="combine-item-text">${escapeHtml(node.content.substring(0, 100))}${node.content.length > 100 ? '...' : ''}</span>
+            </div>
+            <button class="combine-item-remove" onclick="removeFromCombine(${index})">×</button>
+        `;
+
+        div.ondragstart = (e) => {
+            combineDraggedIndex = index;
+            div.classList.add('combine-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        };
+
+        div.ondragend = (e) => {
+            combineDraggedIndex = null;
+            div.classList.remove('combine-dragging');
+        };
+
+        div.ondragover = (e) => {
+            e.preventDefault();
+            if (combineDraggedIndex !== null && combineDraggedIndex !== index) {
+                div.classList.add('combine-dragover');
+            }
+        };
+
+        div.ondragleave = (e) => {
+            div.classList.remove('combine-dragover');
+        };
+
+        div.ondrop = (e) => {
+            e.preventDefault();
+            div.classList.remove('combine-dragover');
+            if (combineDraggedIndex !== null && combineDraggedIndex !== index) {
+                const item = combineOrder.splice(combineDraggedIndex, 1)[0];
+                combineOrder.splice(index, 0, item);
+                renderCombineList();
+                updateCombinedPreview();
+            }
+        };
+
+        container.appendChild(div);
+    });
+}
+
+function removeFromCombine(index) {
+    combineOrder.splice(index, 1);
+    renderCombineList();
+    updateCombinedPreview();
+}
+
+function updateCombinedPreview() {
+    const preview = document.getElementById('combinedPreview');
+    const combined = combineOrder.map(node => node.content).join('\n\n---\n\n');
+
+    if (window.marked) {
+        preview.innerHTML = window.marked.parse(combined);
+    } else {
+        preview.textContent = combined;
+    }
+}
+
+function copyCombined() {
+    const combined = combineOrder.map(node => node.content).join('\n\n---\n\n');
+
+    navigator.clipboard.writeText(combined).then(() => {
+        showNotification('Combined text copied');
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        showNotification('Failed to copy combined text');
+    });
+}
+
+function setupCombineDragAndDrop() {
+    const container = document.getElementById('combineList');
+
+    container.ondragover = (e) => {
+        e.preventDefault();
+    };
 }
 
 function moveNode(nodeId, newParentId, newIndex) {

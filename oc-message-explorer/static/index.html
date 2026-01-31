@@ -623,6 +623,242 @@
         .drag-over {
             background: rgba(88, 166, 255, 0.1);
         }
+
+        .combine-modal-content {
+            width: 95%;
+            max-width: 900px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .combine-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .combine-list-sidebar,
+        .combine-preview-sidebar {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .combine-list-sidebar {
+            width: 350px;
+            border-right: 1px solid var(--border);
+        }
+
+        .combine-preview-sidebar {
+            flex: 1;
+        }
+
+        .combine-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .combine-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            cursor: move;
+            transition: all 0.15s ease;
+        }
+
+        .combine-item:hover {
+            border-color: var(--accent);
+            background: var(--bg-tertiary);
+        }
+
+        .combine-item.combine-dragging {
+            opacity: 0.5;
+        }
+
+        .combine-item.combine-dragover {
+            border: 2px dashed var(--accent);
+            background: rgba(88, 166, 255, 0.1);
+        }
+
+        .combine-item-drag {
+            color: var(--text-muted);
+            cursor: move;
+            font-size: 14px;
+            padding: 4px;
+            user-select: none;
+        }
+
+        .combine-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .combine-item-type {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .combine-item-type.prompt {
+            background: var(--accent);
+            color: #ffffff;
+        }
+
+        .combine-item-type.response {
+            background: var(--warning);
+            color: #0d1117;
+        }
+
+        .combine-item-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .combine-item-remove {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+        }
+
+        .combine-item-remove:hover {
+            background: var(--danger);
+            color: #ffffff;
+        }
+
+        .combine-actions {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        .combined-preview {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin: 8px 12px 12px;
+        }
+
+        .combined-preview:empty::before {
+            content: 'Preview will appear here';
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .combined-preview h1,
+        .combined-preview h2,
+        .combined-preview h3,
+        .combined-preview h4,
+        .combined-preview h5,
+        .combined-preview h6 {
+            color: var(--text-primary);
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+
+        .combined-preview h1 { font-size: 2em; }
+        .combined-preview h2 { font-size: 1.5em; }
+        .combined-preview h3 { font-size: 1.25em; }
+
+        .combined-preview p {
+            margin: 0.5em 0;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        .combined-preview code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.9em;
+        }
+
+        .combined-preview pre {
+            background: var(--bg-tertiary);
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+
+        .combined-preview pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .combined-preview blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+        }
+
+        .combined-preview ul,
+        .combined-preview ol {
+            margin: 0.5em 0;
+            padding-left: 24px;
+        }
+
+        .combined-preview li {
+            margin: 0.25em 0;
+        }
+
+        .combined-preview hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 2em 0;
+        }
+
+        .combined-preview a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .combined-preview a:hover {
+            text-decoration: underline;
+        }
+
+        .combined-preview table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+
+        .combined-preview th,
+        .combined-preview td {
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .combined-preview th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -666,6 +902,7 @@
                 <button class="btn primary" onclick="showNewMessageModal('prompt')">New Prompt</button>
                 <div class="toolbar-right">
                     <button class="btn" onclick="copySelected()">Copy</button>
+                    <button class="btn" onclick="showCombineModal()">Combine</button>
                     <button class="btn" onclick="exportData()">Export</button>
                     <button class="btn" onclick="document.getElementById('importFile').click()">Import</button>
                     <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importData(event)">
@@ -766,6 +1003,29 @@
 
     <div class="notification" id="notification"></div>
 
+    <div class="modal" id="combineModal">
+        <div class="modal-content combine-modal-content">
+            <div class="modal-header">
+                Combine Messages
+                <button class="close-btn" onclick="hideModal('combineModal')">&times;</button>
+            </div>
+            <div class="combine-container">
+                <div class="combine-list-sidebar">
+                    <div class="sidebar-header">Order</div>
+                    <div id="combineList" class="combine-list"></div>
+                    <div class="combine-actions">
+                        <button class="btn primary" onclick="copyCombined()">Copy Combined</button>
+                    </div>
+                </div>
+                <div class="combine-preview-sidebar">
+                    <div class="sidebar-header">Preview</div>
+                    <div id="combinedPreview" class="combined-preview"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/marked.min.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>
