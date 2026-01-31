@@ -1451,10 +1451,11 @@
             </div>
             <div class="form-group" id="modelSelectGroup" style="display: none;">
                 <label class="form-label">Model</label>
-                <select class="form-select" id="openaiModel">
+                <input type="text" class="form-input" id="openaiModelFilter" placeholder="Filter models..." style="margin-bottom: 6px;">
+                <select class="form-select" id="openaiModel" style="max-height: 200px;">
                     <option value="">Select a model</option>
                 </select>
-                <button class="btn" onclick="fetchModels()" style="margin-top: 8px;">Refresh Models</button>
+                <button class="btn" id="refreshModelsBtn" onclick="fetchModels()" style="margin-top: 8px;">Refresh Models</button>
             </div>
             <div class="form-group">
                 <label class="form-label">Optimization Prompt</label>

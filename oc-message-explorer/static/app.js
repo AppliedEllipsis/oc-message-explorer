@@ -1338,14 +1338,18 @@ function saveSettings() {
     const projectPath = document.getElementById('projectPath').value.trim();
     const agentsPath = document.getElementById('agentsPath').value.trim();
 
-    const updates = {};
+    const updates = {
+        openAIAPIKey: apiKey,
+        openaiBaseUrl: baseUrl,
+        openaiModel: model,
+        optimizationPrompt: optimizationPrompt,
+        projectPath: projectPath,
+        agentsPath: agentsPath
+    };
 
-    if (apiKey !== configManager.config.openAIAPIKey) updates.openAIAPIKey = apiKey;
-    if (baseUrl !== configManager.config.openaiBaseUrl) updates.openaiBaseUrl = baseUrl;
-    if (model !== configManager.config.openaiModel) updates.openaiModel = model;
-    if (optimizationPrompt !== configManager.config.optimizationPrompt) updates.optimizationPrompt = optimizationPrompt;
-    if (projectPath !== configManager.config.projectPath) updates.projectPath = projectPath;
-    if (agentsPath !== configManager.config.agentsPath) updates.agentsPath = agentsPath;
+    const saveBtn = event.target;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
 
     fetch('/api/config', {
         method: 'PUT',
@@ -1356,11 +1360,21 @@ function saveSettings() {
     .then(config => {
         configManager.config = config;
         showNotification('Settings saved to .env');
-        hideModal('settingsModal');
+
+        if (config.openAIAPIKey) {
+            document.getElementById('modelSelectGroup').style.display = 'block';
+            fetchModels(false);
+        }
+
+        setTimeout(() => hideModal('settingsModal'), 500);
     })
     .catch(err => {
         console.error('Failed to save settings:', err);
-        showNotification('Failed to save settings');
+        showNotification(`Failed to save: ${err.message}`);
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save to .env';
     });
 }
 
@@ -1404,11 +1418,16 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
 function testApiKey() {
     const apiKey = document.getElementById('openaiApiKey').value.trim();
     const baseUrl = document.getElementById('openaiBaseUrl').value.trim() || 'https://api.openai.com/v1';
+    const testBtn = event.target;
 
     if (!apiKey) {
         showNotification('Please enter API key');
         return;
     }
+
+    testBtn.disabled = true;
+    testBtn.textContent = 'Testing...';
+    showNotification('Testing API key...');
 
     const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'models' : baseUrl + '/models';
 
@@ -1419,34 +1438,52 @@ function testApiKey() {
     })
     .then(res => {
         if (res.ok) {
-            showNotification('API key is valid');
             return res.json();
         } else {
-            if (res.status === 401) {
-                throw new Error('Invalid API key');
-            } else {
-                throw new Error(`API error: ${res.status} ${res.statusText}`);
-            }
+            return res.text().then(text => {
+                if (res.status === 401) {
+                    throw new Error('Invalid API key');
+                } else {
+                    throw new Error(`API error: ${res.status} - ${text || res.statusText}`);
+                }
+            });
         }
     })
     .then(data => {
         document.getElementById('modelSelectGroup').style.display = 'block';
         populateModels(data.data);
+        showNotification('API key is valid');
     })
     .catch(err => {
         console.error('API key test failed:', err);
-        showNotification(err.message || 'API key test failed');
+        showNotification(`Error: ${err.message}`);
+    })
+    .finally(() => {
+        testBtn.disabled = false;
+        testBtn.textContent = 'Test Connection';
     });
 }
 
 function fetchModels(showNotificationOnSuccess = true, apiKey = null, baseUrl = null) {
-    const effectiveApiKey = apiKey || localStorage.getItem('openaiApiKey') || document.getElementById('openaiApiKey')?.value;
-    const effectiveBaseUrl = baseUrl || localStorage.getItem('openaiBaseUrl') || document.getElementById('openaiBaseUrl')?.value || 'https://api.openai.com/v1';
+    const effectiveApiKey = apiKey || document.getElementById('openaiApiKey')?.value?.trim();
+    const effectiveBaseUrl = baseUrl || document.getElementById('openaiBaseUrl')?.value?.trim() || 'https://api.openai.com/v1';
+    const refreshBtn = document.getElementById('refreshModelsBtn');
 
     if (!effectiveApiKey) {
         showNotification('Please enter an API key first');
         return;
     }
+
+    if (refreshBtn && showNotificationOnSuccess) {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Loading...';
+    }
+
+    if (showNotificationOnSuccess) {
+        showNotification('Fetching models...');
+    }
+
+    console.log('Fetching models from:', effectiveBaseUrl);
 
     const apiUrl = effectiveBaseUrl.endsWith('/') ? effectiveBaseUrl + 'models' : effectiveBaseUrl + '/models';
 
@@ -1457,11 +1494,14 @@ function fetchModels(showNotificationOnSuccess = true, apiKey = null, baseUrl = 
     })
     .then(res => {
         if (!res.ok) {
-            throw new Error(`Failed to fetch models: ${res.status} ${res.statusText}`);
+            return res.text().then(text => {
+                throw new Error(`Failed to fetch models: ${res.status} - ${text || res.statusText}`);
+            });
         }
         return res.json();
     })
     .then(data => {
+        console.log('Models response:', data);
         populateModels(data.data);
         document.getElementById('modelSelectGroup').style.display = 'block';
         if (showNotificationOnSuccess) {
@@ -1471,7 +1511,13 @@ function fetchModels(showNotificationOnSuccess = true, apiKey = null, baseUrl = 
     .catch(err => {
         console.error('Failed to fetch models:', err);
         if (showNotificationOnSuccess) {
-            showNotification(err.message || 'Failed to load models');
+            showNotification(`Error: ${err.message}`);
+        }
+    })
+    .finally(() => {
+        if (refreshBtn && showNotificationOnSuccess) {
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = 'Refresh Models';
         }
     });
 }
@@ -1480,18 +1526,18 @@ function populateModels(models) {
     const select = document.getElementById('openaiModel');
     const currentModel = select.value;
 
-    const gptModels = models.filter(m => m.id.startsWith('gpt-'));
-    
+    const sortedModels = models.sort((a, b) => a.id.localeCompare(b.id));
+
     select.innerHTML = '<option value="">Select a model</option>';
-    
-    gptModels.forEach(model => {
+
+    sortedModels.forEach(model => {
         const option = document.createElement('option');
         option.value = model.id;
         option.textContent = model.id;
         select.appendChild(option);
     });
 
-    if (currentModel) {
+    if (currentModel && sortedModels.find(m => m.id === currentModel)) {
         select.value = currentModel;
     }
 }
