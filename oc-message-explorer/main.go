@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -41,8 +44,9 @@ type WSMessage struct {
 
 type MessageNode struct {
 	ID        string   `json:"id"`
-	Type      string   `json:"type"` // "prompt" or "response"
-	Content   string   `json:"content"`
+	Type      string   `json:"type"`    // "prompt" or "response"
+	Content   string   `json:"content"` // Actual user message or AI response
+	Summary   string   `json:"summary"` // AI-generated summary Title
 	Timestamp string   `json:"timestamp"`
 	ParentID  string   `json:"parentId,omitempty"`
 	Children  []string `json:"children,omitempty"`
@@ -101,6 +105,7 @@ type TodoItem struct {
 
 type EnvConfig struct {
 	OpenAIAPIKey       string `json:"openAIAPIKey"`
+	OpenAIBaseURL      string `json:"openaiBaseUrl"`
 	OpenAIModel        string `json:"openaiModel"`
 	OptimizationPrompt string `json:"optimizationPrompt"`
 	ProjectPath        string `json:"projectPath"`
@@ -140,8 +145,9 @@ func (cm *ConfigManager) loadEnv() {
 
 	cm.mu.Lock()
 	cm.config.OpenAIAPIKey = os.Getenv("OPENAI_API_KEY")
+	cm.config.OpenAIBaseURL = getEnvWithDefault("OPENAI_BASE_URL", "")
 	cm.config.OpenAIModel = getEnvWithDefault("OPENAI_MODEL", "gpt-4")
-	cm.config.OptimizationPrompt = getEnvWithDefault("OPTIMIZATION_PROM", "")
+	cm.config.OptimizationPrompt = getEnvWithDefault("OPTIMIZATION_PROMPT", "")
 	cm.config.ProjectPath = getEnvWithDefault("PROJECT_PATH", "")
 	cm.config.AgentsPath = getEnvWithDefault("AGENTS_PATH", "")
 	cm.mu.Unlock()
@@ -153,6 +159,9 @@ func (cm *ConfigManager) getEnv(key string) string {
 
 	if key == "OPENAI_API_KEY" {
 		return cm.config.OpenAIAPIKey
+	}
+	if key == "OPENAI_BASE_URL" {
+		return cm.config.OpenAIBaseURL
 	}
 	if key == "OPENAI_MODEL" {
 		return cm.config.OpenAIModel
@@ -175,6 +184,9 @@ func (cm *ConfigManager) setEnv(key, value string) error {
 
 	if key == "OPENAI_API_KEY" {
 		cm.config.OpenAIAPIKey = value
+	}
+	if key == "OPENAI_BASE_URL" {
+		cm.config.OpenAIBaseURL = value
 	}
 	if key == "OPENAI_MODEL" {
 		cm.config.OpenAIModel = value
@@ -205,6 +217,9 @@ func (cm *ConfigManager) saveEnvFile() error {
 
 	if cm.config.OpenAIAPIKey != "" {
 		lines = append(lines, fmt.Sprintf(`OPENAI_API_KEY="%s"`, cm.config.OpenAIAPIKey))
+	}
+	if cm.config.OpenAIBaseURL != "" {
+		lines = append(lines, fmt.Sprintf(`OPENAI_BASE_URL="%s"`, cm.config.OpenAIBaseURL))
 	}
 	if cm.config.OpenAIModel != "" && cm.config.OpenAIModel != "gpt-4" {
 		lines = append(lines, fmt.Sprintf(`OPENAI_MODEL=%s`, cm.config.OpenAIModel))
@@ -359,10 +374,17 @@ func NewStore() *Store {
 	}
 
 	store.dataPath = getDefaultOpenCodePath()
+	log.Printf("OpenCode data path: %s", store.dataPath)
 	if store.dataPath != "" {
 		store.msgPath = filepath.Join(store.dataPath, "storage", "message")
 		store.partPath = filepath.Join(store.dataPath, "storage", "part")
+		log.Printf("Message path: %s", store.msgPath)
+		log.Printf("Part path: %s", store.partPath)
+		log.Printf("Starting to load OpenCode metadata...")
 		store.loadOpenCodeMetadata()
+		log.Printf("Finished loading OpenCode metadata")
+	} else {
+		log.Printf("No OpenCode data path found")
 	}
 
 	return store
@@ -383,6 +405,7 @@ func (s *Store) loadOpenCodeMetadata() {
 	totalSessions := len(sessions)
 	s.broadcast(WSMessage{Type: MessageTypeProgress, Data: map[string]any{"status": "loading", "message": fmt.Sprintf("Found %d sessions...", totalSessions), "progress": 0}})
 
+	log.Printf("Starting to process %d sessions...", totalSessions)
 	sessionCount := 0
 	for _, sessionDir := range sessions {
 		if !sessionDir.IsDir() {
@@ -390,11 +413,14 @@ func (s *Store) loadOpenCodeMetadata() {
 		}
 
 		sessionPath := filepath.Join(s.msgPath, sessionDir.Name())
+		log.Printf("Processing session: %s", sessionDir.Name())
 		messageFiles, err := os.ReadDir(sessionPath)
 		if err != nil {
+			log.Printf("Failed to read session %s: %v", sessionDir.Name(), err)
 			continue
 		}
 
+		msgCount := 0
 		for _, msgFile := range messageFiles {
 			if !strings.HasSuffix(msgFile.Name(), ".json") {
 				continue
@@ -403,11 +429,13 @@ func (s *Store) loadOpenCodeMetadata() {
 			msgFilePath := filepath.Join(sessionPath, msgFile.Name())
 			msgData, err := os.ReadFile(msgFilePath)
 			if err != nil {
+				log.Printf("Failed to read message file %s: %v", msgFile.Name(), err)
 				continue
 			}
 
 			var ocMsg OpenCodeMessage
 			if err := json.Unmarshal(msgData, &ocMsg); err != nil {
+				log.Printf("Failed to unmarshal message %s: %v", msgFile.Name(), err)
 				continue
 			}
 
@@ -448,7 +476,8 @@ func (s *Store) loadOpenCodeMetadata() {
 			node := &MessageNode{
 				ID:        ocMsg.ID,
 				Type:      nodeType,
-				Content:   title,
+				Content:   "",    // Will load from parts on demand
+				Summary:   title, // Store AI summary
 				Timestamp: formatTimestamp(ocMsg.Time.Created),
 				ParentID:  ocMsg.ParentID,
 				Children:  []string{},
@@ -460,14 +489,25 @@ func (s *Store) loadOpenCodeMetadata() {
 			}
 
 			messageNodes[ocMsg.ID] = node
+			msgCount++
 		}
 
+		log.Printf("Loaded %d messages from session %s", msgCount, sessionDir.Name())
 		sessionCount++
 		progress := int(float64(sessionCount) / float64(totalSessions) * 100)
-		if sessionCount%5 == 0 {
-			s.broadcast(WSMessage{Type: MessageTypeProgress, Data: map[string]any{"status": "loading", "message": fmt.Sprintf("Read %d/%d sessions...", sessionCount, totalSessions), "progress": progress}})
+		s.broadcast(WSMessage{Type: MessageTypeProgress, Data: map[string]any{"status": "loading", "message": fmt.Sprintf("Read %d/%d sessions (%d msgs)...", sessionCount, totalSessions, len(messageNodes)), "progress": progress}})
+	}
+
+	log.Printf("Building parent-child relationships...")
+	for _, node := range messageNodes {
+		if node.ParentID != "" {
+			if parent, exists := messageNodes[node.ParentID]; exists {
+				parent.Children = append(parent.Children, node.ID)
+			}
 		}
 	}
+
+	log.Printf("Loaded %d total messages from %d sessions", len(messageNodes), totalSessions)
 
 	for _, node := range messageNodes {
 		if node.ParentID != "" {
@@ -545,7 +585,6 @@ func (s *Store) loadMessageContent(nodeID string) *MessageNode {
 				}
 			}
 
-			s.broadcast(WSMessage{Type: MessageTypeUpdate, Data: s.toJSON()})
 			return node
 		}
 	}
@@ -553,7 +592,7 @@ func (s *Store) loadMessageContent(nodeID string) *MessageNode {
 	return nil
 }
 
-func (s *Store) searchMessages(query string) map[string]*MessageNode {
+func (s *Store) searchMessages(query string, searchRaw bool) map[string]*MessageNode {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -567,9 +606,19 @@ func (s *Store) searchMessages(query string) map[string]*MessageNode {
 	for _, folder := range s.Folders {
 		for _, node := range folder.Nodes {
 			s.mu.RUnlock()
-			if fuzzyMatch(queryLower, strings.ToLower(node.Content)) ||
-				fuzzyMatch(queryLower, strings.ToLower(node.Type)) ||
-				fuzzyTagsMatch(queryLower, node.Tags) {
+			contentMatch := fuzzyMatch(queryLower, strings.ToLower(node.Content))
+			summaryMatch := fuzzyMatch(queryLower, strings.ToLower(node.Summary))
+			typeMatch := fuzzyMatch(queryLower, strings.ToLower(node.Type))
+			tagMatch := fuzzyTagsMatch(queryLower, node.Tags)
+
+			var shouldInclude bool
+			if searchRaw {
+				shouldInclude = contentMatch || typeMatch || tagMatch
+			} else {
+				shouldInclude = contentMatch || summaryMatch || typeMatch || tagMatch
+			}
+
+			if shouldInclude {
 				results[node.ID] = node
 			}
 			s.mu.RLock()
@@ -880,13 +929,14 @@ func main() {
 	router.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			var data struct {
-				Query string `json:"query"`
+				Query     string `json:"query"`
+				SearchRaw bool   `json:"searchRaw"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 				respondError(w, http.StatusBadRequest, err.Error())
 				return
 			}
-			results := store.searchMessages(data.Query)
+			results := store.searchMessages(data.Query, data.SearchRaw)
 			respondJSON(w, results)
 		}
 	})
@@ -1088,6 +1138,10 @@ func main() {
 		http.ServeFile(w, r, "static/index.html")
 	})
 
+	router.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		log.Fatal(err)
@@ -1109,7 +1163,32 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 	}
 
-	log.Fatal(srv.Serve(listener))
+	serverErrors := make(chan error, 1)
+
+	go func() {
+		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
+			serverErrors <- err
+		}
+	}()
+
+	shutdownChan := make(chan os.Signal, 1)
+	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErrors:
+		log.Printf("Server error: %v", err)
+	case sig := <-shutdownChan:
+		fmt.Printf("\nReceived signal %v. Shutting down...\n", sig)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("Server shutdown error: %v", err)
+	}
+
+	fmt.Println("\nServer stopped gracefully")
 }
 
 func respondJSON(w http.ResponseWriter, data any) {

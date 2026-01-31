@@ -13,6 +13,9 @@ let dateRangeFilter = { start: null, end: null };
 let combineOrder = [];
 let combineDraggedIndex = null;
 let selectedTags = [];
+let sortAscending = false;
+let searchModeRaw = false;
+let displayModeRaw = false;
 
 function init() {
     connectWebSocket();
@@ -163,6 +166,25 @@ function toggleUserFilter() {
     updateGraph();
 }
 
+function toggleSortOrder() {
+    sortAscending = document.getElementById('sortAscending').checked;
+    renderTree();
+}
+
+function toggleSearchMode() {
+    searchModeRaw = document.getElementById('searchRawOnly').checked;
+    const toggle = document.getElementById('searchToggle');
+    toggle.classList.toggle('active', searchModeRaw);
+    filterMessages();
+}
+
+function toggleDisplayMode() {
+    displayModeRaw = document.getElementById('displayRawMessages').checked;
+    const toggle = document.getElementById('displayToggle');
+    toggle.classList.toggle('active', displayModeRaw);
+    renderTree();
+}
+
 function setupDateFilter() {
     const startDateInput = document.getElementById('startDate');
     const endDateInput = document.getElementById('endDate');
@@ -245,7 +267,7 @@ function filterMessages() {
         fetch('/api/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query })
+            body: JSON.stringify({ query, searchRaw: searchModeRaw })
         })
         .then(res => res.json())
         .then(results => {
@@ -313,7 +335,13 @@ function renderTree() {
         return;
     }
 
-    const rootNodes = Object.values(messages).filter(n => !n.parentId);
+    let rootNodes = Object.values(messages).filter(n => !n.parentId);
+
+    rootNodes.sort((a, b) => {
+        const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return sortAscending ? dateA - dateB : dateB - dateA;
+    });
 
     if (rootNodes.length === 0) {
         const firstNode = Object.values(messages)[0];
@@ -379,7 +407,12 @@ function createNodeElement(node, messages, isRoot = false) {
 
     const timestamp = formatTimestamp(node.timestamp);
 
-    const displayContent = node.hasLoaded ? node.content : `${node.content.substring(0, 100)}${node.content.length > 100 ? '...' : ''}`;
+    let displayContent;
+    if (displayModeRaw) {
+        displayContent = `${node.content.substring(0, 100)}${node.content.length > 100 ? '...' : ''}`;
+    } else {
+        displayContent = node.summary ? node.summary : `${node.content.substring(0, 100)}${node.content.length > 100 ? '...' : ''}`;
+    }
 
     const folderInfo = getFolderInfo(node.id);
 
@@ -395,6 +428,7 @@ function createNodeElement(node, messages, isRoot = false) {
                 <div class="node-meta">
                     ${folderInfo ? `<div class="node-folder"><span class="folder-color" style="background: ${folderInfo.color}"></span>${escapeHtml(folderInfo.name)}</div>` : ''}
                     <span class="node-timestamp">${timestamp}</span>
+                    ${hasChildren ? `<span style="color: var(--text-muted); font-size: 12px; margin-left: 8px;">${node.children.length} child(ren)</span>` : ''}
                 </div>
             </div>
         </div>
@@ -408,9 +442,6 @@ function createNodeElement(node, messages, isRoot = false) {
 
     contentDiv.onclick = (e) => {
         if (e.target !== checkbox && e.target !== expandIconEl) {
-            if (node.type === 'response') {
-                loadNodeContent(node.id);
-            }
             openEditor(node.id);
         }
     };
@@ -418,9 +449,7 @@ function createNodeElement(node, messages, isRoot = false) {
     expandIconEl.onclick = (e) => {
         e.stopPropagation();
         toggleExpand(node.id);
-        if (node.expanded && !node.hasLoaded) {
-            loadNodeContent(node.id);
-        }
+        renderTree();
     };
 
     checkbox.onclick = (e) => {
@@ -433,6 +462,8 @@ function createNodeElement(node, messages, isRoot = false) {
         node.children.forEach(childId => {
             if (messages[childId]) {
                 childrenContainer.appendChild(createNodeElement(messages[childId], messages));
+            } else {
+                console.warn(`Child node ${childId} not found in messages`);
             }
         });
     }
@@ -586,17 +617,22 @@ function toggleSelection(nodeId) {
 }
 
 function loadNodeContent(nodeId) {
-    fetch(`/api/messages/${nodeId}`)
+    return fetch(`/api/messages/${nodeId}`)
         .then(res => res.json())
         .then(updatedNode => {
             if (updatedNode && updatedNode.id) {
                 allMessages[nodeId] = updatedNode;
-                renderTree();
             }
+            return updatedNode;
         })
         .catch(err => {
             console.error('Failed to load node content:', err);
+            return null;
         });
+}
+
+function loadNodeAndChildren(nodeId) {
+    return loadNodeContent(nodeId);
 }
 
 function updateMessage(nodeId, updatedNode) {
@@ -614,11 +650,18 @@ function openEditor(nodeId) {
     const node = allMessages[nodeId];
     if (!node) return;
 
-    currentEditingNodeId = nodeId;
-    document.getElementById('nodeType').value = node.type;
-    document.getElementById('nodeContent').value = node.content || '';
-    document.getElementById('nodeTags').value = (node.tags || []).join(', ');
-    document.getElementById('editorPanel').style.display = 'flex';
+    const shouldLoad = !node.hasLoaded;
+    const loadPromise = shouldLoad ? loadNodeContent(node.id) : Promise.resolve(node);
+
+    loadPromise.then(() => {
+        currentEditingNodeId = nodeId;
+        const updatedNode = allMessages[nodeId];
+        document.getElementById('nodeType').value = updatedNode.type;
+        document.getElementById('nodeContent').value = updatedNode.content || '';
+        document.getElementById('nodeSummary').value = updatedNode.summary || '';
+        document.getElementById('nodeTags').value = (updatedNode.tags || []).join(', ');
+        document.getElementById('editorPanel').style.display = 'flex';
+    });
 }
 
 function closeEditor() {
@@ -636,6 +679,7 @@ function saveNode() {
         ...node,
         type: document.getElementById('nodeType').value,
         content: document.getElementById('nodeContent').value,
+        summary: document.getElementById('nodeSummary').value,
         tags: document.getElementById('nodeTags').value.split(',').map(t => t.trim()).filter(t => t)
     };
 
@@ -675,7 +719,9 @@ function deleteNode() {
 
 function expandAll() {
     Object.values(allMessages).forEach(node => {
-        node.expanded = true;
+        if (node.children && node.children.length > 0) {
+            node.expanded = true;
+        }
     });
     renderTree();
 }
@@ -920,6 +966,7 @@ function optimizeCombinedPrompts() {
 
 function optimizePrompts() {
     const apiKey = configManager.config.openAIAPIKey || localStorage.getItem('openaiApiKey');
+    const baseUrl = configManager.config.openaiBaseUrl || 'https://api.openai.com/v1';
     const model = document.getElementById('openaiModel').value || configManager.config.openaiModel;
     const optimizationPrompt = document.getElementById('optimizationPrompt').value;
     const combinedText = document.getElementById('optimizerPreview').textContent;
@@ -937,13 +984,15 @@ function optimizePrompts() {
     const resultDiv = document.getElementById('optimizerResult');
     resultDiv.innerHTML = '<div style="text-align: center; padding: 40px;">Loading AGENTS.md and optimizing...</div>';
 
+    const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'chat/completions' : baseUrl + '/chat/completions';
+
     // First fetch agents.md content
     fetch('/api/agents-content')
         .then(res => res.json())
         .then(data => {
             const fullSystemPrompt = `${optimizationPrompt}\n\n=== AGENTS.md Content ===\n\n${data.content}`;
 
-            return fetch('https://api.openai.com/v1/chat/completions', {
+            return fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -963,13 +1012,13 @@ function optimizePrompts() {
         .then(data => {
             if (data.choices && data.choices[0]) {
                 const optimized = data.choices[0].message.content;
-                
+
                 if (window.marked) {
                     resultDiv.innerHTML = window.marked.parse(optimized);
                 } else {
                     resultDiv.textContent = optimized;
                 }
-                
+
                 document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
                 showNotification('Optimization complete');
             } else {
@@ -1080,6 +1129,7 @@ function showSettingsModal() {
 
 function saveSettings() {
     const apiKey = document.getElementById('openaiApiKey').value.trim();
+    const baseUrl = document.getElementById('openaiBaseUrl').value.trim();
     const model = document.getElementById('openaiModel').value;
     const optimizationPrompt = document.getElementById('optimizationPrompt').value.trim();
     const projectPath = document.getElementById('projectPath').value.trim();
@@ -1088,6 +1138,7 @@ function saveSettings() {
     const updates = {};
 
     if (apiKey !== configManager.config.openAIAPIKey) updates.openAIAPIKey = apiKey;
+    if (baseUrl !== configManager.config.openaiBaseUrl) updates.openaiBaseUrl = baseUrl;
     if (model !== configManager.config.openaiModel) updates.openaiModel = model;
     if (optimizationPrompt !== configManager.config.optimizationPrompt) updates.optimizationPrompt = optimizationPrompt;
     if (projectPath !== configManager.config.projectPath) updates.projectPath = projectPath;
@@ -1117,9 +1168,10 @@ function loadSettings() {
             configManager.config = config;
 
             document.getElementById('openaiApiKey').value = config.openAIAPIKey || '';
+            document.getElementById('openaiBaseUrl').value = config.openaiBaseUrl || '';
             document.getElementById('openaiModel').value = config.openaiModel || '';
-            document.getElementById('optimizationPrompt').value = config.optimizationPrompt || 
-                `First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices. 
+            document.getElementById('optimizationPrompt').value = config.optimizationPrompt ||
+                `First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
 
 Then, combine these prompts into a single, task-oriented prompt that will direct you to:
 
@@ -1148,13 +1200,16 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
 
 function testApiKey() {
     const apiKey = document.getElementById('openaiApiKey').value.trim();
+    const baseUrl = document.getElementById('openaiBaseUrl').value.trim() || 'https://api.openai.com/v1';
 
     if (!apiKey) {
         showNotification('Please enter API key');
         return;
     }
 
-    fetch('https://api.openai.com/v1/models', {
+    const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'models' : baseUrl + '/models';
+
+    fetch(apiUrl, {
         headers: {
             'Authorization': `Bearer ${apiKey}`
         }
@@ -1179,12 +1234,15 @@ function testApiKey() {
 
 function fetchModels(showNotificationOnSuccess = true) {
     const apiKey = localStorage.getItem('openaiApiKey');
+    const baseUrl = localStorage.getItem('openaiBaseUrl') || 'https://api.openai.com/v1';
 
     if (!apiKey) {
         return;
     }
 
-    fetch('https://api.openai.com/v1/models', {
+    const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'models' : baseUrl + '/models';
+
+    fetch(apiUrl, {
         headers: {
             'Authorization': `Bearer ${apiKey}`
         }
@@ -1310,158 +1368,159 @@ function setupDragAndDrop() {
             });
         }
     };
+}
 
-    function loadTodos() {
-        fetch('/api/todos')
-            .then(res => res.json())
-            .then(todos => {
-                configManager.todos = todos;
-                renderTodos();
-            })
-            .catch(err => {
-                console.error('Failed to load todos:', err);
-            });
-    }
-
-    function renderTodos() {
-        const container = document.getElementById('todoList');
-        
-        if (!configManager.todos || configManager.todos.length === 0) {
-            container.innerHTML = `
-                <div style="color: var(--text-muted); text-align: center; padding: 20px; font-size: 13px;">
-                    No todos yet
-                </div>
-            `;
-            return;
-        }
-
-        const sorted = [...configManager.todos].sort((a, b) => {
-            if (a.completed !== b.completed) {
-                return a.completed ? 1 : -1;
-            }
-            const priorityOrder = { high: 0, medium: 1, low: 2 };
-            return priorityOrder[a.priority] - priorityOrder[b.priority];
-        });
-
-        let html = '';
-        sorted.forEach(todo => {
-            html += `
-                <div class="todo-item ${todo.completed ? 'completed' : ''}">
-                    <input type="checkbox" class="todo-checkbox" 
-                        ${todo.completed ? 'checked' : ''} 
-                        onchange="toggleTodo('${todo.id}')">
-                    <div class="todo-content">
-                        <div class="todo-text" title="${escapeHtml(todo.text)}">${escapeHtml(todo.text)}</div>
-                        <span class="todo-priority ${todo.priority}">${todo.priority}</span>
-                    </div>
-                    <div class="todo-actions">
-                        <button class="todo-delete" onclick="deleteTodo('${todo.id}')" title="Delete">×</button>
-                    </div>
-                </div>
-            `;
-        });
-
-        container.innerHTML = html;
-    }
-
-    function addTodo() {
-        const text = document.getElementById('newTodoText').value.trim();
-        
-        if (!text) {
-            showNotification('Please enter a todo item');
-            return;
-        }
-
-        fetch('/api/todos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                text,
-                priority: 'medium'
-            })
-        })
+function loadTodos() {
+    fetch('/api/todos')
         .then(res => res.json())
-        .then(todo => {
-            configManager.todos.push(todo);
+        .then(todos => {
+            configManager.todos = todos;
             renderTodos();
-            document.getElementById('newTodoText').value = '';
-            showNotification('Todo added');
         })
         .catch(err => {
-            console.error('Failed to add todo:', err);
-            showNotification('Failed to add todo');
+            console.error('Failed to load todos:', err);
         });
+}
+
+function renderTodos() {
+    const container = document.getElementById('todoList');
+    
+    if (!configManager.todos || configManager.todos.length === 0) {
+        container.innerHTML = `
+            <div style="color: var(--text-muted); text-align: center; padding: 20px; font-size: 13px;">
+                No todos yet
+            </div>
+        `;
+        return;
     }
 
-    function toggleTodo(id) {
-        fetch(`/api/todos/${id}`, {
-            method: 'PUT'
+    const sorted = [...configManager.todos].sort((a, b) => {
+        if (a.completed !== b.completed) {
+            return a.completed ? 1 : -1;
+        }
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+
+    let html = '';
+    sorted.forEach(todo => {
+        html += `
+            <div class="todo-item ${todo.completed ? 'completed' : ''}">
+                <input type="checkbox" class="todo-checkbox" 
+                    ${todo.completed ? 'checked' : ''} 
+                    onchange="toggleTodo('${todo.id}')">
+                <div class="todo-content">
+                    <div class="todo-text" title="${escapeHtml(todo.text)}">${escapeHtml(todo.text)}</div>
+                    <span class="todo-priority ${todo.priority}">${todo.priority}</span>
+                </div>
+                <div class="todo-actions">
+                    <button class="todo-delete" onclick="deleteTodo('${todo.id}')" title="Delete">×</button>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function addTodo() {
+    const text = document.getElementById('newTodoText').value.trim();
+    
+    if (!text) {
+        showNotification('Please enter a todo item');
+        return;
+    }
+
+    fetch('/api/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            text,
+            priority: 'medium'
         })
+    })
+    .then(res => res.json())
+    .then(todo => {
+        configManager.todos.push(todo);
+        renderTodos();
+        document.getElementById('newTodoText').value = '';
+        showNotification('Todo added');
+    })
+    .catch(err => {
+        console.error('Failed to add todo:', err);
+        showNotification('Failed to add todo');
+    });
+}
+
+function toggleTodo(id) {
+    fetch(`/api/todos/${id}`, {
+        method: 'PUT'
+    })
+    .then(res => res.json())
+    .then(data => {
+        renderTodos();
+        if (data.completed) {
+            showNotification('Todo completed');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to toggle todo:', err);
+        showNotification('Failed to update todo');
+    });
+}
+
+function deleteTodo(id) {
+    if (!confirm('Delete this todo?')) return;
+
+    fetch(`/api/todos/${id}`, {
+        method: 'DELETE'
+    })
+    .then(res => {
+        if (res.ok) {
+            configManager.todos = configManager.todos.filter(t => t.id !== id);
+            renderTodos();
+            showNotification('Todo deleted');
+        } else {
+            showNotification('Failed to delete todo');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to delete todo:', err);
+        showNotification('Failed to delete todo');
+    });
+}
+
+function loadAgentsContent() {
+    fetch('/api/agents-content')
         .then(res => res.json())
         .then(data => {
-            renderTodos();
-            if (data.completed) {
-                showNotification('Todo completed');
-            }
-        })
-        .catch(err => {
-            console.error('Failed to toggle todo:', err);
-            showNotification('Failed to update todo');
-        });
-    }
-
-    function deleteTodo(id) {
-        if (!confirm('Delete this todo?')) return;
-
-        fetch(`/api/todos/${id}`, {
-            method: 'DELETE'
-        })
-        .then(res => {
-            if (res.ok) {
-                configManager.todos = configManager.todos.filter(t => t.id !== id);
-                renderTodos();
-                showNotification('Todo deleted');
+            const preview = document.getElementById('agentsPreview');
+            
+            if (window.marked) {
+                preview.innerHTML = window.marked.parse(data.content);
             } else {
-                showNotification('Failed to delete todo');
+                preview.textContent = data.content;
             }
+            
+            document.getElementById('agentsContentModal').classList.add('active');
         })
         .catch(err => {
-            console.error('Failed to delete todo:', err);
-            showNotification('Failed to delete todo');
+            console.error('Failed to load agents content:', err);
+            showNotification('Failed to load AGENTS.md');
         });
-    }
-
-    function loadAgentsContent() {
-        fetch('/api/agents-content')
-            .then(res => res.json())
-            .then(data => {
-                const preview = document.getElementById('agentsPreview');
-                
-                if (window.marked) {
-                    preview.innerHTML = window.marked.parse(data.content);
-                } else {
-                    preview.textContent = data.content;
-                }
-                
-                document.getElementById('agentsContentModal').classList.add('active');
-            })
-            .catch(err => {
-                console.error('Failed to load agents content:', err);
-                showNotification('Failed to load AGENTS.md');
-            });
-    }
-
-    function copyAgentsContent() {
-        const preview = document.getElementById('agentsPreview').textContent;
-        
-        navigator.clipboard.writeText(preview).then(() => {
-            showNotification('AGENTS.md content copied');
-        }).catch(err => {
-            console.error('Failed to copy:', err);
-            showNotification('Failed to copy');
-        });
-    }
 }
+
+function copyAgentsContent() {
+    const preview = document.getElementById('agentsPreview').textContent;
+    
+    navigator.clipboard.writeText(preview).then(() => {
+        showNotification('AGENTS.md content copied');
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        showNotification('Failed to copy');
+    });
+}
+
 
 let configManager = {
     config: {},
@@ -1469,3 +1528,4 @@ let configManager = {
 };
 
 document.addEventListener('DOMContentLoaded', init);
+

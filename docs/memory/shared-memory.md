@@ -157,13 +157,13 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 02:45 UTC
-**Summary**: Enhanced message type classification and search result visibility
+**Time**: 2026-01-31 04:15 UTC
+**Summary**: Fix resource exhaustion and JavaScript reference errors
 **Status**: Complete - All features implemented
 
 ### Context
 
-OC Message Explorer now has enhanced message type differentiation and automatic search result expansion. Messages are now classified into distinct types based on role and auto-generation detection patterns.
+Fixed `loadTodos is not defined` error by moving functions from nested scope to top-level. Removed automatic content loading on expand to avoid ERR_INSUFFICIENT_RESOURCES. Content now loads only when directly clicking on nodes, not when expanding threads.
 
 ### Planning
 
@@ -179,15 +179,13 @@ Current features implemented:
 - Todo list functionality with priority levels
 - AGENTS.md content loading and viewing
 - Task-oriented prompt optimization with AGENTS.md context
-- OpenAI API model listing and selection
-- **Enhanced message type classification (User, Auto-Generated, System, Response)**
-- **Auto-generated prompt detection using content patterns**
-- **Auto-expand parent nodes when search returns results**
-- **Visual distinction for different message types (colors, borders, badges)**
+- **Fixed JavaScript reference errors**
+- ** removed resource exhaustion by simplifying expand/collapse**
+- **Content loads on-demand when clicking nodes**
+- **Expand/collapse only toggles visibility without loading**
 
 ### Pending Tasks
 
-- [ ] Add tag cloud widget for filtering by tags/message types (tags already display in messages, need dedicated filter UI)
 - [ ] Enhanced search with advanced options (regex, filters)
 - [ ] Export in additional formats (PDF, plain text)
 - [ ] Message versioning and comparison
