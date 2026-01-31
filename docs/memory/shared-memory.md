@@ -157,17 +157,17 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 02:07 UTC
-**Summary**: Completed .env configuration backend, todo list, and AGENTS.md integration
+**Time**: 2026-01-31 02:45 UTC
+**Summary**: Enhanced message type classification and search result visibility
 **Status**: Complete - All features implemented
 
 ### Context
 
-OC Message Explorer now has full configuration management via .env file, todo list functionality for task tracking, and AGENTS.md integration into prompt optimization. Settings are persisted to .env file and config.json.
+OC Message Explorer now has enhanced message type differentiation and automatic search result expansion. Messages are now classified into distinct types based on role and auto-generation detection patterns.
 
 ### Planning
 
-Current features implemented and tested:
+Current features implemented:
 - Professional dark theme (GitHub-inspired)
 - User-only filter toggle and date range filtering
 - Activity graph visualization
@@ -180,7 +180,10 @@ Current features implemented and tested:
 - AGENTS.md content loading and viewing
 - Task-oriented prompt optimization with AGENTS.md context
 - OpenAI API model listing and selection
-- Clean, minimalist UI design
+- **Enhanced message type classification (User, Auto-Generated, System, Response)**
+- **Auto-generated prompt detection using content patterns**
+- **Auto-expand parent nodes when search returns results**
+- **Visual distinction for different message types (colors, borders, badges)**
 
 ### Pending Tasks
 

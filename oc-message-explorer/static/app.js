@@ -194,7 +194,7 @@ function getMessagesToDisplay() {
         const node = messages[id];
         let include = true;
 
-        if (userOnlyFilter && node.type !== 'prompt') {
+        if (userOnlyFilter && node.type !== 'user' && node.type !== 'auto' && node.type !== 'prompt') {
             include = false;
         }
 
@@ -250,6 +250,7 @@ function filterMessages() {
         .then(res => res.json())
         .then(results => {
             searchResults = results || {};
+            expandSearchResults(results);
             renderTree();
         })
         .catch(err => {
@@ -257,6 +258,39 @@ function filterMessages() {
             renderTree();
         });
     }, 300);
+}
+
+function expandSearchResults(results) {
+    if (!results || Object.keys(results).length === 0) return;
+
+    const resultIds = new Set(Object.keys(results));
+    const nodeIdsToExpand = new Set();
+
+    function findParentIds(nodeId) {
+        const node = allMessages[nodeId];
+        if (!node || !node.parentId || resultIds.has(node.parentId)) return;
+
+        nodeIdsToExpand.add(node.parentId);
+        findParentIds(node.parentId);
+    }
+
+    for (const id in results) {
+        const node = allMessages[id];
+        if (node && node.parentId) {
+            findParentIds(id);
+        }
+    }
+
+    nodeIdsToExpand.forEach(nodeId => {
+        if (allMessages[nodeId]) {
+            allMessages[nodeId].expanded = true;
+            fetch(`/api/messages/${nodeId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(allMessages[nodeId])
+            }).catch(err => console.error('Failed to save expanded state:', err));
+        }
+    });
 }
 
 function renderTree() {
@@ -301,7 +335,7 @@ function applyFilters(messages) {
         const node = messages[id];
         let include = true;
 
-        if (userOnlyFilter && node.type !== 'prompt') {
+        if (userOnlyFilter && node.type !== 'user' && node.type !== 'auto' && node.type !== 'prompt') {
             include = false;
         }
 

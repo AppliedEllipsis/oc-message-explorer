@@ -419,6 +419,19 @@
             border-left: 3px solid var(--warning);
         }
 
+        .node-content.user-node {
+            border-left: 3px solid var(--success);
+        }
+
+        .node-content.system-node {
+            border-left: 3px solid var(--text-muted);
+        }
+
+        .node-content.auto-node {
+            border-left: 3px solid var(--accent);
+            border-left-style: dashed;
+        }
+
         .expand-icon {
             width: 20px;
             text-align: center;
@@ -464,6 +477,22 @@
         .node-type.response {
             background: var(--warning);
             color: #0d1117;
+        }
+
+        .node-type.user {
+            background: var(--success);
+            color: #ffffff;
+        }
+
+        .node-type.system {
+            background: var(--text-muted);
+            color: #ffffff;
+        }
+
+        .node-type.auto {
+            background: var(--accent);
+            color: #ffffff;
+            opacity: 0.8;
         }
 
         .node-text {
@@ -1225,6 +1254,9 @@
                 <div class="form-group">
                     <label class="form-label">Type</label>
                     <select class="form-select" id="nodeType">
+                        <option value="user">User</option>
+                        <option value="auto">Auto-Generated</option>
+                        <option value="system">System</option>
                         <option value="prompt">Prompt</option>
                         <option value="response">Response</option>
                     </select>
