@@ -169,33 +169,54 @@ This file maintains query history and tracks ongoing work across AI agent sessio
 
 ---
 
+### [2026-01-31 07:30 UTC] - Query: Message truncation and AI summary in editor
+
+**Query**: if a raw message is longer than 9 lines, truncate the center with ... on the list view, but show full when clicked: maybe append AI summary to the top of it.
+
+**Context**: User wants long messages truncated in list view for compact display, with full content shown when clicked. Also wants AI summary visible at the top when viewing/editing messages.
+
+**Outcome**: Completed
+- **List View Truncation**: Added truncateContent() function
+  - Messages with > 9 lines get truncated: first 3 lines + "... (click to view full message) ..." + last 3 lines
+  - Applied in createNodeElement for display rendering
+  - Applied in loadNodeContentForViewport when viewport content loads
+- **Editor Enhancement**: Modified openEditor() to show organized layout
+  - AI Summary displayed at top with "=== AI Summary ===" header
+  - Raw content displayed below with "=== Raw Content ===" header
+  - If only summary exists, shows summary alone
+  - If only content exists, shows content alone
+- **Save Handling**: Updated saveNode() to strip headers
+  - Removes "=== AI Summary ===" and "=== Raw Content ===" before saving
+  - Prevents corrupting actual message content with display formatting
+  - Clean separation between display format and stored data
+- **Files modified**:
+  - `oc-message-explorer/static/app.js`: Added truncateContent(), updated display logic, modified openEditor() and saveNode()
+
+---
+
 ## Current Focus
 
 ### Last Query
 
-**Query**: Security audit for credential leaks
-**Time**: 2026-01-31 07:00 UTC
-**Summary**: Verified no API keys or secrets in git history
+**Query**: Message truncation and AI summary in editor
+**Time**: 2026-01-31 07:30 UTC
+**Summary**: Added truncation for list view, full content with AI summary on click
 
 ### Context
 
-Request to ensure no credentials/keys are leaking. Conducted comprehensive security audit checking git history and current files for API keys, tokens, and secrets.
+User wants long messages (> 9 lines) truncated in list view with center omitted ("..."), but displayed fully when clicked. Also requested AI summary be appended to top of full content.
 
-### Findings
-
-✅ **No credential leaks found:**
-- No OpenAI API keys (only placeholder "sk-your-api-key-here")
-- No GitHub tokens (ghp_, ghu_, ghs_, ghr_)
-- No JWT tokens
-- No bearer/basic auth tokens
-- No .env files committed
-- No config.json in git history
-- All .env/.env.local files properly gitignored
-- Source files use environment variables, no hardcoded secrets
+Implementation:
+- Added truncateContent() function that slices first 3 lines + "..." + last 3 lines for messages > 9 lines
+- Updated createNodeElement to apply truncation in display mode
+- Updated loadNodeContentForViewport to use truncation when content loads
+- Modified openEditor() to prepend "=== AI Summary ===" and "=== Raw Content ===" headers
+- Updated saveNode() to strip out header prefixes before saving to avoid corrupting content
+- Editor now shows organized layout with summary on top, raw content below
 
 ### Planning
 
-Security audit complete and verified. Project is secure with proper credential handling.
+Message display optimized. List view shows compact previews, editor shows full content with AI summary at top.
 
 ### Remaining Items
 

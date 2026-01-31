@@ -157,24 +157,13 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 07:00 UTC
-**Summary**: Security audit - no API keys leaking in git history
+**Time**: 2026-01-31 07:30 UTC
+**Summary**: Message truncation for list view, full content on click
 **Status**: Complete
 
 ### Context
 
-Security audit performed across entire git history. Verified no credentials, API keys, or secrets are present in any commits.
-
-### Findings
-
-- No OpenAI API keys found (only placeholder "sk-your-api-key-here")
-- No GitHub tokens detected
-- No JWT tokens found
-- No bearer/basic auth tokens
-- .env files properly gitignored
-- .env.example contains only placeholder values
-- No config.json files in git history
-- No hardcoded secrets in source files
+User wanted long messages truncated in list view (9+ lines) but displayed fully when clicked. Also requested AI summary be appended to top of full content view.
 
 ### Planning
 
@@ -196,6 +185,8 @@ Current features implemented:
 - **Viewport-based lazy loading: raw content loads automatically as you scroll**
 - **300px buffer margin for smooth scrolling experience**
 - **Security confirmed: no credential leaks in git history**
+- **Message truncation for list view (9+ lines truncated in center)**
+- **AI summary prepended to content when clicked**
 
 ### Pending Tasks
 
