@@ -157,13 +157,13 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 04:15 UTC
-**Summary**: Fix resource exhaustion and JavaScript reference errors
-**Status**: Complete - All features implemented
+**Time**: 2026-01-31 05:30 UTC
+**Summary**: Add options panel and show full raw messages
+**Status**: Complete
 
 ### Context
 
-Fixed `loadTodos is not defined` error by moving functions from nested scope to top-level. Removed automatic content loading on expand to avoid ERR_INSUFFICIENT_RESOURCES. Content now loads only when directly clicking on nodes, not when expanding threads.
+Added collapsible Options button to hide/filter/display options keeping search always visible. Fixed message text display to show full content instead of truncating at 100 characters.
 
 ### Planning
 
@@ -179,10 +179,9 @@ Current features implemented:
 - Todo list functionality with priority levels
 - AGENTS.md content loading and viewing
 - Task-oriented prompt optimization with AGENTS.md context
-- **Fixed JavaScript reference errors**
-- ** removed resource exhaustion by simplifying expand/collapse**
-- **Content loads on-demand when clicking nodes**
-- **Expand/collapse only toggles visibility without loading**
+- **Collapsible Options panel for cleaner UI**
+- **Full raw message text display (no truncation)**
+- **Message text wraps appropriately**
 
 ### Pending Tasks
 

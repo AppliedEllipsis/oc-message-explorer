@@ -74,37 +74,57 @@ This file maintains query history and tracks ongoing work across AI agent sessio
 
 ---
 
+### [2026-01-31 05:30 UTC] - Query: Add options panel and show full raw messages
+
+**Query**: Hide options, toggles, filtering (except search) behind an options button. Also show raw long messages in the message list instead of truncating them.
+
+**Context**: User wants a cleaner UI with options hidden by default, and full message content visible in the message list without truncation.
+
+**Outcome**: Completed
+- **Collapsible Options Panel**: Added "Options ⚙️" toggle button to toolbar
+  - Search box remains always visible
+  - All filter options hidden/collapsed by default
+  - Options panel includes: Raw only, User only, Show raw, No empty res, Newest first toggles, date inputs, and New Prompt button
+- **Full message text display**: 
+  - Removed CSS text truncation (overflow: hidden, text-overflow: ellipsis)
+  - Updated .node-text to use word-break: break-word and pre-wrap for proper wrapping
+  - Modified displayContent logic to show full raw message content without 100-character limit
+- **Files modified**:
+  - `oc-message-explorer/static/index.html`: Added Options button and options panel
+  - `oc-message-explorer/static/app.js`: Added toggleOptionsPanel() function, removed message truncation
+  - Updated styles for better text display
+
+---
+
 ## Current Focus
 
 ### Last Query
 
-**Query**: Finalize OC Message Explorer
-**Time**: 2026-01-31 01:00 UTC
-**Summary**: OC Message Explorer complete with README and comprehensive documentation
+**Query**: Add options panel and show full raw messages
+**Time**: 2026-01-31 05:30 UTC
+**Summary**: Added collapsible Options button and fixed message text display
 
 ### Context
 
-OC Message Explorer is complete and ready for use. All essential files are in place:
+User requested:
+1. Hide options, toggles, filtering (except search) behind an options button
+2. Show raw long messages in the message list instead of truncated text
 
-- Git repository initialized with enhanced conventional commit format
-- TypeScript, ESLint, commitlint configured
-- Memory system fully documented
-- Development guidelines written (AGENTS.md and agents.min.md)
-- Comprehensive README.md added
-- Environment variables template provided
-- All project-specific content removed from source project
+Implementation:
+- Added "Options ⚙️" toggle button to toolbar
+- Moved all filter options into collapsible options panel
+- Search box remains always visible
+- Removed CSS text truncation (ellipsis)
+- Modified displayContent logic to show full raw message content
+- Updated .node-text CSS to use word-break and pre-wrap for proper text wrapping
 
 ### Planning
 
-Project is now ready for:
-1. Use OC Message Explorer to analyze OpenChat messages
-2. Add new features in `src/` directory
-3. Configure with environment variables
-4. Extend functionality as needed
+UI improvements completed. The interface is now cleaner with options hidden by default, and full message content is visible without truncation.
 
 ### Remaining Items
 
-- [ ] None - initial setup is complete
+- [ ] None
 
 ---
 

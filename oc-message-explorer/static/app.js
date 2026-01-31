@@ -433,13 +433,9 @@ function createNodeElement(node, messages, isRoot = false) {
 
     let displayContent;
     if (displayModeRaw) {
-        if (node.content && node.content.trim() !== '') {
-            displayContent = `${node.content.substring(0, 100)}${node.content.length > 100 ? '...' : ''}`;
-        } else {
-            displayContent = node.summary ? node.summary : '(No content)';
-        }
+        displayContent = node.content && node.content.trim() !== '' ? node.content : (node.summary ? node.summary : '(No content)');
     } else {
-        displayContent = node.summary ? node.summary : `${node.content.substring(0, 100)}${node.content.length > 100 ? '...' : ''}`;
+        displayContent = node.summary ? node.summary : (node.content ? node.content : '(No content)');
     }
 
     const folderInfo = getFolderInfo(node.id);
@@ -1540,13 +1536,22 @@ function loadAgentsContent() {
 
 function copyAgentsContent() {
     const preview = document.getElementById('agentsPreview').textContent;
-    
+
     navigator.clipboard.writeText(preview).then(() => {
         showNotification('AGENTS.md content copied');
     }).catch(err => {
         console.error('Failed to copy:', err);
         showNotification('Failed to copy');
     });
+}
+
+function toggleOptionsPanel() {
+    const panel = document.getElementById('optionsPanel');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'flex';
+    } else {
+        panel.style.display = 'none';
+    }
 }
 
 

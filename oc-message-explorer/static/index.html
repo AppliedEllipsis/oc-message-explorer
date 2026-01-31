@@ -499,10 +499,9 @@
             flex: 1;
             font-size: 15px;
             line-height: 1.5;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
             color: var(--text-primary);
+            word-break: break-word;
+            white-space: pre-wrap;
         }
 
         .node-meta {
@@ -1218,29 +1217,32 @@
 
             <div class="toolbar">
                 <input type="text" class="search-box" id="searchBox" placeholder="Search messages..." oninput="filterMessages()">
-                <label class="filter-toggle" id="searchToggle">
-                    <input type="checkbox" id="searchRawOnly" onchange="toggleSearchMode()">
-                    <span>Raw only</span>
-                </label>
-                <label class="filter-toggle" id="filterToggle">
-                    <input type="checkbox" id="userOnlyFilter" onchange="toggleUserFilter()">
-                    <span>User only</span>
-                </label>
-                <label class="filter-toggle active" id="displayToggle">
-                    <input type="checkbox" id="displayRawMessages" checked onchange="toggleDisplayMode()">
-                    <span>Show raw</span>
-                </label>
-                <label class="filter-toggle active" id="emptyToggle">
-                    <input type="checkbox" id="hideEmptyResponses" checked onchange="toggleHideEmptyResponses()">
-                    <span>No empty res</span>
-                </label>
-                <label class="filter-toggle" id="sortToggle">
-                    <input type="checkbox" id="sortAscending" checked onchange="toggleSortOrder()">
-                    <span>Newest first</span>
-                </label>
-                <input type="date" class="form-input" id="startDate" style="width: 150px;" title="Start date">
-                <input type="date" class="form-input" id="endDate" style="width: 150px;" title="End date">
-                <button class="btn primary" onclick="showNewMessageModal('prompt')">New Prompt</button>
+                <button class="btn" onclick="toggleOptionsPanel()" id="optionsToggleBtn">Options ⚙️</button>
+                <div id="optionsPanel" style="display: none; flex-wrap: wrap; gap: 8px; align-items: center;">
+                    <label class="filter-toggle" id="searchToggle">
+                        <input type="checkbox" id="searchRawOnly" onchange="toggleSearchMode()">
+                        <span>Raw only</span>
+                    </label>
+                    <label class="filter-toggle" id="filterToggle">
+                        <input type="checkbox" id="userOnlyFilter" onchange="toggleUserFilter()">
+                        <span>User only</span>
+                    </label>
+                    <label class="filter-toggle active" id="displayToggle">
+                        <input type="checkbox" id="displayRawMessages" checked onchange="toggleDisplayMode()">
+                        <span>Show raw</span>
+                    </label>
+                    <label class="filter-toggle active" id="emptyToggle">
+                        <input type="checkbox" id="hideEmptyResponses" checked onchange="toggleHideEmptyResponses()">
+                        <span>No empty res</span>
+                    </label>
+                    <label class="filter-toggle" id="sortToggle">
+                        <input type="checkbox" id="sortAscending" checked onchange="toggleSortOrder()">
+                        <span>Newest first</span>
+                    </label>
+                    <input type="date" class="form-input" id="startDate" style="width: 150px;" title="Start date">
+                    <input type="date" class="form-input" id="endDate" style="width: 150px;" title="End date">
+                    <button class="btn primary" onclick="showNewMessageModal('prompt')">New Prompt</button>
+                </div>
                 <div class="toolbar-right">
                     <button class="btn" onclick="copySelected()">Copy</button>
                     <button class="btn" onclick="showCombineModal()">Combine</button>
