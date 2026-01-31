@@ -158,16 +158,16 @@ Links to related entries in shared memory or tool-specific memory
 
 **Tool**: None
 **Time**: [Initial Setup]
-**Summary**: Project scaffolding created with AI agent memory system
+**Summary**: OC Message Explorer created with AI agent memory system
 **Status**: Initial setup complete
 
 ### Context
 
-Fresh project scaffolding with AI agent memory system and development tooling.
+OC Message Explorer with AI agent memory system and development tooling.
 
 ### Planning
 
-Ready to begin new project development.
+Ready to begin OC Message Explorer development.
 
 ### Pending Tasks
 
@@ -191,7 +191,7 @@ No tasks pending yet.
 
 ### Project Context
 
-**Project**: Project scaffolding template with AI agent memory system
+**Project**: OC Message Explorer - A tool for exploring and analyzing OpenChat messages
 
 **Last Updated**: [Date of setup]
 

@@ -5,6 +5,10 @@ out/
 dist/
 build/
 *.vsix
+*.exe
+*.dll
+*.dylib
+*.so
 
 # ==========================================
 # Dependencies

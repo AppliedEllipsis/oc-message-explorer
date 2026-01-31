@@ -1,12 +1,15 @@
-# Project Scaffolding
+# OC Message Explorer
 
-A complete scaffolding template for TypeScript projects with AI agent memory system and development tooling.
+A tool for exploring and analyzing OpenChat messages.
 
 ## Quick Start
 
-### 1. Clone or Copy This Template
+### 1. Clone the Repository
 
-Start by copying this entire directory to your new project location.
+```bash
+git clone https://github.com/AppliedEllipsis/oc-message-explorer.git
+cd oc-message-explorer
+```
 
 ### 2. Set Up Environment
 
@@ -14,7 +17,7 @@ Start by copying this entire directory to your new project location.
 # Copy the environment template
 cp .env.example .env
 
-# Edit .env and add your test API keys and configuration
+# Edit .env and add your configuration
 # Your favorite editor
 ```
 
@@ -49,6 +52,8 @@ npm run watch
 ├── AGENTS.md             # Full AI agent development guide
 ├── agents.min.md         # Quick-start guide (read this first!)
 ├── commitlint.config.mjs # Commit message linting configuration
+├── LICENSE               # MIT License
+├── README.md             # This file
 ├── docs/
 │   ├── MEMORY.md         # Query history and task tracking
 │   └── memory/
@@ -57,15 +62,23 @@ npm run watch
 │       ├── shared-memory.md          # Cross-tool memory pool
 │       └── tool-registry.md          # AI tool registry
 ├── eslint.config.mjs      # ESLint configuration
+├── oc-message-explorer/  # Main application directory
 ├── package.json          # NPM scripts and dependencies
 ├── src/                  # TypeScript source files
-│   └── .gitkeep          # Marker file (remove when adding source code)
 └── tsconfig.json         # TypeScript configuration
 ```
 
 ---
 
 ## Features
+
+OC Message Explorer provides powerful tools for analyzing and understanding your OpenChat conversations.
+
+### 📊 Message Analysis
+
+- Browse and search through OpenChat message history
+- Analyze conversation patterns and trends
+- Export message data for further analysis
 
 ### 🤖 AI Agent Memory System
 
@@ -221,24 +234,6 @@ TIMEOUT=30000
 
 ---
 
-## Navigation Primitives
-
-### Coherence Wormhole (Speed Optimization)
-
-When you're converging on a clear target and intermediate steps are obvious, you can offer to "take a coherence wormhole" and jump directly to implementation.
-
-**Ask**: "Would you like me to take a coherence wormhole and jump straight there?"
-
-### Vector Calibration (Direction Optimization)
-
-When a nearby target better aligns with intent (more general, simpler, more leveraged), suggest redirecting.
-
-**Ask**: "Would you like to redirect to Y, briefly compare X vs Y, or stay on X?"
-
-See [`agents.min.md`](agents.min.md) for complete documentation.
-
----
-
 ## Documentation
 
 ### Quick Start
@@ -259,20 +254,9 @@ See [`agents.min.md`](agents.min.md) for complete documentation.
 
 ---
 
-## Getting Started with a New Project
-
-1. **Copy this scaffolding** to your new project directory
-2. **Update `package.json`** with your project name and details
-3. **Set up `.env`** with your environment variables
-4. **Update `README.md`** with project-specific information
-5. **Delete `README.md` and create your own** or edit this one
-6. **Start coding** in `src/` directory
-
----
-
 ## License
 
-UNLICENSED - This is a scaffolding template. Use as needed for your projects.
+MIT License - See [`LICENSE`](LICENSE) file for details.
 
 ---
 

@@ -1,8 +1,8 @@
 {
-  "name": "project-scaffolding",
+  "name": "oc-message-explorer",
   "version": "0.0.1",
   "license": "UNLICENSED",
-  "description": "Project scaffolding template with AI agent memory system and development tooling",
+  "description": "OC Message Explorer - A tool for exploring and analyzing OpenChat messages",
   "type": "commonjs",
   "scripts": {
     "compile": "tsc -p ./",
