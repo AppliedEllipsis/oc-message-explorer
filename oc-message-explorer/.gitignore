@@ -1,0 +1,22 @@
+# Environment variables
+.env
+
+# Configuration
+config.json
+
+# Build artifacts
+*.exe
+*.dll
+*.dylib
+*.so
+
+# Logs
+*.log
+tmp/
+temp/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
