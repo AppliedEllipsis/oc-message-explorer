@@ -157,33 +157,33 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 01:55 UTC
-**Summary**: Completed UI improvements with professional dark theme and filtering features
-**Status**: Complete - All current features tested and working
+**Time**: 2026-01-31 01:57 UTC
+**Summary**: Completed markdown rendering and message combine features
+**Status**: Complete - All current features implemented
 
 ### Context
 
-OC Message Explorer with professional GitHub-style dark theme UI. Added user-only filter, date range filter, activity graph, folder information display, and simplified launch message.
+OC Message Explorer is now feature-complete for current phase. Added markdown rendering for responses and a combine modal with drag-and-drop reordering for selected messages.
 
 ### Planning
 
-UI improvements complete. All features tested and verified:
+Current features implemented and tested:
 - Professional dark theme (GitHub-inspired)
-- User-only filter toggle
-- Date range filtering
+- User-only filter toggle and date range filtering
 - Activity graph visualization
 - Folder display in message nodes
-- Clean launch message
+- Markdown rendering for all responses
+- Combine modal with drag-and-drop reordering
+- Copy combined text with separators
+- Clean, minimalist UI design
 
 ### Pending Tasks
 
 - [ ] Add tag cloud widget for filtering by tags/message types
-- [ ] Implement Markdown rendering for responses
-- [ ] Add copy and combine functionality for multiple messages
-- [ ] Create prompt manager with drag-and-drop reordering
-- [ ] Add OpenAI API configuration in settings
-- [ ] Implement model listing from OpenAI API
+- [ ] Add OpenAI API configuration in settings modal
+- [ ] Implement model listing from OpenAI API endpoint
 - [ ] Add prompt rewriting/optimization using selected model
+- [ ] Create project settings modal for API key management
 
 ---
 
