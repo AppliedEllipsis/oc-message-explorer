@@ -1212,9 +1212,43 @@ function reloadData() {
 }
 
 function showSettingsModal() {
-    loadSettings().then(() => {
-        document.getElementById('settingsModal').classList.add('active');
-    });
+    fetch('/api/config')
+        .then(res => res.json())
+        .then(config => {
+            configManager.config = config;
+
+            document.getElementById('openaiApiKey').value = config.openAIAPIKey || '';
+            document.getElementById('openaiBaseUrl').value = config.openaiBaseUrl || '';
+            document.getElementById('openaiModel').value = config.openaiModel || '';
+            document.getElementById('optimizationPrompt').value = config.optimizationPrompt ||
+                `First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
+
+Then, combine these prompts into a single, task-oriented prompt that will direct you to:
+
+1. Verify the existence of the components described in the prompts within the project codebase
+2. If any component does not exist, recreate it following the guidelines from AGENTS.md
+3. Ensure all code follows the project's coding conventions and best practices
+4. Maintain consistency with the existing project structure and patterns
+
+Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
+- Code quality and maintainability
+- Adherence to project conventions
+- Proper documentation and commenting
+- Type safety and error handling`;
+            document.getElementById('projectPath').value = config.projectPath || '';
+            document.getElementById('agentsPath').value = config.agentsPath || '';
+
+            if (config.openAIAPIKey) {
+                document.getElementById('modelSelectGroup').style.display = 'block';
+                fetchModels(false);
+            }
+
+            document.getElementById('settingsModal').classList.add('active');
+        })
+        .catch(err => {
+            console.error('Failed to load settings:', err);
+            document.getElementById('settingsModal').classList.add('active');
+        });
 }
 
 function saveSettings() {
