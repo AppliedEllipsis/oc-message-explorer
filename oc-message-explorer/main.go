@@ -745,12 +745,9 @@ func main() {
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("  OC Message Explorer")
 	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println("\n  Server is running at:")
-	fmt.Printf("  %s\n", url)
-	fmt.Println("\n  Ctrl+click the URL above to open in your browser")
-	fmt.Println("\n" + strings.Repeat("-", 60))
+	fmt.Printf("\n  %s\n\n", url)
 	fmt.Println("  Press Ctrl+C to stop the server")
-	fmt.Println(strings.Repeat("=", 60) + "\n")
+	fmt.Println("\n" + strings.Repeat("=", 60) + "\n")
 
 	srv := &http.Server{
 		Handler:      router,
