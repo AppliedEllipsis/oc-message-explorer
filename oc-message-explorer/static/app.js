@@ -29,6 +29,12 @@ function init() {
     setupCombineDragAndDrop();
     loadSettings();
     loadTodos();
+    setupModelFilter();
+}
+
+function setupModelFilter() {
+    const filterInput = document.getElementById('openaiModelFilter');
+    filterInput.addEventListener('input', filterModelOptions);
 }
 
 function connectWebSocket() {
@@ -455,6 +461,7 @@ function createNodeElement(node, messages, isRoot = false) {
             <span class="expand-icon">${expandIcon}</span>
             <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''}>
             <span class="node-type ${node.type}">${node.type}</span>
+            <button class="node-edit-icon" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px 8px; font-size: 14px; opacity: 0; transition: opacity 0.15s ease;" title="Edit message">✏️</button>
             <div class="node-content-wrapper">
                 <div class="node-header">
                     <span class="node-text">${escapeHtml(displayContent)}</span>
@@ -472,12 +479,26 @@ function createNodeElement(node, messages, isRoot = false) {
     const contentDiv = div.querySelector('.node-content');
     const expandIconEl = div.querySelector('.expand-icon');
     const checkbox = div.querySelector('.node-checkbox');
+    const editIcon = div.querySelector('.node-edit-icon');
     const childrenContainer = div.querySelector('.children-container');
 
-    contentDiv.onclick = (e) => {
-        if (e.target !== checkbox && e.target !== expandIconEl) {
+    contentDiv.ondblclick = (e) => {
+        if (e.target !== checkbox && e.target !== expandIconEl && e.target !== editIcon) {
             openEditor(node.id);
         }
+    };
+
+    contentDiv.onmouseenter = () => {
+        editIcon.style.opacity = '1';
+    };
+
+    contentDiv.onmouseleave = () => {
+        editIcon.style.opacity = '0';
+    };
+
+    editIcon.onclick = (e) => {
+        e.stopPropagation();
+        openEditor(node.id);
     };
 
     expandIconEl.onclick = (e) => {
@@ -854,6 +875,14 @@ function collapseAll() {
     renderTree();
 }
 
+function unselectAll() {
+    Object.values(allMessages).forEach(node => {
+        node.selected = false;
+    });
+    renderTree();
+    showNotification('All messages unchecked');
+}
+
 function showNewFolderModal() {
     document.getElementById('newFolderModal').classList.add('active');
 }
@@ -1146,13 +1175,26 @@ function optimizePrompts() {
     }
 
     const resultDiv = document.getElementById('optimizerResult');
-    resultDiv.innerHTML = '<div style="text-align: center; padding: 40px;">Loading AGENTS.md and optimizing...</div>';
+    const optimizeBtn = event?.target;
+
+    if (optimizeBtn) {
+        optimizeBtn.disabled = true;
+        optimizeBtn.textContent = 'Optimizing...';
+    }
+
+    resultDiv.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+            <div style="font-size: 32px; margin-bottom: 16px; animation: spin 1s linear infinite;">⏳</div>
+            <div style="color: var(--text-secondary);">Loading AGENTS.md...</div>
+        </div>
+    `;
+
+    showNotification('Starting optimization...');
 
     const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'chat/completions' : baseUrl + '/chat/completions';
-
     const fullSystemPrompt = optimizationPrompt;
 
-    return fetch('/api/agents-content')
+    fetch('/api/agents-content')
         .then(res => {
             if (!res.ok) {
                 throw new Error(`Failed to load AGENTS.md: ${res.status}`);
@@ -1160,9 +1202,21 @@ function optimizePrompts() {
             return res.json();
         })
         .then(data => {
-            const finalSystemPrompt = fullSystemPrompt ? 
+            showNotification('AGENTS.md loaded, calling AI...');
+
+            resultDiv.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 32px; margin-bottom: 16px; animation: spin 1s linear infinite;">🤖</div>
+                    <div style="color: var(--text-secondary);">AI is optimizing your prompts...</div>
+                    <div style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">This may take a few seconds</div>
+                </div>
+            `;
+
+            const finalSystemPrompt = fullSystemPrompt ?
                 `${fullSystemPrompt}\n\n=== AGENTS.md Content ===\n\n${data.content}` :
                 data.content;
+
+            console.log('Calling optimization API with model:', model);
 
             return fetch(apiUrl, {
                 method: 'POST',
@@ -1183,12 +1237,23 @@ function optimizePrompts() {
         .then(res => {
             if (!res.ok) {
                 return res.text().then(text => {
-                    throw new Error(`API error: ${res.status} - ${text}`);
+                    console.error('API error response:', text);
+                    if (res.status === 401) {
+                        throw new Error('Invalid API key');
+                    } else if (res.status === 404) {
+                        throw new Error('Model not found - check model name and base URL');
+                    } else if (res.status === 429) {
+                        throw new Error('Rate limit exceeded - try again later');
+                    } else {
+                        throw new Error(`API error: ${res.status} - ${text}`);
+                    }
                 });
             }
             return res.json();
         })
         .then(data => {
+            console.log('Optimization response:', data);
+
             if (data.choices && data.choices[0]) {
                 const optimized = data.choices[0].message.content;
 
@@ -1198,18 +1263,31 @@ function optimizePrompts() {
                     resultDiv.textContent = optimized;
                 }
 
+                showNotification('✓ Optimization complete!');
                 document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
-                showNotification('Optimization complete');
             } else if (data.error) {
-                throw new Error(data.error.message || data.error);
+                throw new Error(data.error.message || JSON.stringify(data.error));
             } else {
-                throw new Error('No response from API');
+                throw new Error('No choices in API response');
             }
         })
         .catch(err => {
             console.error('Optimization error:', err);
-            resultDiv.innerHTML = `<div style="color: var(--danger); text-align: center; padding: 40px;">Error: ${escapeHtml(err.message || err.toString())}</div>`;
-            showNotification('Optimization failed');
+            resultDiv.innerHTML = `
+                <div style="color: var(--danger); text-align: center; padding: 40px;">
+                    <div style="font-size: 32px; margin-bottom: 16px;">❌</div>
+                    <div style="font-weight: 600; margin-bottom: 8px;">Optimization Failed</div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">${escapeHtml(err.message || err.toString())}</div>
+                    <div style="color: var(--text-muted); font-size: 13px; margin-top: 16px;">Check your settings and try again</div>
+                </div>
+            `;
+            showNotification(`✗ Optimization failed: ${err.message}`);
+        })
+        .finally(() => {
+            if (optimizeBtn) {
+                optimizeBtn.disabled = false;
+                optimizeBtn.textContent = 'Optimize';
+            }
         });
 }
 
@@ -1347,9 +1425,17 @@ function saveSettings() {
         agentsPath: agentsPath
     };
 
-    const saveBtn = event.target;
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving...';
+    const saveBtn = event?.target;
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+    }
+
+    if (apiKey) {
+        showNotification('Testing and saving...');
+    } else {
+        showNotification('Saving settings...');
+    }
 
     fetch('/api/config', {
         method: 'PUT',
@@ -1359,7 +1445,7 @@ function saveSettings() {
     .then(res => res.json())
     .then(config => {
         configManager.config = config;
-        showNotification('Settings saved to .env');
+        showNotification('✓ Settings saved to .env');
 
         if (config.openAIAPIKey) {
             document.getElementById('modelSelectGroup').style.display = 'block';
@@ -1370,11 +1456,13 @@ function saveSettings() {
     })
     .catch(err => {
         console.error('Failed to save settings:', err);
-        showNotification(`Failed to save: ${err.message}`);
+        showNotification(`✗ Failed to save: ${err.message}`);
     })
     .finally(() => {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save to .env';
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save to .env';
+        }
     });
 }
 
@@ -1418,18 +1506,23 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
 function testApiKey() {
     const apiKey = document.getElementById('openaiApiKey').value.trim();
     const baseUrl = document.getElementById('openaiBaseUrl').value.trim() || 'https://api.openai.com/v1';
-    const testBtn = event.target;
 
     if (!apiKey) {
         showNotification('Please enter API key');
         return;
     }
 
-    testBtn.disabled = true;
-    testBtn.textContent = 'Testing...';
-    showNotification('Testing API key...');
+    const testBtn = event?.target;
+    if (testBtn) {
+        testBtn.disabled = true;
+        testBtn.textContent = 'Testing...';
+    }
+
+    showNotification('Testing API connection...');
 
     const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'models' : baseUrl + '/models';
+
+    console.log('Testing API connection to:', apiUrl);
 
     fetch(apiUrl, {
         headers: {
@@ -1443,6 +1536,10 @@ function testApiKey() {
             return res.text().then(text => {
                 if (res.status === 401) {
                     throw new Error('Invalid API key');
+                } else if (res.status === 404) {
+                    throw new Error('Invalid base URL - /models endpoint not found');
+                } else if (res.status === 403) {
+                    throw new Error('Access forbidden - check API permissions');
                 } else {
                     throw new Error(`API error: ${res.status} - ${text || res.statusText}`);
                 }
@@ -1450,17 +1547,28 @@ function testApiKey() {
         }
     })
     .then(data => {
+        if (!data.data || !Array.isArray(data.data)) {
+            throw new Error('Invalid response format from API');
+        }
+
         document.getElementById('modelSelectGroup').style.display = 'block';
         populateModels(data.data);
-        showNotification('API key is valid');
+
+        const modelCount = data.data.length;
+        showNotification(`✓ Connection valid! Found ${modelCount} models`);
+
+        return true;
     })
     .catch(err => {
         console.error('API key test failed:', err);
-        showNotification(`Error: ${err.message}`);
+        showNotification(`✗ Test failed: ${err.message}`);
+        throw err;
     })
     .finally(() => {
-        testBtn.disabled = false;
-        testBtn.textContent = 'Test Connection';
+        if (testBtn) {
+            testBtn.disabled = false;
+            testBtn.textContent = 'Test Connection';
+        }
     });
 }
 
@@ -1524,11 +1632,12 @@ function fetchModels(showNotificationOnSuccess = true, apiKey = null, baseUrl = 
 
 function populateModels(models) {
     const select = document.getElementById('openaiModel');
+    const filterInput = document.getElementById('openaiModelFilter');
     const currentModel = select.value;
 
-    const sortedModels = models.sort((a, b) => a.id.localeCompare(b.id));
+    select.innerHTML = '<option value="" data-default>Select a model</option>';
 
-    select.innerHTML = '<option value="">Select a model</option>';
+    const sortedModels = models.sort((a, b) => a.id.localeCompare(b.id));
 
     sortedModels.forEach(model => {
         const option = document.createElement('option');
@@ -1537,9 +1646,42 @@ function populateModels(models) {
         select.appendChild(option);
     });
 
-    if (currentModel && sortedModels.find(m => m.id === currentModel)) {
+    if (currentModel) {
         select.value = currentModel;
     }
+
+    if (filterInput.value) {
+        filterModelOptions();
+    }
+}
+
+function filterModelOptions() {
+    const filterInput = document.getElementById('openaiModelFilter');
+    const select = document.getElementById('openaiModel');
+    const filterText = filterInput.value.toLowerCase();
+
+    Array.from(select.options).forEach(option => {
+        if (option.hasAttribute('data-default')) {
+            option.style.display = '';
+            return;
+        }
+
+        if (filterText === '') {
+            option.style.display = '';
+        } else {
+            option.style.display = option.value.toLowerCase().includes(filterText) ? '' : 'none';
+        }
+    });
+
+    if (filterText === '') {
+        select.value = '';
+    }
+}
+
+function clearModelFilter() {
+    const filterInput = document.getElementById('openaiModelFilter');
+    filterInput.value = '';
+    filterModelOptions();
 }
 
 function showNotification(message) {
