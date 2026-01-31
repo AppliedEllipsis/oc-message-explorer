@@ -1,26 +1,26 @@
-# OpenCode Message Explorer
+# OC Message Explorer
 
-A lightweight, self-contained Golang webapp that **loads your actual OpenCode prompt history** and displays it in a browsable tree-view interface. Features lazy loading, fuzzy search, and memory-efficient browsing.
+A lightweight, self-contained Golang webapp that **loads your actual OpenChat message history** and displays it in a browsable tree-view interface. Features lazy loading, fuzzy search, and memory-efficient browsing.
 
 ## Description
 
-This app directly reads your OpenCode message history and displays it. It helps you:
-- **Browse ALL your OpenCode messages** (like pressing up arrow navigation)
+This app directly reads your OpenChat message history and displays it. It helps you:
+- **Browse ALL your OpenChat messages** (like pressing up arrow navigation)
 - See complete conversation history with prompts and responses
 - Quickly find and copy past prompts/cherry-pick from history
 - Verify implementations and check past work
 - Combine multiple messages and copy to clipboard
 - Organize messages into custom folders/projects
-- Search through all your OpenCode conversations with fuzzy matching
+- Search through all your OpenChat conversations with fuzzy matching
 - **Use minimal memory** with lazy loading
 
 ## Key Features
 
-**OpenCode Integration:**
-- **Auto-loads** your OpenCode message history on startup
+**OpenChat Integration:**
+- **Auto-loads** your OpenChat message history on startup
 - Reads from `%USERPROFILE%\.local\share\opencode` on Windows
 - Loads all sessions, prompts, and responses
-- Preserves the full content from message parts
+- Preserves full content from message parts
 - Shows metadata: role, timestamp, agent, session
 
 **Lazy Loading & Memory:**
@@ -35,7 +35,7 @@ This app directly reads your OpenCode message history and displays it. It helps 
 - **Message Selection**: Checkboxes for multi-select
 - **Combine & Copy**: Copy selected messages to clipboard instantly
 - **Inline Editor**: Edit prompts, responses, and tags in browser
-- **Drag & Drop**: Reorder messages in the tree
+- **Drag & Drop**: Reorder messages in tree
 - **Tagging System**: Organize with custom tags
 - **Search**: Fuzzy search handles misspellings
 
@@ -45,47 +45,47 @@ This app directly reads your OpenCode message history and displays it. It helps 
 - **URL Display**: Shows clickable URL in terminal (no auto-browser)
 - **Import/Export**: Save/load message collections
 - **Responsive Design**: Dark-themed, all screen sizes
-- **Reload Button**: Refresh to load new OpenCode messages
+- **Reload Button**: Refresh to load new OpenChat messages
 
 ## Installation
 
-1. Navigate to the `prompt-explorer` directory
-2. Build the application:
+1. Navigate to `oc-message-explorer` directory
+2. Build application:
    ```bash
-   go build -o prompt-explorer.exe main.go
+   go build -ldflags="-s -w" -o oc-message-explorer.exe .
    ```
    On Linux/Mac:
    ```bash
-   go build -o prompt-explorer main.go
+   go build -ldflags="-s -w" -o oc-message-explorer .
    ```
 
 ## Usage
 
-Run the application:
+Run application:
 ```bash
-./prompt-explorer.exe
+./oc-message-explorer.exe
 ```
 
 Or on Windows, double-click `run.bat`
 
 The app will:
-1. Display the server URL in your terminal
+1. Display server URL in your terminal
 2. Show a loading screen with progress indicator while reading messages
-3. Click the URL in your terminal to open in your browser
-4. Load all your OpenCode messages automatically
+3. Click URL in your terminal to open in your browser
+4. Load all your OpenChat messages automatically
 
 ## How It Works
 
-1. **Launch**: Run the app - it shows a clickable URL in the terminal
-2. **Loading Screen**: App reads OpenCode messages with progress indicator
-3. **Auto-load**: Reads from OpenCode storage directory (metadata only initially)
+1. **Launch**: Run app - it shows a clickable URL in terminal
+2. **Loading Screen**: App reads OpenChat messages with progress indicator
+3. **Auto-load**: Reads from OpenChat storage directory (metadata only initially)
 4. **Browse**: "All Messages" view shows all conversations in a tree (collapsed)
 5. **Expand**: Click ▶ to expand - loads full content on demand
 6. **Search**: Type to filter with fuzzy matching (handles typos)
 7. **Copy**: Check messages you want, click "Copy Selected"
 8. **Edit**: Click any message to edit (creates copy in your collection)
 9. **Organize**: Create folders to organize by project/topic
-10. **Reload**: Click "🔄 Reload" to load new OpenCode messages
+10. **Reload**: Click "🔄 Reload" to load new OpenChat messages
 
 ## Loading Process
 
@@ -94,7 +94,7 @@ When you start the app:
 2. Loading screen appears with spinner and status messages
 3. Progress bar shows as it reads sessions and messages
 4. Once complete, loading screen disappears and messages appear
-5. Click the URL in your terminal to open the browser
+5. Click URL in your terminal to open browser
 
 You'll see progress like:
 - "Found 15 sessions, reading messages..."
@@ -111,7 +111,7 @@ You'll see progress like:
 
 **Fuzzy Search:**
 - **Misspellings handled** - "promt" matches "prompt", "mssage" matches "message"
-- **Character matching** - Searches sequentially through the text
+- **Character matching** - Searches sequentially through text
 - **Tag searching** - Also searches through tags
 - **Debounced** - 300ms delay prevents excessive searches while typing
 
@@ -123,7 +123,7 @@ You'll see progress like:
 
 ## Data Structure
 
-The app reads OpenCode's actual storage format:
+The app reads OpenChat's actual storage format:
 
 ```
 ~/.local/share/opencode/
@@ -138,15 +138,15 @@ The app reads OpenCode's actual storage format:
 
 ## Workflow
 
-1. **Start App**: Run `./prompt-explorer.exe`
-2. **View History**: All your OpenCode messages loads automatically (collapsed)
-3. **Browse Messages**: Navigate the tree - "All Messages" shows everything
+1. **Start App**: Run `./oc-message-explorer.exe`
+2. **View History**: All your OpenChat messages load automatically (collapsed)
+3. **Browse Messages**: Navigate tree - "All Messages" shows everything
 4. **Expand to Load**: Click ▶ to expand nodes - content loads on demand
 5. **Search**: Type to filter with fuzzy matching (handles typos)
 6. **Select & Copy**: Check messages you want → Click "Copy Selected"
-7. **Organize**: Create folders to organization by project/topic
+7. **Organize**: Create folders to organize by project/topic
 8. **Export**: Save your organized collection to JSON
-9. **Reload**: Click "Refresh" to load new OpenCode messages
+9. **Reload**: Click "🔄 Reload" to load new OpenChat messages
 
 ## Keyboard Shortcuts
 
@@ -158,9 +158,9 @@ The app reads OpenCode's actual storage format:
 
 ## Configuration
 
-**Custom OpenCode Path:**
+**Custom OpenChat Path:**
 
-If your OpenCode data is in a non-standard location, set the environment variable:
+If your OpenChat data is in a non-standard location, set the environment variable:
 
 ```bash
 # Windows
@@ -190,40 +190,40 @@ export OPENCODE_DATA_DIR=/path/to/opencode
 ## Project Structure
 
 ```
-prompt-explorer/
-├── main.go           # Backend + OpenCode reader + Lazy loading
+oc-message-explorer/
+├── main.go           # Backend + OpenChat reader + Lazy loading
 ├── go.mod           # Go dependencies
 ├── run.bat          # Windows launcher
-├── README.md        # This file
+├── README.md       # This file
 └── static/
     ├── index.html   # Frontend HTML
-    └── app.js       # Frontend JavaScript
+    └── app.js      # Frontend JavaScript
 ```
 
 ## Data Persistence
 
-- **OpenCode Messages**: Read-only from OpenCode storage, lazy-loaded on demand
+- **OpenChat Messages**: Read-only from OpenChat storage, lazy-loaded on demand
 - **Your Edits/New Messages**: Stored in memory during session
 - **Export**: Save your collection to JSON file
 - **Import**: Restore collections from JSON
 
-Only your custom messages and edits are saved via export. OpenCode history is read-only and refreshed on reload.
+Only your custom messages and edits are saved via export. OpenChat history is read-only and refreshed on reload.
 
 ## Troubleshooting
 
 **No messages loading:**
-- Check OpenCode data directory exists at default path
+- Check OpenChat data directory exists at default path
 - Set `OPENCODE_DATA_DIR` if using custom location
 - Ensure you have read permissions to the directory
 - Click "Reload" button to retry
 
 **Messages not expanding:**
-- Click the ▶ icon to expand and load full content
+- Click ▶ icon to expand and load full content
 - First 100 chars show as preview
 - Full content loads from disk when expanded
 
 **Fuzzy search not finding matches:**
-- Check spelling - the search is forgiving but not magic
+- Check spelling - search is forgiving but not magic
 - Try shorter search terms
 - Search looks at content, type, and tags
 - Debounced 300ms - wait briefly after typing

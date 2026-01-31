@@ -113,7 +113,7 @@ func (s *Store) loadOpenCodeMetadata() {
 
 	sessions, err := os.ReadDir(s.msgPath)
 	if err != nil {
-		log.Printf("Failed to read OpenCode message directory: %v", err)
+		log.Printf("Failed to read OpenChat message directory: %v", err)
 		s.broadcast(WSMessage{Type: MessageTypeProgress, Data: map[string]any{"status": "error", "message": fmt.Sprintf("Failed to read messages: %v", err)}})
 		return
 	}
@@ -193,15 +193,15 @@ func (s *Store) loadOpenCodeMetadata() {
 
 	if len(messageNodes) > 0 {
 		defaultFolder := &Folder{
-			ID:        "opencode",
-			Name:      "OpenCode History",
+			ID:        "openchat",
+			Name:      "OpenChat History",
 			Color:     "#e94560",
 			CreatedAt: time.Now().Format(time.RFC3339),
 			Nodes:     messageNodes,
 		}
-		s.Folders["opencode"] = defaultFolder
+		s.Folders["openchat"] = defaultFolder
 		s.broadcast(WSMessage{Type: MessageTypeProgress, Data: map[string]any{"status": "complete", "message": fmt.Sprintf("Loaded %d messages from %d sessions", len(messageNodes), totalSessions)}})
-		log.Printf("Loaded %d messages from OpenCode", len(messageNodes))
+		log.Printf("Loaded %d messages from OpenChat", len(messageNodes))
 	} else {
 		s.broadcast(WSMessage{Type: MessageTypeProgress, Data: map[string]any{"status": "error", "message": "No messages found in OpenCode data"}})
 	}
@@ -209,7 +209,7 @@ func (s *Store) loadOpenCodeMetadata() {
 
 func (s *Store) loadMessageContent(nodeID string) *MessageNode {
 	s.mu.RLock()
-	if folder, exists := s.Folders["opencode"]; exists {
+	if folder, exists := s.Folders["openchat"]; exists {
 		if node, exists := folder.Nodes[nodeID]; exists {
 			if node.HasLoaded {
 				s.mu.RUnlock()
@@ -222,7 +222,7 @@ func (s *Store) loadMessageContent(nodeID string) *MessageNode {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if folder, exists := s.Folders["opencode"]; exists {
+	if folder, exists := s.Folders["openchat"]; exists {
 		if node, exists := folder.Nodes[nodeID]; exists {
 			if node.HasLoaded {
 				return node
@@ -706,7 +706,7 @@ func main() {
 	router.HandleFunc("/api/export", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			w.Header().Set("Content-Type", "application/json")
-			w.Header().Set("Content-Disposition", "attachment; filename=prompt-explorer-export.json")
+			w.Header().Set("Content-Disposition", "attachment; filename=oc-message-explorer-export.json")
 			json.NewEncoder(w).Encode(store.toJSON())
 		}
 	})
@@ -743,7 +743,7 @@ func main() {
 	url := fmt.Sprintf("http://127.0.0.1:%d", port)
 
 	fmt.Println("\n" + strings.Repeat("=", 60))
-	fmt.Println("  OpenCode Message Explorer")
+	fmt.Println("  OC Message Explorer")
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println("\n  Server is running at:")
 	fmt.Printf("  %s\n", url)

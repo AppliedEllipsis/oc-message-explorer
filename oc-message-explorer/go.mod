@@ -1,4 +1,4 @@
-module prompt-explorer
+module oc-message-explorer
 
 go 1.21
 

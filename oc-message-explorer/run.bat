@@ -1,8 +1,8 @@
 @echo off
 echo.
-echo Starting OpenCode Message Explorer...
+echo Starting OC Message Explorer...
 echo.
-prompt-explorer.exe
+oc-message-explorer.exe
 echo.
 echo Server stopped.
 pause
