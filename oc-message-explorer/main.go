@@ -1174,11 +1174,26 @@ func main() {
 	shutdownChan := make(chan os.Signal, 1)
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 
+	// Keyboard listener for X, Q, or ESC keys
+	go func() {
+		var input [1]byte
+		for {
+			n, _ := os.Stdin.Read(input[:])
+			if n > 0 {
+				key := strings.ToLower(string(input[0]))
+				if key == "x" || key == "q" || key == "e" || input[0] == 27 { // 27 = ESC
+					shutdownChan <- os.Interrupt
+					break
+				}
+			}
+		}
+	}()
+
 	select {
 	case err := <-serverErrors:
 		log.Printf("Server error: %v", err)
-	case sig := <-shutdownChan:
-		fmt.Printf("\nReceived signal %v. Shutting down...\n", sig)
+	case <-shutdownChan:
+		fmt.Printf("\nShutting down...\n")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
