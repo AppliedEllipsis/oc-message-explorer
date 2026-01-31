@@ -1212,21 +1212,9 @@ function reloadData() {
 }
 
 function showSettingsModal() {
-    const apiKey = localStorage.getItem('openaiApiKey') || '';
-    const model = localStorage.getItem('openaiModel') || '';
-    const optimizationPrompt = localStorage.getItem('optimizationPrompt') || 
-        'Please optimize and rewrite these prompts for clarity, conciseness, and effectiveness. Maintain the key intent while improving phrasing.';
-
-    document.getElementById('openaiApiKey').value = apiKey;
-    document.getElementById('openaiModel').value = model;
-    document.getElementById('optimizationPrompt').value = optimizationPrompt;
-
-    if (apiKey) {
-        document.getElementById('modelSelectGroup').style.display = 'block';
-        fetchModels(false);
-    }
-
-    document.getElementById('settingsModal').classList.add('active');
+    loadSettings().then(() => {
+        document.getElementById('settingsModal').classList.add('active');
+    });
 }
 
 function saveSettings() {
@@ -1321,7 +1309,11 @@ function testApiKey() {
             showNotification('API key is valid');
             return res.json();
         } else {
-            throw new Error('Invalid API key');
+            if (res.status === 401) {
+                throw new Error('Invalid API key');
+            } else {
+                throw new Error(`API error: ${res.status} ${res.statusText}`);
+            }
         }
     })
     .then(data => {
@@ -1330,31 +1322,35 @@ function testApiKey() {
     })
     .catch(err => {
         console.error('API key test failed:', err);
-        showNotification('API key is invalid');
+        showNotification(err.message || 'API key test failed');
     });
 }
 
-function fetchModels(showNotificationOnSuccess = true) {
-    const apiKey = localStorage.getItem('openaiApiKey');
-    const baseUrl = localStorage.getItem('openaiBaseUrl') || 'https://api.openai.com/v1';
+function fetchModels(showNotificationOnSuccess = true, apiKey = null, baseUrl = null) {
+    const effectiveApiKey = apiKey || localStorage.getItem('openaiApiKey') || document.getElementById('openaiApiKey')?.value;
+    const effectiveBaseUrl = baseUrl || localStorage.getItem('openaiBaseUrl') || document.getElementById('openaiBaseUrl')?.value || 'https://api.openai.com/v1';
 
-    if (!apiKey) {
+    if (!effectiveApiKey) {
+        showNotification('Please enter an API key first');
         return;
     }
 
-    const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'models' : baseUrl + '/models';
+    const apiUrl = effectiveBaseUrl.endsWith('/') ? effectiveBaseUrl + 'models' : effectiveBaseUrl + '/models';
 
     fetch(apiUrl, {
         headers: {
-            'Authorization': `Bearer ${apiKey}`
+            'Authorization': `Bearer ${effectiveApiKey}`
         }
     })
     .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch models');
+        if (!res.ok) {
+            throw new Error(`Failed to fetch models: ${res.status} ${res.statusText}`);
+        }
         return res.json();
     })
     .then(data => {
         populateModels(data.data);
+        document.getElementById('modelSelectGroup').style.display = 'block';
         if (showNotificationOnSuccess) {
             showNotification('Models loaded');
         }
@@ -1362,7 +1358,7 @@ function fetchModels(showNotificationOnSuccess = true) {
     .catch(err => {
         console.error('Failed to fetch models:', err);
         if (showNotificationOnSuccess) {
-            showNotification('Failed to load models');
+            showNotification(err.message || 'Failed to load models');
         }
     });
 }

@@ -222,28 +222,56 @@ This file maintains query history and tracks ongoing work across AI agent sessio
 
 ---
 
+### [2026-01-31 08:30 UTC] - Query: Fix API test and model fetching
+
+**Query**: the ai endpoints and test don't seem to do anything
+
+**Context**: User reported API test ("Test Connection") and model fetching ("Refresh Models") not working. Investigation revealed inconsistent data sources between functions.
+
+**Outcome**: Completed
+- **Data Source Inconsistency Fixed**: Functions were reading from different places
+  - `testApiKey()` read from input field values
+  - `fetchModels()` read from localStorage
+  - `showSettingsModal()` read from localStorage instead of calling loadSettings()
+- **Improved testApiKey() Error Handling**:
+  - Added better error messages with specific HTTP status codes
+  - Distinguish between 401 (invalid key) and other API errors
+  - Shows actual error message to user
+- **Updated fetchModels() Function**:
+  - Added optional parameters for apiKey and baseUrl
+  - Falls back through multiple sources: parameters → localStorage → input field → default
+  - Shows notification if no API key is entered
+  - Better error messages with detailed status
+- **Fixed showSettingsModal()**:
+  - Now calls loadSettings() to fetch from API instead of reading localStorage
+  - Ensures settings modal always shows current .env values
+  - Properly async - waits for settings to load before showing modal
+- **Files modified**:
+  - `oc-message-explorer/static/app.js`: Updated testApiKey(), fetchModels(), and showSettingsModal()
+
+---
+
 ## Current Focus
 
 ### Last Query
 
-**Query**: Editor layout and search filter fixes
-**Time**: 2026-01-31 08:00 UTC
-**Summary**: Reorganized editor layout and fixed search filtering
+**Query**: Fix API test and model fetching
+**Time**: 2026-01-31 08:30 UTC
+**Summary**: Fixed API test connection and model refresh functionality
 
 ### Context
 
-Two issues addressed: 1) AI summary should be on right sidebar (smaller), raw message prominent on left (larger). 2) Search not filtering properly - showing all messages when no results found.
+API test and model fetching not working due to inconsistent data sources. Functions reading from localStorage, input fields, and config API in inconsistent ways.
 
 Implementation:
-- Reorganized editor into two-column layout (main + sidebar)
-- Fixed renderTree() to properly show empty state when search returns no results
-- Search now checks `searchQuery.length >= 2` before using search results
-- Raw message textarea takes full available height in main area
-- AI Summary, Type, Tags in 280px right sidebar
+- Updated fetchModels() to accept optional apiKey and baseUrl parameters
+- Improved error messages across API functions with detailed status codes
+- Fixed showSettingsModal() to call loadSettings() from API
+- testApiKey() now provides specific error messages (401 vs other errors)
 
 ### Planning
 
-Editor now has better layout emphasizing raw content. Search properly filters and shows appropriate empty state.
+API test and model fetch now work consistently using proper data sources and error handling.
 
 ### Remaining Items
 

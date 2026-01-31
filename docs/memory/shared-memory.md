@@ -157,13 +157,13 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 08:00 UTC
-**Summary**: Editor layout reorganization and search filter fix
+**Time**: 2026-01-31 08:30 UTC
+**Summary**: Fixed API test and model fetching
 **Status**: Complete
 
 ### Context
 
-Editor reorganized with AI summary on right (smaller) and raw message on left (larger/prominent). Search filtering was not working correctly - showing all messages when no results found.
+User reported that AI endpoints and test don't seem to do anything. Investigation revealed inconsistencies in how API keys and base URLs were read between testApiKey(), fetchModels(), and showSettingsModal().
 
 ### Planning
 
@@ -188,6 +188,7 @@ Current features implemented:
 - **Message truncation for list view (9+ lines truncated in center with AI summary prefix if long)**
 - **Editor reorganized: AI summary on right (280px sidebar), raw message on left (prominent)**
 - **Search filtering fixed: now properly shows empty state when no results found**
+- **API test and model fetching fixed: improved error messages, consistent data sources**
 
 ### Pending Tasks
 
