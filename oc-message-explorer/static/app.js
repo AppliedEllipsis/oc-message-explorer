@@ -21,6 +21,7 @@ function init() {
     setupDateFilter();
     setupCombineDragAndDrop();
     loadSettings();
+    loadTodos();
 }
 
 function connectWebSocket() {
@@ -884,8 +885,8 @@ function optimizeCombinedPrompts() {
 }
 
 function optimizePrompts() {
-    const apiKey = localStorage.getItem('openaiApiKey');
-    const model = document.getElementById('openaiModel').value;
+    const apiKey = configManager.config.openAIAPIKey || localStorage.getItem('openaiApiKey');
+    const model = document.getElementById('openaiModel').value || configManager.config.openaiModel;
     const optimizationPrompt = document.getElementById('optimizationPrompt').value;
     const combinedText = document.getElementById('optimizerPreview').textContent;
 
@@ -900,45 +901,52 @@ function optimizePrompts() {
     }
 
     const resultDiv = document.getElementById('optimizerResult');
-    resultDiv.innerHTML = '<div style="text-align: center; padding: 40px;">Optimizing...</div>';
+    resultDiv.innerHTML = '<div style="text-align: center; padding: 40px;">Loading AGENTS.md and optimizing...</div>';
 
-    fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [
-                { role: 'system', content: optimizationPrompt },
-                { role: 'user', content: `Optimize these prompts:\n\n${combinedText}` }
-            ],
-            temperature: 0.7
+    // First fetch agents.md content
+    fetch('/api/agents-content')
+        .then(res => res.json())
+        .then(data => {
+            const fullSystemPrompt = `${optimizationPrompt}\n\n=== AGENTS.md Content ===\n\n${data.content}`;
+
+            return fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        { role: 'system', content: fullSystemPrompt },
+                        { role: 'user', content: `Combine and optimize these prompts according to the system instructions:\n\n${combinedText}` }
+                    ],
+                    temperature: 0.7
+                })
+            });
         })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.choices && data.choices[0]) {
-            const optimized = data.choices[0].message.content;
-            
-            if (window.marked) {
-                resultDiv.innerHTML = window.marked.parse(optimized);
+        .then(res => res.json())
+        .then(data => {
+            if (data.choices && data.choices[0]) {
+                const optimized = data.choices[0].message.content;
+                
+                if (window.marked) {
+                    resultDiv.innerHTML = window.marked.parse(optimized);
+                } else {
+                    resultDiv.textContent = optimized;
+                }
+                
+                document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
+                showNotification('Optimization complete');
             } else {
-                resultDiv.textContent = optimized;
+                throw new Error('No response from API');
             }
-            
-            document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
-            showNotification('Optimization complete');
-        } else {
-            throw new Error('No response from API');
-        }
-    })
-    .catch(err => {
-        console.error('Optimization error:', err);
-        resultDiv.innerHTML = `<div style="color: var(--danger); text-align: center; padding: 40px;">Error: ${escapeHtml(err.message)}</div>`;
-        showNotification('Optimization failed');
-    });
+        })
+        .catch(err => {
+            console.error('Optimization error:', err);
+            resultDiv.innerHTML = `<div style="color: var(--danger); text-align: center; padding: 40px;">Error: ${escapeHtml(err.message)}</div>`;
+            showNotification('Optimization failed');
+        });
 }
 
 function copyOptimizedResult() {
@@ -1040,20 +1048,68 @@ function saveSettings() {
     const apiKey = document.getElementById('openaiApiKey').value.trim();
     const model = document.getElementById('openaiModel').value;
     const optimizationPrompt = document.getElementById('optimizationPrompt').value.trim();
+    const projectPath = document.getElementById('projectPath').value.trim();
+    const agentsPath = document.getElementById('agentsPath').value.trim();
 
-    localStorage.setItem('openaiApiKey', apiKey);
-    localStorage.setItem('openaiModel', model);
-    localStorage.setItem('optimizationPrompt', optimizationPrompt);
+    const updates = {};
 
-    showNotification('Settings saved');
-    hideModal('settingsModal');
+    if (apiKey !== configManager.config.openAIAPIKey) updates.openAIAPIKey = apiKey;
+    if (model !== configManager.config.openaiModel) updates.openaiModel = model;
+    if (optimizationPrompt !== configManager.config.optimizationPrompt) updates.optimizationPrompt = optimizationPrompt;
+    if (projectPath !== configManager.config.projectPath) updates.projectPath = projectPath;
+    if (agentsPath !== configManager.config.agentsPath) updates.agentsPath = agentsPath;
+
+    fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+    })
+    .then(res => res.json())
+    .then(config => {
+        configManager.config = config;
+        showNotification('Settings saved to .env');
+        hideModal('settingsModal');
+    })
+    .catch(err => {
+        console.error('Failed to save settings:', err);
+        showNotification('Failed to save settings');
+    });
 }
 
 function loadSettings() {
-    const apiKey = localStorage.getItem('openaiApiKey');
-    if (apiKey) {
-        fetchModels(false);
-    }
+    fetch('/api/config')
+        .then(res => res.json())
+        .then(config => {
+            configManager.config = config;
+
+            document.getElementById('openaiApiKey').value = config.openAIAPIKey || '';
+            document.getElementById('openaiModel').value = config.openaiModel || '';
+            document.getElementById('optimizationPrompt').value = config.optimizationPrompt || 
+                `First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices. 
+
+Then, combine these prompts into a single, task-oriented prompt that will direct you to:
+
+1. Verify the existence of the components described in the prompts within the project codebase
+2. If any component does not exist, recreate it following the guidelines from AGENTS.md
+3. Ensure all code follows the project's coding conventions and best practices
+4. Maintain consistency with the existing project structure and patterns
+
+Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
+- Code quality and maintainability
+- Adherence to project conventions
+- Proper documentation and commenting
+- Type safety and error handling`;
+            document.getElementById('projectPath').value = config.projectPath || '';
+            document.getElementById('agentsPath').value = config.agentsPath || '';
+
+            if (config.openAIAPIKey) {
+                document.getElementById('modelSelectGroup').style.display = 'block';
+                fetchModels(false);
+            }
+        })
+        .catch(err => {
+            console.error('Failed to load settings:', err);
+        });
 }
 
 function testApiKey() {
@@ -1220,6 +1276,162 @@ function setupDragAndDrop() {
             });
         }
     };
+
+    function loadTodos() {
+        fetch('/api/todos')
+            .then(res => res.json())
+            .then(todos => {
+                configManager.todos = todos;
+                renderTodos();
+            })
+            .catch(err => {
+                console.error('Failed to load todos:', err);
+            });
+    }
+
+    function renderTodos() {
+        const container = document.getElementById('todoList');
+        
+        if (!configManager.todos || configManager.todos.length === 0) {
+            container.innerHTML = `
+                <div style="color: var(--text-muted); text-align: center; padding: 20px; font-size: 13px;">
+                    No todos yet
+                </div>
+            `;
+            return;
+        }
+
+        const sorted = [...configManager.todos].sort((a, b) => {
+            if (a.completed !== b.completed) {
+                return a.completed ? 1 : -1;
+            }
+            const priorityOrder = { high: 0, medium: 1, low: 2 };
+            return priorityOrder[a.priority] - priorityOrder[b.priority];
+        });
+
+        let html = '';
+        sorted.forEach(todo => {
+            html += `
+                <div class="todo-item ${todo.completed ? 'completed' : ''}">
+                    <input type="checkbox" class="todo-checkbox" 
+                        ${todo.completed ? 'checked' : ''} 
+                        onchange="toggleTodo('${todo.id}')">
+                    <div class="todo-content">
+                        <div class="todo-text" title="${escapeHtml(todo.text)}">${escapeHtml(todo.text)}</div>
+                        <span class="todo-priority ${todo.priority}">${todo.priority}</span>
+                    </div>
+                    <div class="todo-actions">
+                        <button class="todo-delete" onclick="deleteTodo('${todo.id}')" title="Delete">×</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function addTodo() {
+        const text = document.getElementById('newTodoText').value.trim();
+        
+        if (!text) {
+            showNotification('Please enter a todo item');
+            return;
+        }
+
+        fetch('/api/todos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text,
+                priority: 'medium'
+            })
+        })
+        .then(res => res.json())
+        .then(todo => {
+            configManager.todos.push(todo);
+            renderTodos();
+            document.getElementById('newTodoText').value = '';
+            showNotification('Todo added');
+        })
+        .catch(err => {
+            console.error('Failed to add todo:', err);
+            showNotification('Failed to add todo');
+        });
+    }
+
+    function toggleTodo(id) {
+        fetch(`/api/todos/${id}`, {
+            method: 'PUT'
+        })
+        .then(res => res.json())
+        .then(data => {
+            renderTodos();
+            if (data.completed) {
+                showNotification('Todo completed');
+            }
+        })
+        .catch(err => {
+            console.error('Failed to toggle todo:', err);
+            showNotification('Failed to update todo');
+        });
+    }
+
+    function deleteTodo(id) {
+        if (!confirm('Delete this todo?')) return;
+
+        fetch(`/api/todos/${id}`, {
+            method: 'DELETE'
+        })
+        .then(res => {
+            if (res.ok) {
+                configManager.todos = configManager.todos.filter(t => t.id !== id);
+                renderTodos();
+                showNotification('Todo deleted');
+            } else {
+                showNotification('Failed to delete todo');
+            }
+        })
+        .catch(err => {
+            console.error('Failed to delete todo:', err);
+            showNotification('Failed to delete todo');
+        });
+    }
+
+    function loadAgentsContent() {
+        fetch('/api/agents-content')
+            .then(res => res.json())
+            .then(data => {
+                const preview = document.getElementById('agentsPreview');
+                
+                if (window.marked) {
+                    preview.innerHTML = window.marked.parse(data.content);
+                } else {
+                    preview.textContent = data.content;
+                }
+                
+                document.getElementById('agentsContentModal').classList.add('active');
+            })
+            .catch(err => {
+                console.error('Failed to load agents content:', err);
+                showNotification('Failed to load AGENTS.md');
+            });
+    }
+
+    function copyAgentsContent() {
+        const preview = document.getElementById('agentsPreview').textContent;
+        
+        navigator.clipboard.writeText(preview).then(() => {
+            showNotification('AGENTS.md content copied');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showNotification('Failed to copy');
+        });
+    }
 }
+
+let configManager = {
+    config: {},
+    todos: []
+};
 
 document.addEventListener('DOMContentLoaded', init);

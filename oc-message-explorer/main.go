@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 )
 
 var upgrader = websocket.Upgrader{
@@ -88,6 +89,238 @@ type OpenCodePart struct {
 	MessageID string `json:"messageID"`
 	Type      string `json:"type"`
 	Text      string `json:"text"`
+}
+
+type TodoItem struct {
+	ID        string `json:"id"`
+	Text      string `json:"text"`
+	Completed bool   `json:"completed"`
+	Priority  string `json:"priority"`
+	CreatedAt string `json:"createdAt"`
+}
+
+type EnvConfig struct {
+	OpenAIAPIKey       string `json:"openAIAPIKey"`
+	OpenAIModel        string `json:"openaiModel"`
+	OptimizationPrompt string `json:"optimizationPrompt"`
+	ProjectPath        string `json:"projectPath"`
+	AgentsPath         string `json:"agentsPath"`
+}
+
+type ConfigManager struct {
+	mu        sync.RWMutex
+	config    EnvConfig
+	todos     []TodoItem
+	envPath   string
+	storePath string
+}
+
+var configManager *ConfigManager
+
+func NewConfigManager() *ConfigManager {
+	cm := &ConfigManager{
+		todos:     make([]TodoItem, 0),
+		envPath:   ".env",
+		storePath: "config.json",
+	}
+
+	cm.loadEnv()
+
+	if data, err := os.ReadFile(cm.storePath); err == nil {
+		json.Unmarshal(data, &cm)
+	}
+
+	return cm
+}
+
+func (cm *ConfigManager) loadEnv() {
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: No .env file found, using defaults")
+	}
+
+	cm.mu.Lock()
+	cm.config.OpenAIAPIKey = os.Getenv("OPENAI_API_KEY")
+	cm.config.OpenAIModel = getEnvWithDefault("OPENAI_MODEL", "gpt-4")
+	cm.config.OptimizationPrompt = getEnvWithDefault("OPTIMIZATION_PROM", "")
+	cm.config.ProjectPath = getEnvWithDefault("PROJECT_PATH", "")
+	cm.config.AgentsPath = getEnvWithDefault("AGENTS_PATH", "")
+	cm.mu.Unlock()
+}
+
+func (cm *ConfigManager) getEnv(key string) string {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+
+	if key == "OPENAI_API_KEY" {
+		return cm.config.OpenAIAPIKey
+	}
+	if key == "OPENAI_MODEL" {
+		return cm.config.OpenAIModel
+	}
+	if key == "OPTIMIZATION_PROMPT" {
+		return cm.config.OptimizationPrompt
+	}
+	if key == "PROJECT_PATH" {
+		return cm.config.ProjectPath
+	}
+	if key == "AGENTS_PATH" {
+		return cm.config.AgentsPath
+	}
+	return ""
+}
+
+func (cm *ConfigManager) setEnv(key, value string) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	if key == "OPENAI_API_KEY" {
+		cm.config.OpenAIAPIKey = value
+	}
+	if key == "OPENAI_MODEL" {
+		cm.config.OpenAIModel = value
+	}
+	if key == "OPTIMIZATION_PROMPT" {
+		cm.config.OptimizationPrompt = value
+	}
+	if key == "PROJECT_PATH" {
+		cm.config.ProjectPath = value
+	}
+	if key == "AGENTS_PATH" {
+		cm.config.AgentsPath = value
+	}
+
+	if err := cm.saveEnvFile(); err != nil {
+		return err
+	}
+
+	if err := cm.saveStore(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cm *ConfigManager) saveEnvFile() error {
+	var lines []string
+
+	if cm.config.OpenAIAPIKey != "" {
+		lines = append(lines, fmt.Sprintf(`OPENAI_API_KEY="%s"`, cm.config.OpenAIAPIKey))
+	}
+	if cm.config.OpenAIModel != "" && cm.config.OpenAIModel != "gpt-4" {
+		lines = append(lines, fmt.Sprintf(`OPENAI_MODEL=%s`, cm.config.OpenAIModel))
+	}
+	if cm.config.OptimizationPrompt != "" {
+		lines = append(lines, fmt.Sprintf(`OPTIMIZATION_PROMPT="%s"`, strings.Replace(cm.config.OptimizationPrompt, "\n", "\\n", -1)))
+	}
+	if cm.config.ProjectPath != "" {
+		lines = append(lines, fmt.Sprintf(`PROJECT_PATH="%s"`, cm.config.ProjectPath))
+	}
+	if cm.config.AgentsPath != "" {
+		lines = append(lines, fmt.Sprintf(`AGENTS_PATH="%s"`, cm.config.AgentsPath))
+	}
+
+	return os.WriteFile(cm.envPath, []byte(strings.Join(lines, "\n")), 0644)
+}
+
+func (cm *ConfigManager) saveStore() error {
+	data, err := json.Marshal(cm)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(cm.storePath, data, 0644)
+}
+
+func (cm *ConfigManager) getTodos() []TodoItem {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	return cm.todos
+}
+
+func (cm *ConfigManager) addTodo(text, priority string) *TodoItem {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	todo := TodoItem{
+		ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
+		Text:      text,
+		Completed: false,
+		Priority:  priority,
+		CreatedAt: time.Now().Format(time.RFC3339),
+	}
+
+	cm.todos = append(cm.todos, todo)
+	cm.saveStore()
+
+	return &todo
+}
+
+func (cm *ConfigManager) toggleTodo(id string) bool {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	for i := range cm.todos {
+		if cm.todos[i].ID == id {
+			cm.todos[i].Completed = !cm.todos[i].Completed
+			cm.saveStore()
+			return cm.todos[i].Completed
+		}
+	}
+
+	return false
+}
+
+func (cm *ConfigManager) deleteTodo(id string) bool {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	for i, todo := range cm.todos {
+		if todo.ID == id {
+			cm.todos = append(cm.todos[:i], cm.todos[i+1:]...)
+			cm.saveStore()
+			return true
+		}
+	}
+
+	return false
+}
+
+func (cm *ConfigManager) readAgentsContent() string {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+
+	agentsPath := cm.config.AgentsPath
+	if agentsPath == "" {
+		agentsPath = getProjectRoot()
+	}
+
+	paths := []string{
+		filepath.Join(agentsPath, "AGENTS.md"),
+		filepath.Join(agentsPath, "agents.md"),
+		filepath.Join(agentsPath, "docs", "AGENTS.md"),
+	}
+
+	for _, path := range paths {
+		if content, err := os.ReadFile(path); err == nil {
+			return string(content)
+		}
+	}
+
+	return "# No AGENTS.md file found"
+}
+
+func getEnvWithDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getProjectRoot() string {
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+	return "."
 }
 
 func NewStore() *Store {
@@ -480,6 +713,7 @@ func formatTimestamp(ms int64) string {
 }
 
 func main() {
+	configManager = NewConfigManager()
 	store := NewStore()
 
 	router := mux.NewRouter()
@@ -727,6 +961,73 @@ func main() {
 
 			store.broadcast(WSMessage{Type: MessageTypeUpdate, Data: store.toJSON()})
 			respondJSON(w, map[string]string{"status": "imported", "count": fmt.Sprintf("%d", len(importedData))})
+		}
+	})
+
+	router.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			respondJSON(w, configManager.config)
+		} else if r.Method == "PUT" {
+			var updates map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+				respondError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+
+			for key, value := range updates {
+				if err := configManager.setEnv(key, value); err != nil {
+					respondError(w, http.StatusInternalServerError, err.Error())
+					return
+				}
+			}
+
+			respondJSON(w, configManager.config)
+		}
+	})
+
+	router.HandleFunc("/api/todos", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			respondJSON(w, configManager.getTodos())
+		} else if r.Method == "POST" {
+			var data struct {
+				Text     string `json:"text"`
+				Priority string `json:"priority"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+				respondError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+
+			priority := data.Priority
+			if priority == "" {
+				priority = "medium"
+			}
+
+			todo := configManager.addTodo(data.Text, priority)
+			respondJSON(w, todo)
+		}
+	})
+
+	router.HandleFunc("/api/todos/{id}", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		id := vars["id"]
+
+		if r.Method == "PUT" {
+			completed := configManager.toggleTodo(id)
+			respondJSON(w, map[string]bool{"completed": completed})
+		} else if r.Method == "DELETE" {
+			deleted := configManager.deleteTodo(id)
+			if deleted {
+				respondJSON(w, map[string]string{"id": id})
+			} else {
+				respondError(w, http.StatusNotFound, "Todo not found")
+			}
+		}
+	})
+
+	router.HandleFunc("/api/agents-content", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			respondJSON(w, map[string]string{"content": configManager.readAgentsContent()})
 		}
 	})
 

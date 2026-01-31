@@ -112,6 +112,100 @@
             border-radius: 10px;
         }
 
+        .todo-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 16px;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            transition: all 0.15s ease;
+        }
+
+        .todo-item:hover {
+            border-color: var(--accent);
+        }
+
+        .todo-item.completed {
+            opacity: 0.6;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        .todo-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .todo-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .todo-text {
+            font-size: 15px;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .todo-priority {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .todo-priority.high {
+            background: var(--danger);
+            color: #ffffff;
+        }
+
+        .todo-priority.medium {
+            background: var(--warning);
+            color: #0d1117;
+        }
+
+        .todo-priority.low {
+            background: var(--success);
+            color: #ffffff;
+        }
+
+        .todo-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .todo-delete {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+        }
+
+        .todo-delete:hover {
+            background: var(--danger);
+            color: #ffffff;
+        }
+
         .sidebar-section {
             padding: 8px 0;
             border-bottom: 1px solid var(--border);
@@ -975,6 +1069,78 @@
             background: none;
             padding: 0;
         }
+
+        .agents-modal-content {
+            width: 95%;
+            max-width: 900px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .agents-preview {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 15px;
+            line-height: 1.6;
+            margin: 0 12px 12px;
+            min-height: 300px;
+        }
+
+        .agents-preview h1,
+        .agents-preview h2,
+        .agents-preview h3,
+        .agents-preview h4,
+        .agents-preview h5,
+        .agents-preview h6 {
+            font-size: 1.3em;
+            margin: 1em 0 0.5em;
+            font-weight: 600;
+        }
+
+        .agents-preview h1 { font-size: 2em; }
+        .agents-preview h2 { font-size: 1.5em; }
+        .agents-preview h3 { font-size: 1.25em; }
+
+        .agents-preview p {
+            margin: 0.5em 0;
+            line-height: 1.7;
+        }
+
+        .agents-preview code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+        .agents-preview pre {
+            background: var(--bg-tertiary);
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 0.75em 0;
+        }
+
+        .agents-preview pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .agents-preview ul,
+        .agents-preview ol {
+            margin: 0.5em 0;
+            padding-left: 24px;
+        }
+
+        .agents-preview li {
+            margin: 0.3em 0;
+        }
     </style>
 </head>
 <body>
@@ -1003,6 +1169,13 @@
             <div class="sidebar-header" style="margin-top: 24px;">Tags</div>
             <div class="tag-cloud" id="tagCloud">
                 <div class="tag-cloud-item" onclick="clearTagFilter()">Clear All</div>
+            </div>
+
+            <div class="sidebar-header" style="margin-top: 24px;">Todos</div>
+            <div class="todo-list" id="todoList"></div>
+            <div class="controls" style="padding: 0 16px 16px;">
+                <input type="text" class="form-input" id="newTodoText" placeholder="Add todo..." style="width: 100%;">
+                <button class="btn primary" onclick="addTodo()" style="width: 100%; margin-top: 8px;">Add</button>
             </div>
         </div>
 
@@ -1151,7 +1324,7 @@
     </div>
 
     <div class="modal" id="settingsModal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 650px;">
             <div class="modal-header">
                 Settings
                 <button class="close-btn" onclick="hideModal('settingsModal')">&times;</button>
@@ -1159,7 +1332,7 @@
             <div class="form-group">
                 <label class="form-label">OpenAI API Key</label>
                 <input type="password" class="form-input" id="openaiApiKey" placeholder="sk-...">
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Your API key is stored locally only</small>
+                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Your API key is stored locally only and in .env file</small>
             </div>
             <div class="form-group" id="modelSelectGroup" style="display: none;">
                 <label class="form-label">Model</label>
@@ -1170,11 +1343,42 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Optimization Prompt</label>
-                <textarea class="editor-textarea" id="optimizationPrompt" style="height: 120px;" placeholder="Custom prompt for optimization...">Please optimize and rewrite these prompts for clarity, conciseness, and effectiveness. Maintain the key intent while improving phrasing.</textarea>
+                <textarea class="editor-textarea" id="optimizationPrompt" style="height: 180px;" placeholder="Custom prompt for optimization...">First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices. 
+
+Then, combine these prompts into a single, task-oriented prompt that will direct you to:
+
+1. Verify the existence of the components described in the prompts within the project codebase
+2. If any component does not exist, recreate it following the guidelines from AGENTS.md
+3. Ensure all code follows the project's coding conventions and best practices
+4. Maintain consistency with the existing project structure and patterns
+
+Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
+- Code quality and maintainability
+- Adherence to project conventions
+- Proper documentation and commenting
+- Type safety and error handling</textarea>
+                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
+                    This prompt is used to combine multiple selected prompts into a single task-oriented prompt for verification and recreation of project components.
+                </small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Project Path</label>
+                <input type="text" class="form-input" id="projectPath" placeholder="Path to project directory">
+                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
+                    Absolute or relative path to the project directory. Used for reading AGENTS.md.
+                </small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">AGENTS.md Path</label>
+                <input type="text" class="form-input" id="agentsPath" placeholder="Path to AGENTS.md">
+                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
+                    Path to AGENTS.md file. Can be relative to project path or absolute.
+                </small>
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="saveSettings()">Save Settings</button>
+                <button class="btn primary" onclick="saveSettings()">Save to .env</button>
                 <button class="btn" onclick="testApiKey()">Test Connection</button>
+                <button class="btn" onclick="loadAgentsContent()">View AGENTS.md</button>
             </div>
         </div>
     </div>
@@ -1200,6 +1404,21 @@
             <div class="editor-actions">
                 <button class="btn primary" onclick="optimizePrompts()">Optimize</button>
                 <button class="btn" onclick="copyOptimizedResult()" id="copyOptimizedBtn" style="display: none;">Copy Result</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="agentsContentModal">
+        <div class="modal-content agents-modal-content">
+            <div class="modal-header">
+                AGENTS.md Content
+                <button class="close-btn" onclick="hideModal('agentsContentModal')">&times;</button>
+            </div>
+            <div class="agents-preview" id="agentsPreview">
+                <div style="color: var(--text-muted); text-align: center; padding: 40px;">Loading...</div>
+            </div>
+            <div class="editor-actions">
+                <button class="btn primary" onclick="copyAgentsContent()">Copy to Clipboard</button>
             </div>
         </div>
     </div>
