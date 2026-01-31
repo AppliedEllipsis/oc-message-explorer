@@ -1,6 +1,6 @@
 {
   "name": "oc-message-explorer",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "UNLICENSED",
   "description": "OC Message Explorer - A tool for exploring and analyzing OpenChat messages",
   "type": "commonjs",
