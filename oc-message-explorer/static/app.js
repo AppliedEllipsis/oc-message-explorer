@@ -3,16 +3,19 @@ let folders = {};
 let allMessages = {};
 let currentFolderId = 'all';
 let currentEditingNodeId = null;
-let selectedFolderColor = '#e94560';
+let selectedFolderColor = '#58a6ff';
 let draggedNodeId = null;
 let searchQuery = '';
 let searchTimeout = null;
 let searchResults = {};
+let userOnlyFilter = false;
+let dateRangeFilter = { start: null, end: null };
 
 function init() {
     connectWebSocket();
     setupColorPicker();
     setupDragAndDrop();
+    setupDateFilter();
 }
 
 function connectWebSocket() {
@@ -30,6 +33,7 @@ function connectWebSocket() {
             updateAllMessages();
             renderFolders();
             renderTree();
+            updateGraph();
             hideLoadingScreen();
         } else if (message.type === 'progress') {
             handleProgress(message.data);
@@ -63,8 +67,7 @@ function renderFolders() {
 
     list.innerHTML = `
         <li class="folder-item ${currentFolderId === 'all' ? 'active' : ''}" data-folder="all" onclick="selectFolder('all')">
-            <div class="folder-name">📋 All Messages</div>
-            <small style="color: #888;">${Object.keys(allMessages || {}).length} messages</small>
+            <div class="folder-name">All Messages</div>
         </li>
     `;
 
@@ -74,8 +77,7 @@ function renderFolders() {
         li.dataset.folder = id;
         li.innerHTML = `
             <span class="folder-color" style="background: ${folder.color}"></span>
-            <div class="folder-name">${folder.name}</div>
-            <small style="color: #888;">${Object.keys(folder.nodes).length} messages</small>
+            <div class="folder-name">${escapeHtml(folder.name)}</div>
         `;
         li.onclick = () => selectFolder(id);
         li.oncontextmenu = (e) => {
@@ -92,13 +94,72 @@ function selectFolder(id) {
     currentFolderId = id;
     renderFolders();
     renderTree();
+    updateGraph();
+}
+
+function toggleUserFilter() {
+    userOnlyFilter = document.getElementById('userOnlyFilter').checked;
+    const toggle = document.getElementById('filterToggle');
+    toggle.classList.toggle('active', userOnlyFilter);
+    renderTree();
+    updateGraph();
+}
+
+function setupDateFilter() {
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+
+    startDateInput.addEventListener('change', (e) => {
+        dateRangeFilter.start = e.target.value ? new Date(e.target.value) : null;
+        renderTree();
+        updateGraph();
+    });
+
+    endDateInput.addEventListener('change', (e) => {
+        dateRangeFilter.end = e.target.value ? new Date(e.target.value) : null;
+        renderTree();
+        updateGraph();
+    });
 }
 
 function getMessagesToDisplay() {
+    let messages;
     if (currentFolderId === 'all') {
-        return allMessages;
+        messages = allMessages;
+    } else {
+        messages = folders[currentFolderId]?.nodes || {};
     }
-    return folders[currentFolderId]?.nodes || {};
+
+    let filtered = {};
+
+    for (const id in messages) {
+        const node = messages[id];
+        let include = true;
+
+        if (userOnlyFilter && node.type !== 'prompt') {
+            include = false;
+        }
+
+        if (include && dateRangeFilter.start && node.timestamp) {
+            const nodeDate = new Date(node.timestamp);
+            if (nodeDate < dateRangeFilter.start) {
+                include = false;
+            }
+        }
+
+        if (include && dateRangeFilter.end && node.timestamp) {
+            const nodeDate = new Date(node.timestamp);
+            if (nodeDate > dateRangeFilter.end) {
+                include = false;
+            }
+        }
+
+        if (include) {
+            filtered[id] = node;
+        }
+    }
+
+    return filtered;
 }
 
 function filterMessages() {
@@ -137,7 +198,7 @@ function renderTree() {
     let messages;
 
     if (searchQuery && Object.keys(searchResults).length > 0) {
-        messages = searchResults;
+        messages = applyDateAndUserFilter(searchResults);
     } else {
         messages = getMessagesToDisplay();
     }
@@ -146,7 +207,7 @@ function renderTree() {
         container.innerHTML = `
             <div class="empty-state">
                 <h3>${searchQuery ? 'No messages match your search' : 'No messages yet'}</h3>
-                <p>${searchQuery ? 'Try a different search term or misspelling' : 'Add a prompt or response to start tracking your conversation history'}</p>
+                <p>${searchQuery ? 'Try a different search term' : 'Reload to load your OpenChat history'}</p>
             </div>
         `;
         return;
@@ -167,6 +228,39 @@ function renderTree() {
     });
 }
 
+function applyDateAndUserFilter(messages) {
+    let filtered = {};
+
+    for (const id in messages) {
+        const node = messages[id];
+        let include = true;
+
+        if (userOnlyFilter && node.type !== 'prompt') {
+            include = false;
+        }
+
+        if (include && dateRangeFilter.start && node.timestamp) {
+            const nodeDate = new Date(node.timestamp);
+            if (nodeDate < dateRangeFilter.start) {
+                include = false;
+            }
+        }
+
+        if (include && dateRangeFilter.end && node.timestamp) {
+            const nodeDate = new Date(node.timestamp);
+            if (nodeDate > dateRangeFilter.end) {
+                include = false;
+            }
+        }
+
+        if (include) {
+            filtered[id] = node;
+        }
+    }
+
+    return filtered;
+}
+
 function createNodeElement(node, messages, isRoot = false) {
     const div = document.createElement('div');
     div.className = `tree-node ${isRoot ? 'tree-root' : ''}`;
@@ -179,15 +273,23 @@ function createNodeElement(node, messages, isRoot = false) {
 
     const displayContent = node.hasLoaded ? node.content : `${node.content.substring(0, 100)}${node.content.length > 100 ? '...' : ''}`;
 
+    const folderInfo = getFolderInfo(node.id);
+
     div.innerHTML = `
         <div class="node-content ${node.type}-node ${node.selected ? 'selected' : ''}" data-node-id="${node.id}">
             <span class="expand-icon">${expandIcon}</span>
             <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''}>
             <span class="node-type ${node.type}">${node.type}</span>
-            <span class="node-text">${escapeHtml(displayContent)}</span>
-            <span class="node-timestamp">${timestamp}</span>
+            <div class="node-content-wrapper">
+                <div class="node-header">
+                    <span class="node-text">${escapeHtml(displayContent)}</span>
+                </div>
+                <div class="node-meta">
+                    ${folderInfo ? `<div class="node-folder"><span class="folder-color" style="background: ${folderInfo.color}"></span>${escapeHtml(folderInfo.name)}</div>` : ''}
+                    <span class="node-timestamp">${timestamp}</span>
+                </div>
+            </div>
         </div>
-        ${node.tags && node.tags.length > 0 ? `<div class="tags">${node.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
         <div class="children-container" style="display: ${hasChildren && node.expanded ? 'block' : 'none'};"></div>
     `;
 
@@ -213,6 +315,7 @@ function createNodeElement(node, messages, isRoot = false) {
     checkbox.onclick = (e) => {
         e.stopPropagation();
         toggleSelection(node.id);
+        updateGraph();
     };
 
     if (hasChildren && node.expanded) {
@@ -251,6 +354,90 @@ function createNodeElement(node, messages, isRoot = false) {
     };
 
     return div;
+}
+
+function getFolderInfo(nodeId) {
+    for (const folderId in folders) {
+        if (folders[folderId].nodes[nodeId]) {
+            return {
+                name: folders[folderId].name,
+                color: folders[folderId].color
+            };
+        }
+    }
+    return null;
+}
+
+function updateGraph() {
+    const canvas = document.getElementById('activityGraph');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const messages = getMessagesToDisplay();
+
+    const messagesByDate = {};
+
+    for (const id in messages) {
+        const node = messages[id];
+        if (node.timestamp) {
+            const date = new Date(node.timestamp).toDateString();
+            if (!messagesByDate[date]) {
+                messagesByDate[date] = 0;
+            }
+            messagesByDate[date]++;
+        }
+    }
+
+    const dates = Object.keys(messagesByDate).sort((a, b) => new Date(a) - new Date(b));
+
+    if (dates.length === 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#6e7681';
+        ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data to display', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
+    const padding = 40;
+    const graphWidth = canvas.width - (padding * 2);
+    const graphHeight = canvas.height - (padding * 2);
+
+    const maxCount = Math.max(...Object.values(messagesByDate));
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 1;
+
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, canvas.height - padding);
+    ctx.lineTo(canvas.width - padding, canvas.height - padding);
+    ctx.stroke();
+
+    const barWidth = Math.max(2, (graphWidth / dates.length) - 2);
+
+    dates.forEach((date, index) => {
+        const count = messagesByDate[date];
+        const barHeight = (count / maxCount) * graphHeight;
+        const x = padding + (index * (graphWidth / dates.length)) + 1;
+        const y = canvas.height - padding - barHeight;
+
+        ctx.fillStyle = '#58a6ff';
+        ctx.fillRect(x, y, barWidth, barHeight);
+
+        if (dates.length <= 7 || index % Math.ceil(dates.length / 7) === 0) {
+            ctx.fillStyle = '#8b949e';
+            ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.save();
+            ctx.translate(x + barWidth / 2, canvas.height - padding + 15);
+            ctx.rotate(-Math.PI / 6);
+            ctx.fillText(new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 0, 0);
+            ctx.restore();
+        }
+    });
 }
 
 function formatTimestamp(timestamp) {
@@ -301,38 +488,31 @@ function loadNodeContent(nodeId) {
         });
 }
 
-function openEditor(nodeId) {
-    if (!allMessages[nodeId]?.hasLoaded) {
-        loadNodeContent(nodeId);
-
-        const node = allMessages[nodeId];
-        if (!node) return;
-
-        currentEditingNodeId = nodeId;
-
-        document.getElementById('nodeType').value = node.type;
-        document.getElementById('nodeContent').value = node.content;
-        document.getElementById('nodeTags').value = node.tags ? node.tags.join(', ') : '';
-
-        document.getElementById('editorPanel').style.display = 'flex';
-        return;
+function updateMessage(nodeId, updatedNode) {
+    for (const folderId in folders) {
+        if (folders[folderId].nodes[nodeId]) {
+            folders[folderId].nodes[nodeId] = updatedNode;
+            break;
+        }
     }
+    allMessages[nodeId] = updatedNode;
+    renderTree();
+}
 
+function openEditor(nodeId) {
     const node = allMessages[nodeId];
     if (!node) return;
 
     currentEditingNodeId = nodeId;
-
     document.getElementById('nodeType').value = node.type;
-    document.getElementById('nodeContent').value = node.content;
-    document.getElementById('nodeTags').value = node.tags ? node.tags.join(', ') : '';
-
+    document.getElementById('nodeContent').value = node.content || '';
+    document.getElementById('nodeTags').value = (node.tags || []).join(', ');
     document.getElementById('editorPanel').style.display = 'flex';
 }
 
 function closeEditor() {
-    document.getElementById('editorPanel').style.display = 'none';
     currentEditingNodeId = null;
+    document.getElementById('editorPanel').style.display = 'none';
 }
 
 function saveNode() {
@@ -341,15 +521,27 @@ function saveNode() {
     const node = allMessages[currentEditingNodeId];
     if (!node) return;
 
-    node.type = document.getElementById('nodeType').value;
-    node.content = document.getElementById('nodeContent').value;
-    node.tags = document.getElementById('nodeTags').value
-        .split(',')
-        .map(t => t.trim())
-        .filter(t => t);
+    const updatedNode = {
+        ...node,
+        type: document.getElementById('nodeType').value,
+        content: document.getElementById('nodeContent').value,
+        tags: document.getElementById('nodeTags').value.split(',').map(t => t.trim()).filter(t => t)
+    };
 
-    updateMessage(currentEditingNodeId, node);
-    showNotification('Message saved successfully');
+    fetch(`/api/messages/${currentEditingNodeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedNode)
+    })
+    .then(res => res.json())
+    .then(() => {
+        showNotification('Message saved');
+        closeEditor();
+    })
+    .catch(err => {
+        console.error('Failed to save node:', err);
+        showNotification('Failed to save message');
+    });
 }
 
 function deleteNode() {
@@ -361,35 +553,60 @@ function deleteNode() {
         method: 'DELETE'
     })
     .then(() => {
+        showNotification('Message deleted');
         closeEditor();
-        showNotification('Message deleted successfully');
     })
     .catch(err => {
-        console.error('Failed to delete message:', err);
+        console.error('Failed to delete node:', err);
         showNotification('Failed to delete message');
     });
 }
 
+function expandAll() {
+    Object.values(allMessages).forEach(node => {
+        node.expanded = true;
+    });
+    renderTree();
+}
+
+function collapseAll() {
+    Object.values(allMessages).forEach(node => {
+        node.expanded = false;
+    });
+    renderTree();
+}
+
 function showNewFolderModal() {
-    document.getElementById('folderName').value = '';
     document.getElementById('newFolderModal').classList.add('active');
 }
 
-function setupColorPicker() {
-    const options = document.querySelectorAll('#folderColorPicker .color-option');
-    options.forEach(option => {
-        option.onclick = () => {
-            options.forEach(o => o.classList.remove('selected'));
-            option.classList.add('selected');
-            selectedFolderColor = option.dataset.color;
-        };
+function showNewMessageModal(type) {
+    document.getElementById('newMessageModal').classList.add('active');
+    const typeSelect = document.getElementById('newMessageType');
+    if (typeSelect) {
+        typeSelect.value = type;
+    }
+
+    const parentSelect = document.getElementById('parentMessageSelect');
+    parentSelect.innerHTML = '<option value="">None (root message)</option>';
+    Object.values(allMessages).forEach(msg => {
+        const option = document.createElement('option');
+        option.value = msg.id;
+        option.textContent = `${msg.type}: ${msg.content.substring(0, 50)}${msg.content.length > 50 ? '...' : ''}`;
+        parentSelect.appendChild(option);
     });
+}
+
+function hideModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
 }
 
 function createFolder() {
     const name = document.getElementById('folderName').value.trim();
+    const color = selectedFolderColor;
+
     if (!name) {
-        alert('Please enter a folder name');
+        showNotification('Please enter a folder name');
         return;
     }
 
@@ -398,13 +615,15 @@ function createFolder() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             name,
-            color: selectedFolderColor
+            color,
+            nodes: {}
         })
     })
     .then(res => res.json())
-    .then(folder => {
+    .then(() => {
+        showNotification('Folder created');
         hideModal('newFolderModal');
-        showNotification('Folder created successfully');
+        document.getElementById('folderName').value = '';
     })
     .catch(err => {
         console.error('Failed to create folder:', err);
@@ -412,16 +631,12 @@ function createFolder() {
     });
 }
 
-function deleteFolder(id) {
-    fetch(`/api/folders/${id}`, {
+function deleteFolder(folderId) {
+    fetch(`/api/folders/${folderId}`, {
         method: 'DELETE'
     })
     .then(() => {
-        if (currentFolderId === id) {
-            currentFolderId = 'all';
-            renderTree();
-        }
-        showNotification('Folder deleted successfully');
+        showNotification('Folder deleted');
     })
     .catch(err => {
         console.error('Failed to delete folder:', err);
@@ -429,38 +644,16 @@ function deleteFolder(id) {
     });
 }
 
-function showNewMessageModal(type) {
-    const select = document.getElementById('parentMessageSelect');
-    select.innerHTML = '<option value="">None (root message)</option>';
-
-    const messages = getMessagesToDisplay();
-    Object.values(messages).forEach(node => {
-        const option = document.createElement('option');
-        option.value = node.id;
-        option.textContent = `[${node.type}] ${node.content.substring(0, 50)}...`;
-        select.appendChild(option);
-    });
-
-    document.getElementById('newMessageContent').value = '';
-    document.getElementById('newMessageTags').value = '';
-    document.getElementById('newMessageModal').dataset.type = type;
-    document.getElementById('newMessageModal').classList.add('active');
-}
-
 function createMessage() {
-    const parentId = document.getElementById('parentMessageSelect').value;
+    const type = document.getElementById('newMessageType')?.value || 'prompt';
     const content = document.getElementById('newMessageContent').value.trim();
-    const type = document.getElementById('newMessageModal').dataset.type;
+    const tags = document.getElementById('newMessageTags').value.split(',').map(t => t.trim()).filter(t => t);
+    const parentId = document.getElementById('parentMessageSelect').value;
 
     if (!content) {
-        alert('Please enter content');
+        showNotification('Please enter message content');
         return;
     }
-
-    const tags = document.getElementById('newMessageTags').value
-        .split(',')
-        .map(t => t.trim())
-        .filter(t => t);
 
     fetch('/api/messages', {
         method: 'POST',
@@ -468,15 +661,16 @@ function createMessage() {
         body: JSON.stringify({
             type,
             content,
-            parentId: parentId || null,
             tags,
-            children: []
+            parentId
         })
     })
     .then(res => res.json())
     .then(() => {
+        showNotification('Message created');
         hideModal('newMessageModal');
-        showNotification('Message created successfully');
+        document.getElementById('newMessageContent').value = '';
+        document.getElementById('newMessageTags').value = '';
     })
     .catch(err => {
         console.error('Failed to create message:', err);
@@ -484,75 +678,47 @@ function createMessage() {
     });
 }
 
-function updateMessage(nodeId, node) {
-    fetch(`/api/messages/${nodeId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(node)
-    })
-    .catch(err => {
-        console.error('Failed to update message:', err);
-        showNotification('Failed to save message');
-    });
-}
-
 function copySelected() {
-    let combined = '';
     const messages = getMessagesToDisplay();
-    Object.values(messages).filter(n => n.selected).forEach(node => {
-        combined += `[${node.type.toUpperCase()}] ${node.content}\n\n`;
-    });
+    const selectedIds = Object.values(messages).filter(m => m.selected).map(m => m.id);
 
-    if (!combined) {
-        alert('No messages selected. Click checkboxes next to messages to select them.');
+    if (selectedIds.length === 0) {
+        showNotification('No messages selected');
         return;
     }
 
+    const combined = selectedIds.map(id => messages[id].content).join('\n\n');
+
     navigator.clipboard.writeText(combined).then(() => {
-        showNotification('Selected messages copied to clipboard');
+        showNotification(`Copied ${selectedIds.length} message(s)`);
     }).catch(err => {
         console.error('Failed to copy:', err);
-        alert('Failed to copy to clipboard');
+        showNotification('Failed to copy messages');
     });
 }
 
-function expandAll() {
-    Object.values(allMessages).forEach(node => {
-        node.expanded = true;
-        updateMessage(node.id, node);
+function moveNode(nodeId, newParentId, newIndex) {
+    fetch('/api/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            nodeId,
+            folderId: currentFolderId,
+            newParentId,
+            newIndex
+        })
+    })
+    .then(() => {
+        showNotification('Message moved');
+    })
+    .catch(err => {
+        console.error('Failed to move node:', err);
+        showNotification('Failed to move message');
     });
-}
-
-function collapseAll() {
-    Object.values(allMessages).forEach(node => {
-        node.expanded = false;
-        updateMessage(node.id, node);
-    });
-}
-
-function showNotification(message) {
-    const notification = document.getElementById('notification');
-    notification.textContent = message;
-    notification.classList.add('show');
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 3000);
-}
-
-function hideModal(modalId) {
-    document.getElementById(modalId).classList.remove('active');
 }
 
 function exportData() {
-    const dataStr = JSON.stringify(folders, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `message-explorer-export-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showNotification('Data exported successfully');
+    window.location.href = '/api/export';
 }
 
 function importData(event) {
@@ -562,174 +728,117 @@ function importData(event) {
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
-            const importedData = JSON.parse(e.target.result);
+            const data = JSON.parse(e.target.result);
 
             fetch('/api/import', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(importedData)
+                body: JSON.stringify(data)
             })
-            .then(res => res.json())
-            .then(data => {
-                showNotification(`Successfully imported ${data.count} folders`);
+            .then(() => {
+                showNotification('Data imported');
                 event.target.value = '';
             })
             .catch(err => {
-                console.error('Import error:', err);
+                console.error('Failed to import:', err);
                 showNotification('Failed to import data');
             });
         } catch (err) {
-            console.error('Parse error:', err);
-            showNotification('Failed to parse import file');
+            console.error('Failed to parse JSON:', err);
+            showNotification('Failed to parse file');
         }
     };
+
     reader.readAsText(file);
-}
-
-function setupDragAndDrop() {
-    document.addEventListener('dragover', (e) => {
-        e.preventDefault();
-    });
-
-    const treeContainer = document.getElementById('treeContainer');
-    let dropTargetElement = null;
-
-    treeContainer.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        if (draggedNodeId) {
-            const element = e.target.closest('.tree-node');
-            if (element && dropTargetElement !== element) {
-                if (dropTargetElement) {
-                    dropTargetElement.classList.remove('drop-target');
-                }
-                dropTargetElement = element;
-                dropTargetElement.classList.add('drop-target');
-            }
-        }
-    });
-
-    treeContainer.addEventListener('dragleave', (e) => {
-        const element = e.target.closest('.tree-node');
-        if (element && element === dropTargetElement && !treeContainer.contains(e.relatedTarget)) {
-            element.classList.remove('drop-target');
-            dropTargetElement = null;
-        }
-    });
-
-    treeContainer.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (dropTargetElement) {
-            dropTargetElement.classList.remove('drop-target');
-        }
-        if (draggedNodeId && dropTargetElement) {
-            const targetNodeId = dropTargetElement.id.replace('node-', '');
-            moveNode(draggedNodeId, targetNodeId, null);
-        }
-    });
-
-    document.addEventListener('dragend', (e) => {
-        draggedNodeId = null;
-        document.querySelectorAll('.drop-target').forEach(el => {
-            el.classList.remove('drop-target');
-        });
-    });
-}
-
-function moveNode(nodeId, newParentId, newIndex) {
-    fetch('/api/reorder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            folderId: currentFolderId,
-            nodeId: nodeId,
-            newParentId: newParentId || '',
-            newIndex: newIndex || 0
-        })
-    })
-    .then(() => {
-        showNotification('Message moved successfully');
-    })
-    .catch(err => {
-        console.error('Failed to move node:', err);
-        showNotification('Failed to move message');
-    });
 }
 
 function reloadData() {
     location.reload();
 }
 
+function showNotification(message) {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.classList.add('show');
+
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
+}
+
 function handleProgress(data) {
-    const loadingScreen = document.getElementById('loadingScreen');
-    const loadingText = document.getElementById('loadingText');
-    const loadingSubtext = document.getElementById('loadingSubtext');
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
+    const loadingText = document.getElementById('loadingText');
+    const loadingSubtext = document.getElementById('loadingSubtext');
 
     if (data.status === 'loading') {
-        loadingText.textContent = data.message;
-        loadingSubtext.textContent = 'Please wait...';
         progressBar.style.display = 'block';
+        loadingSubtext.textContent = data.message;
         if (data.progress !== undefined) {
-            progressFill.style.width = data.progress + '%';
+            progressFill.style.width = `${data.progress}%`;
         }
     } else if (data.status === 'complete') {
-        loadingText.textContent = '✓ Complete';
-        loadingSubtext.textContent = data.message;
         progressBar.style.display = 'none';
-        setTimeout(() => {
-            hideLoadingScreen();
-        }, 1000);
+        loadingText.textContent = 'Complete';
+        loadingSubtext.textContent = data.message;
     } else if (data.status === 'error') {
-        loadingText.textContent = '✗ Error';
-        loadingSubtext.textContent = data.message;
         progressBar.style.display = 'none';
+        loadingText.textContent = 'Error';
+        loadingSubtext.textContent = data.message;
     }
 }
 
 function hideLoadingScreen() {
-    const loadingScreen = document.getElementById('loadingScreen');
-    const mainContainer = document.getElementById('mainContainer');
-
-    loadingScreen.classList.add('hidden');
-    mainContainer.style.display = 'flex';
+    setTimeout(() => {
+        document.getElementById('loadingScreen').classList.add('hidden');
+        document.getElementById('mainContainer').style.display = 'flex';
+        updateGraph();
+    }, 500);
 }
 
-window.onclick = (e) => {
-    if (e.target.classList.contains('modal')) {
-        e.target.classList.remove('active');
-    }
-};
+function setupColorPicker() {
+    const picker = document.getElementById('folderColorPicker');
+    if (!picker) return;
 
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        document.querySelectorAll('.modal.active').forEach(modal => {
-            modal.classList.remove('active');
-        });
-        closeEditor();
-    }
-
-    if (e.key === 'n' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        showNewMessageModal('prompt');
-    }
-
-    if (e.key === 'e' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        if (currentEditingNodeId) {
-            saveNode();
+    picker.addEventListener('click', (e) => {
+        if (e.target.classList.contains('color-option')) {
+            picker.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+            e.target.classList.add('selected');
+            selectedFolderColor = e.target.dataset.color;
         }
-    }
+    });
+}
 
-    if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        exportData();
-    }
+function setupDragAndDrop() {
+    const treeContainer = document.getElementById('treeContainer');
 
-    if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
+    treeContainer.ondragover = (e) => {
         e.preventDefault();
-        document.getElementById('searchBox').focus();
-    }
-});
+    };
+
+    treeContainer.ondrop = (e) => {
+        e.preventDefault();
+        if (draggedNodeId) {
+            fetch('/api/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nodeId: draggedNodeId,
+                    folderId: currentFolderId,
+                    newParentId: '',
+                    newIndex: -1
+                })
+            })
+            .then(() => {
+                showNotification('Message moved');
+            })
+            .catch(err => {
+                console.error('Failed to move node:', err);
+                showNotification('Failed to move message');
+            });
+        }
+    };
+}
 
 document.addEventListener('DOMContentLoaded', init);

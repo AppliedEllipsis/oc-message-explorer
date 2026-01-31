@@ -747,11 +747,9 @@ func main() {
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println("\n  Server is running at:")
 	fmt.Printf("  %s\n", url)
-	fmt.Println("\n  Choose an option below:")
-	fmt.Println("  1. Click the URL above to open in your browser")
-	fmt.Println("  2. Press Ctrl+C to copy URL to clipboard")
+	fmt.Println("\n  Ctrl+click the URL above to open in your browser")
 	fmt.Println("\n" + strings.Repeat("-", 60))
-	fmt.Println("  Press Ctrl+C again to stop the server")
+	fmt.Println("  Press Ctrl+C to stop the server")
 	fmt.Println(strings.Repeat("=", 60) + "\n")
 
 	srv := &http.Server{
