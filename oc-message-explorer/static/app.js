@@ -426,7 +426,8 @@ function createNodeElement(node, messages, isRoot = false) {
     div.id = `node-${node.id}`;
 
     const hasChildren = node.children && node.children.length > 0;
-    const expandIcon = hasChildren ? (node.expanded ? '▼' : '▶') : '•';
+    const hasVisibleChildren = hasChildren && node.children.some(childId => messages[childId]);
+    const expandIcon = hasVisibleChildren ? (node.expanded ? '▼' : '▶') : '•';
 
     const timestamp = formatTimestamp(node.timestamp);
 
@@ -455,7 +456,7 @@ function createNodeElement(node, messages, isRoot = false) {
                 </div>
             </div>
         </div>
-        <div class="children-container" style="display: ${hasChildren && node.expanded ? 'block' : 'none'};"></div>
+        <div class="children-container" style="display: ${hasVisibleChildren && node.expanded ? 'block' : 'none'};"></div>
     `;
 
     const contentDiv = div.querySelector('.node-content');
@@ -481,7 +482,7 @@ function createNodeElement(node, messages, isRoot = false) {
         updateGraph();
     };
 
-    if (hasChildren && node.expanded) {
+    if (hasVisibleChildren && node.expanded) {
         node.children.forEach(childId => {
             if (messages[childId]) {
                 childrenContainer.appendChild(createNodeElement(messages[childId], messages));

@@ -1154,7 +1154,7 @@ func main() {
 	fmt.Println("  OC Message Explorer")
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Printf("\n  %s\n\n", url)
-	fmt.Println("  Press Ctrl+C to stop the server")
+	fmt.Println("  Press Ctrl+C to quit")
 	fmt.Println("\n" + strings.Repeat("=", 60) + "\n")
 
 	srv := &http.Server{
@@ -1173,21 +1173,6 @@ func main() {
 
 	shutdownChan := make(chan os.Signal, 1)
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
-
-	// Keyboard listener for X, Q, or ESC keys
-	go func() {
-		var input [1]byte
-		for {
-			n, _ := os.Stdin.Read(input[:])
-			if n > 0 {
-				key := strings.ToLower(string(input[0]))
-				if key == "x" || key == "q" || key == "e" || input[0] == 27 { // 27 = ESC
-					shutdownChan <- os.Interrupt
-					break
-				}
-			}
-		}
-	}()
 
 	select {
 	case err := <-serverErrors:
