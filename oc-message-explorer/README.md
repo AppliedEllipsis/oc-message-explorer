@@ -42,7 +42,8 @@ This app directly reads your OpenChat message history and displays it. It helps 
 **Additional Features:**
 - **Real-time Updates**: WebSocket sync
 - **Loading Screen**: Progress indicator while loading messages
-- **URL Display**: Shows clickable URL in terminal (no auto-browser)
+- **URL Display**: Shows clickable URL in terminal
+- **Automatic Browser**: Opens browser on startup (optional with flag)
 - **Import/Export**: Save/load message collections
 - **Responsive Design**: Dark-themed, all screen sizes
 - **Reload Button**: Refresh to load new OpenChat messages
@@ -70,9 +71,23 @@ Or on Windows, double-click `run.bat`
 
 The app will:
 1. Display server URL in your terminal
-2. Show a loading screen with progress indicator while reading messages
-3. Click URL in your terminal to open in your browser
-4. Load all your OpenChat messages automatically
+2. Automatically open your default browser
+3. Show a loading screen with progress indicator while reading messages
+4. Load all your OpenChat messages from cache
+5. Refresh in the background if new data is available
+
+**Debug Mode (No Auto-Browser):**
+```bash
+./oc-message-explorer.exe --no-browser
+```
+
+Or on Windows, use `run-debug.bat`
+
+Useful when:
+- Debugging the application
+- Running in a terminal without display
+- Running multiple instances
+- Testing WebSocket connections
 
 ## How It Works
 
