@@ -21,6 +21,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
+
+	"oc-message-explorer/internal/database"
+	"oc-message-explorer/internal/models"
+	syncpkg "oc-message-explorer/internal/sync"
+	"oc-message-explorer/internal/utils"
 )
 
 var upgrader = websocket.Upgrader{
@@ -31,43 +36,21 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type MessageType string
+type WSMessage = models.WSMessage
+type MessageType = models.MessageType
+type MessageNode = models.MessageNode
+type Folder = models.Folder
+type OpenCodeMessage = models.OpenCodeMessage
+type OpenCodePart = models.OpenCodePart
+type TodoItem = models.TodoItem
+type EnvConfig = models.EnvConfig
 
 const (
-	MessageTypeInit     MessageType = "init"
-	MessageTypeProgress MessageType = "progress"
-	MessageTypeUpdate   MessageType = "update"
-	MessageTypeError    MessageType = "error"
+	MessageTypeInit     MessageType = models.MessageTypeInit
+	MessageTypeProgress MessageType = models.MessageTypeProgress
+	MessageTypeUpdate   MessageType = models.MessageTypeUpdate
+	MessageTypeError    MessageType = models.MessageTypeError
 )
-
-type WSMessage struct {
-	Type MessageType `json:"type"`
-	Data any         `json:"data"`
-}
-
-type MessageNode struct {
-	ID        string   `json:"id"`
-	Type      string   `json:"type"`    // "prompt" or "response"
-	Content   string   `json:"content"` // Actual user message or AI response
-	Summary   string   `json:"summary"` // AI-generated summary Title
-	Timestamp string   `json:"timestamp"`
-	ParentID  string   `json:"parentId,omitempty"`
-	Children  []string `json:"children,omitempty"`
-	Tags      []string `json:"tags,omitempty"`
-	Expanded  bool     `json:"expanded"`
-	Selected  bool     `json:"selected"`
-	SessionID string   `json:"sessionId,omitempty"`
-	HasLoaded bool     `json:"hasLoaded"`
-	Locked    bool     `json:"locked"`
-}
-
-type Folder struct {
-	ID        string                  `json:"id"`
-	Name      string                  `json:"name"`
-	Color     string                  `json:"color"`
-	CreatedAt string                  `json:"createdAt"`
-	Nodes     map[string]*MessageNode `json:"nodes"`
-}
 
 type Store struct {
 	mu          sync.RWMutex
@@ -77,44 +60,8 @@ type Store struct {
 	dataPath    string
 	partPath    string
 	msgPath     string
-	db          *Database
-	syncManager *SyncManager
-}
-
-type OpenCodeMessage struct {
-	ID        string `json:"id"`
-	SessionID string `json:"sessionID"`
-	Role      string `json:"role"`
-	ParentID  string `json:"parentId,omitempty"`
-	Time      struct {
-		Created int64 `json:"created"`
-	}
-	Summary any    `json:"summary"`
-	Agent   string `json:"agent"`
-}
-
-type OpenCodePart struct {
-	ID        string `json:"id"`
-	MessageID string `json:"messageID"`
-	Type      string `json:"type"`
-	Text      string `json:"text"`
-}
-
-type TodoItem struct {
-	ID        string `json:"id"`
-	Text      string `json:"text"`
-	Completed bool   `json:"completed"`
-	Priority  string `json:"priority"`
-	CreatedAt string `json:"createdAt"`
-}
-
-type EnvConfig struct {
-	OpenAIAPIKey       string `json:"openAIAPIKey"`
-	OpenAIBaseURL      string `json:"openaiBaseUrl"`
-	OpenAIModel        string `json:"openaiModel"`
-	OptimizationPrompt string `json:"optimizationPrompt"`
-	ProjectPath        string `json:"projectPath"`
-	AgentsPath         string `json:"agentsPath"`
+	db          *database.Database
+	syncManager *syncpkg.SyncManager
 }
 
 type ConfigManager struct {
@@ -150,11 +97,11 @@ func (cm *ConfigManager) loadEnv() {
 
 	cm.mu.Lock()
 	cm.config.OpenAIAPIKey = os.Getenv("OPENAI_API_KEY")
-	cm.config.OpenAIBaseURL = getEnvWithDefault("OPENAI_BASE_URL", "")
-	cm.config.OpenAIModel = getEnvWithDefault("OPENAI_MODEL", "gpt-4")
-	cm.config.OptimizationPrompt = getEnvWithDefault("OPTIMIZATION_PROMPT", "")
-	cm.config.ProjectPath = getEnvWithDefault("PROJECT_PATH", "")
-	cm.config.AgentsPath = getEnvWithDefault("AGENTS_PATH", "")
+	cm.config.OpenAIBaseURL = utils.GetEnvWithDefault("OPENAI_BASE_URL", "")
+	cm.config.OpenAIModel = utils.GetEnvWithDefault("OPENAI_MODEL", "gpt-4")
+	cm.config.OptimizationPrompt = utils.GetEnvWithDefault("OPTIMIZATION_PROMPT", "")
+	cm.config.ProjectPath = utils.GetEnvWithDefault("PROJECT_PATH", "")
+	cm.config.AgentsPath = utils.GetEnvWithDefault("AGENTS_PATH", "")
 	cm.mu.Unlock()
 }
 
@@ -448,8 +395,8 @@ func NewStore() *Store {
 		log.Printf("Part path: %s", store.partPath)
 	}
 
-	dbPath := getDatabasePath()
-	db, err := NewDatabase(dbPath)
+	dbPath := utils.GetDatabasePath()
+	db, err := database.NewDatabase(dbPath)
 	if err != nil {
 		log.Printf("Failed to initialize database: %v", err)
 	} else {
@@ -460,7 +407,7 @@ func NewStore() *Store {
 			log.Printf("Failed to check if database is empty: %v", err)
 		} else if isEmpty && store.dataPath != "" {
 			log.Printf("Database is empty, starting initial sync...")
-			store.syncManager = NewSyncManager(db, store, store.dataPath, func(progress SyncProgress) {
+			store.syncManager = syncpkg.NewSyncManager(db, store, store.dataPath, func(progress syncpkg.SyncProgress) {
 				store.broadcast(WSMessage{Type: MessageTypeProgress, Data: progress})
 			})
 			go func() {
@@ -479,7 +426,7 @@ func NewStore() *Store {
 					store.broadcast(WSMessage{Type: MessageTypeInit, Data: store.toJSON()})
 
 					if store.dataPath != "" {
-						store.syncManager = NewSyncManager(db, store, store.dataPath, func(progress SyncProgress) {
+						store.syncManager = syncpkg.NewSyncManager(db, store, store.dataPath, func(progress syncpkg.SyncProgress) {
 							store.broadcast(WSMessage{Type: MessageTypeProgress, Data: progress})
 						})
 						log.Printf("Starting background sync...")
@@ -1204,11 +1151,7 @@ func main() {
 			}
 
 			if store.db != nil {
-				results, err := store.db.SearchNodes(data.Query, data.SearchRaw)
-				if err != nil {
-					respondError(w, http.StatusInternalServerError, err.Error())
-					return
-				}
+				results := store.searchMessages(data.Query, data.SearchRaw)
 				respondJSON(w, results)
 			} else {
 				results := store.searchMessages(data.Query, data.SearchRaw)
@@ -1229,7 +1172,7 @@ func main() {
 				return
 			}
 
-			store.syncManager = NewSyncManager(store.db, store, store.dataPath, func(progress SyncProgress) {
+			store.syncManager = syncpkg.NewSyncManager(store.db, store, store.dataPath, func(progress syncpkg.SyncProgress) {
 				store.broadcast(WSMessage{Type: MessageTypeProgress, Data: progress})
 			})
 
