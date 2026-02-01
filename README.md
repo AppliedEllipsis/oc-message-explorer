@@ -15,17 +15,44 @@ cd oc-message-explorer
 
 ### 2. Build the Application
 
+#### Prerequisites
+- Go 1.21 or later installed
+
+#### Build Instructions
+
 Navigate to the `oc-message-explorer` directory and build:
 
 ```bash
 cd oc-message-explorer
+```
 
-# Windows
+**Windows:**
+```bash
+# Standard build
+go build -o oc-message-explorer.exe .
+
+# Optimized build (smaller executable)
 go build -ldflags="-s -w" -o oc-message-explorer.exe .
+```
 
-# Linux/Mac
+**Linux/Mac:**
+```bash
+# Standard build
+go build -o oc-message-explorer .
+
+# Optimized build (smaller executable)
 go build -ldflags="-s -w" -o oc-message-explorer .
 ```
+
+The `ldflags="-s -w"` option removes debug information and creates a smaller executable (~3-4MB reduction).
+
+#### Build Output
+
+After successful build, the executable will be created:
+- **Windows**: `oc-message-explorer/oc-message-explorer.exe` (~15MB)
+- **Linux/Mac**: `oc-message-explorer/oc-message-explorer` (~15MB)
+
+The executable is self-contained and can be moved anywhere - it doesn't require Go to be installed on the target machine.
 
 ### 3. Run the Application
 
@@ -177,8 +204,21 @@ Prevents automatic browser opening (useful for debugging or terminal-only sessio
 
 ```bash
 cd oc-message-explorer
-go build
+
+# Standard build
+go build -o oc-message-explorer.exe .        # Windows
+go build -o oc-message-explorer .            # Linux/Mac
+
+# Optimized build (smaller size ~3-4MB reduction)
+go build -ldflags="-s -w" -o oc-message-explorer.exe .        # Windows
+go build -ldflags="-s -w" -o oc-message-explorer .            # Linux/Mac
 ```
+
+#### Build Notes
+- The `-ldflags="-s -w"` option strips debugging symbols to reduce executable size
+- Resulting executable is ~15MB (standard) or ~11MB (optimized)
+- Executable is portable and doesn't require Go on target machine
+- Only Go 1.21+ dependencies required (no external system dependencies)
 
 ---
 
