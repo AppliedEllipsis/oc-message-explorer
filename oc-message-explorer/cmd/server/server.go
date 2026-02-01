@@ -145,6 +145,13 @@ func setupRoutes(router *mux.Router, store Store, exeDir string) {
 			respondJSON(w, map[string]string{"content": store.readAgentsContent()})
 		}
 	})
+
+	router.HandleFunc("/api/settings/theme", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			themeId := "github-dark"
+			respondJSON(w, map[string]string{"themeId": themeId})
+		}
+	})
 }
 
 func respondJSON(w http.ResponseWriter, data any) {

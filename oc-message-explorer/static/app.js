@@ -22,6 +22,8 @@ let loadingViewportNodes = new Set();
 
 
 function init() {
+    window.themeEngine.init();
+    initThemeSelector();
     setupColorPicker();
     setupDragAndDrop();
     setupDateFilter();
@@ -2093,6 +2095,85 @@ function toggleLock(nodeId) {
     });
 }
 
+function toggleThemePanel() {
+    const panel = document.getElementById('themePanel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+async function initThemeSelector() {
+    const themeList = document.getElementById('themeList');
+    
+    try {
+        const response = await fetch('/static/themes/themes.json');
+        const data = await response.json();
+        
+        themeList.innerHTML = '';
+        
+        data.themes.forEach(theme => {
+            const div = document.createElement('div');
+            div.className = 'theme-item';
+            div.dataset.themeId = theme.id;
+            div.onclick = () => selectTheme(theme.id);
+            
+            div.innerHTML = `
+                <div class="theme-info">
+                    <div class="theme-name">${escapeHtml(theme.name)}</div>
+                    <div class="theme-type">${theme.type}</div>
+                </div>
+            `;
+            
+            themeList.appendChild(div);
+        });
+        
+        window.themeEngine.addEventListener('themeChanged', (data) => {
+            updateThemeActiveState(data.themeId);
+        });
+    } catch (error) {
+        console.error('Failed to load themes:', error);
+        themeList.innerHTML = '<div style="padding: 12px; color: var(--danger);">Failed to load themes</div>';
+    }
+}
+
+async function selectTheme(themeId) {
+    try {
+        const startTime = performance.now();
+        await window.themeEngine.switchTheme(themeId);
+        const elapsed = performance.now() - startTime;
+        console.log(`Theme switched in ${elapsed.toFixed(2)}ms`);
+        updateThemeActiveState(themeId);
+    } catch (error) {
+        console.error('Failed to switch theme:', error);
+        showNotification('Failed to switch theme');
+    }
+}
+
+function updateThemeActiveState(themeId) {
+    const items = document.querySelectorAll('.theme-item');
+    items.forEach(item => {
+        item.classList.toggle('active', item.dataset.themeId === themeId);
+    });
+}
+
+document.addEventListener('click', (e) => {
+    const panel = document.getElementById('themePanel');
+    const toggleBtn = document.getElementById('themeToggleBtn');
+    if (panel && panel.style.display !== 'none' && 
+        !panel.contains(e.target) && e.target !== toggleBtn) {
+        panel.style.display = 'none';
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+        if (e.key === 't') {
+            e.preventDefault();
+            const panel = document.getElementById('themePanel');
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+    }
+});
 
 let configManager = {
     config: {},
@@ -2100,4 +2181,6 @@ let configManager = {
 };
 
 document.addEventListener('DOMContentLoaded', init);
+
+
 

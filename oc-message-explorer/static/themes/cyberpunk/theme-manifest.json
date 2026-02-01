@@ -1,0 +1,31 @@
+{
+  "$schema": "https://opencode.gg/oc-message-explorer/theme-manifest.schema.json",
+  "name": "Cyberpunk",
+  "id": "cyberpunk",
+  "version": "1.0.0",
+  "author": "OpenCode Team",
+  "description": "Futuristic neon theme with high contrast and glow effects",
+  "type": "dark",
+  "extends": "base",
+  "preview": "cyberpunk.png",
+  "cssVariables": {
+    "bg-primary": "#0a0a12",
+    "bg-secondary": "#12121a",
+    "bg-tertiary": "#1a1a24",
+    "bg-hover": "rgba(255, 0, 255, 0.1)",
+    "text-primary": "#00ffff",
+    "text-secondary": "#ff00ff",
+    "text-muted": "#8888ff",
+    "accent": "#ff00ff",
+    "accent-hover": "#ff66ff",
+    "border": "#ff00ff",
+    "success": "#00ff88",
+    "danger": "#ff0044",
+    "warning": "#ffaa00"
+  },
+  "ui": {
+    "fontFamily": "'Orbitron', 'Courier New', monospace",
+    "borderRadius": "0",
+    "transitionDuration": "0.3s"
+  }
+}

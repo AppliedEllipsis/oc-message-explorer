@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OC Message Explorer</title>
+    <link rel="stylesheet" href="/static/themes/base/base.css">
     <style>
         * {
             margin: 0;
@@ -28,7 +29,6 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             height: 100vh;
@@ -328,6 +328,56 @@
             margin-left: auto;
             display: flex;
             gap: 8px;
+        }
+
+        .theme-selector {
+            position: relative;
+        }
+
+        .theme-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .theme-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background var(--transition-duration);
+        }
+
+        .theme-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .theme-item.active {
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid var(--accent);
+        }
+
+        .theme-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+        }
+
+        .theme-info {
+            flex: 1;
+        }
+
+        .theme-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .theme-type {
+            font-size: 11px;
+            color: var(--text-muted);
         }
 
         .search-box {
@@ -1409,6 +1459,13 @@
             <div class="toolbar">
                 <input type="text" class="search-box" id="searchBox" placeholder="Search messages..." oninput="filterMessages()">
                 <button class="btn" onclick="toggleOptionsPanel()" id="optionsToggleBtn">Options ⚙️</button>
+                <div class="theme-selector">
+                    <button class="btn" id="themeToggleBtn" onclick="toggleThemePanel()">Theme 🎨</button>
+                    <div id="themePanel" style="display: none; position: absolute; top: 48px; right: 0; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--border-radius); padding: 12px; z-index: 1000; min-width: 200px;">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Select Theme</div>
+                        <div id="themeList" class="theme-list"></div>
+                    </div>
+                </div>
                 <div id="optionsPanel" style="display: none; flex-wrap: wrap; gap: 8px; align-items: center;">
                     <label class="filter-toggle" id="searchToggle">
                         <input type="checkbox" id="searchRawOnly" onchange="toggleSearchMode()">
@@ -1688,6 +1745,8 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
     </div>
 
     <script src="/static/marked.min.js"></script>
+    <script src="/static/theme-engine.js"></script>
     <script src="/static/app.js"></script>
+
 </body>
 </html>

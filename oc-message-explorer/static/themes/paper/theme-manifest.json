@@ -1,0 +1,31 @@
+{
+  "$schema": "https://opencode.gg/oc-message-explorer/theme-manifest.schema.json",
+  "name": "Paper",
+  "id": "paper",
+  "version": "1.0.0",
+  "author": "OpenCode Team",
+  "description": "Light reading-optimized theme with typography-focused design",
+  "type": "light",
+  "extends": "base",
+  "preview": "paper.png",
+  "cssVariables": {
+    "bg-primary": "#fdfbf7",
+    "bg-secondary": "#f5f1eb",
+    "bg-tertiary": "#e8e0d5",
+    "bg-hover": "#ebe4db",
+    "text-primary": "#2c2c2c",
+    "text-secondary": "#595959",
+    "text-muted": "#8c8c8c",
+    "accent": "#8b4513",
+    "accent-hover": "#6d360f",
+    "border": "#d4ccc0",
+    "success": "#556b2f",
+    "danger": "#a63d3d",
+    "warning": "#b8860b"
+  },
+  "ui": {
+    "fontFamily": "'Georgia', 'Merriweather', 'Times New Roman', serif",
+    "borderRadius": "0",
+    "transitionDuration": "0.2s"
+  }
+}

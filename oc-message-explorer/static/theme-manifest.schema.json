@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Theme Manifest Schema",
+  "description": "Schema for theme manifest files in OC Message Explorer",
+  "type": "object",
+  "required": ["name", "id", "version", "cssVariables"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URI"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable theme name",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique theme identifier (lowercase, alphanumeric, hyphens)",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1,
+      "maxLength": 50
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version (e.g., 1.0.0)",
+      "pattern": "^\\d+\\.\\d+\\.\\d+"
+    },
+    "author": {
+      "type": "string",
+      "description": "Theme author name or organization",
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the theme",
+      "maxLength": 500
+    },
+    "type": {
+      "type": "string",
+      "description": "Theme type",
+      "enum": ["light", "dark", "base"]
+    },
+    "extends": {
+      "type": "string",
+      "description": "ID of theme to extend (optional, for inheritance)"
+    },
+    "abstract": {
+      "type": "boolean",
+      "description": "If true, this theme is abstract and cannot be directly applied"
+    },
+    "preview": {
+      "type": "string",
+      "description": "Preview image filename"
+    },
+    "cssVariables": {
+      "type": "object",
+      "description": "CSS custom properties (variables)",
+      "required": ["bg-primary", "text-primary", "border", "accent"],
+      "properties": {
+        "bg-primary": { "type": "string", "description": "Primary background color" },
+        "bg-secondary": { "type": "string", "description": "Secondary background color" },
+        "bg-tertiary": { "type": "string", "description": "Tertiary background color" },
+        "bg-hover": { "type": "string", "description": "Hover background color" },
+        "text-primary": { "type": "string", "description": "Primary text color" },
+        "text-secondary": { "type": "string", "description": "Secondary text color" },
+        "text-muted": { "type": "string", "description": "Muted text color" },
+        "accent": { "type": "string", "description": "Primary accent color" },
+        "accent-hover": { "type": "string", "description": "Hover accent color" },
+        "border": { "type": "string", "description": "Border color" },
+        "success": { "type": "string", "description": "Success color" },
+        "danger": { "type": "string", "description": "Danger color" },
+        "warning": { "type": "string", "description": "Warning color" }
+      },
+      "additionalProperties": { "type": "string" }
+    },
+    "ui": {
+      "type": "object",
+      "description": "UI-specific properties",
+      "properties": {
+        "fontFamily": { "type": "string", "description": "Font family for UI elements" },
+        "borderRadius": { "type": "string", "description": "CSS border radius value" },
+        "transitionDuration": { "type": "string", "description": "CSS transition duration" }
+      }
+    },
+    "overrides": {
+      "type": "object",
+      "description": "Component-specific CSS overrides",
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

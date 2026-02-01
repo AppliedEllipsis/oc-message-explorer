@@ -1,0 +1,30 @@
+{
+  "$schema": "https://opencode.gg/oc-message-explorer/theme-manifest.schema.json",
+  "name": "Base Theme",
+  "id": "base",
+  "version": "1.0.0",
+  "author": "OpenCode Team",
+  "description": "Base theme with common styles. All themes should extend this.",
+  "type": "base",
+  "abstract": true,
+  "cssVariables": {
+    "bg-primary": "#ffffff",
+    "bg-secondary": "#f6f8fa",
+    "bg-tertiary": "#e5e9ef",
+    "bg-hover": "#f0f3f5",
+    "text-primary": "#1a1a1a",
+    "text-secondary": "#586069",
+    "text-muted": "#959da5",
+    "accent": "#0366d6",
+    "accent-hover": "#0056b3",
+    "border": "#e1e4e8",
+    "success": "#28a745",
+    "danger": "#da3633",
+    "warning": "#ffc107"
+  },
+  "ui": {
+    "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif",
+    "borderRadius": "6px",
+    "transitionDuration": "0.15s"
+  }
+}

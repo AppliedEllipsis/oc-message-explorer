@@ -85,6 +85,7 @@ func (h *Handlers) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/api/todos", h.handleTodos)
 	router.HandleFunc("/api/todos/{id}", h.handleTodoByID)
 	router.HandleFunc("/api/agents-content", h.handleAgentsContent)
+	router.HandleFunc("/api/settings/theme", h.handleThemeSettings)
 }
 
 func (h *Handlers) handleWebSocket(w http.ResponseWriter, r *http.Request) {
@@ -557,6 +558,33 @@ func (h *Handlers) handleTodoByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) handleAgentsContent(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		respondJSON(w, map[string]string{"content": h.configManager.ReadAgentsContent()})
+	}
+}
+
+func (h *Handlers) handleThemeSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		themeId := h.configManager.GetConfig().ThemeID
+		if themeId == "" {
+			themeId = "github-dark"
+		}
+		respondJSON(w, map[string]string{"themeId": themeId})
+	} else if r.Method == "POST" {
+		var data struct {
+			ThemeID string `json:"themeId"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if data.ThemeID == "" {
+			respondError(w, http.StatusBadRequest, "themeId is required")
+			return
+		}
+		if err := h.configManager.SetEnv("THEME_ID", data.ThemeID); err != nil {
+			respondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		respondJSON(w, map[string]string{"themeId": data.ThemeID})
 	}
 }
 
