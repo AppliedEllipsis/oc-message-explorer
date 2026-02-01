@@ -15,6 +15,11 @@ config.json
 tmp/
 temp/
 
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
 # IDE files
 .vscode/
 .idea/

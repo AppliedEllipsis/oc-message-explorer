@@ -22,7 +22,6 @@ let loadingViewportNodes = new Set();
 
 
 function init() {
-    connectWebSocket();
     setupColorPicker();
     setupDragAndDrop();
     setupDateFilter();
@@ -30,11 +29,57 @@ function init() {
     loadSettings();
     loadTodos();
     setupModelFilter();
+    setupEditorResize();
+    connectWebSocket();
 }
 
 function setupModelFilter() {
     const filterInput = document.getElementById('openaiModelFilter');
     filterInput.addEventListener('input', filterModelOptions);
+}
+
+function setupEditorResize() {
+    const editorPanel = document.getElementById('editorPanel');
+    if (!editorPanel) return;
+
+    const savedWidth = localStorage.getItem('editorPanelWidth');
+    if (savedWidth) {
+        editorPanel.style.width = savedWidth + 'px';
+    }
+
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'editor-resize-handle';
+    editorPanel.insertBefore(resizeHandle, editorPanel.firstChild);
+
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = editorPanel.offsetWidth;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        const delta = startX - e.clientX;
+        const newWidth = Math.max(300, Math.min(1200, startWidth + delta));
+        editorPanel.style.width = newWidth + 'px';
+        localStorage.setItem('editorPanelWidth', newWidth);
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+    });
 }
 
 function connectWebSocket() {
@@ -43,6 +88,8 @@ function connectWebSocket() {
 
     ws.onopen = () => {
         console.log('WebSocket connected');
+        document.getElementById('loadingScreen').classList.add('hidden');
+        document.getElementById('mainContainer').style.display = 'flex';
     };
 
     ws.onmessage = (event) => {
@@ -54,7 +101,6 @@ function connectWebSocket() {
             renderTree();
             updateGraph();
             updateTagCloud();
-            hideLoadingScreen();
         } else if (message.type === 'progress') {
             handleProgress(message.data);
         }
@@ -459,9 +505,12 @@ function createNodeElement(node, messages, isRoot = false) {
     div.innerHTML = `
         <div class="node-content ${node.type}-node ${node.selected ? 'selected' : ''}" data-node-id="${node.id}">
             <span class="expand-icon">${expandIcon}</span>
-            <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''}>
+            <span class="checkbox-wrapper">
+                <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''}>
+            </span>
+            <div class="edit-area edit-btn-${node.id}" title="Edit message">✏️</div>
             <span class="node-type ${node.type}">${node.type}</span>
-            <button class="node-edit-icon" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px 8px; font-size: 14px; opacity: 0; transition: opacity 0.15s ease;" title="Edit message">✏️</button>
+            <span class="lock-icon ${node.locked ? 'locked' : 'unlocked'}" title="${node.locked ? 'Click to unlock' : 'Click to lock'}">${node.locked ? '🔒' : '🔓'}</span>
             <div class="node-content-wrapper">
                 <div class="node-header">
                     <span class="node-text">${escapeHtml(displayContent)}</span>
@@ -476,29 +525,33 @@ function createNodeElement(node, messages, isRoot = false) {
         <div class="children-container" style="display: ${hasVisibleChildren && node.expanded ? 'block' : 'none'};"></div>
     `;
 
+
     const contentDiv = div.querySelector('.node-content');
     const expandIconEl = div.querySelector('.expand-icon');
     const checkbox = div.querySelector('.node-checkbox');
-    const editIcon = div.querySelector('.node-edit-icon');
+    const checkboxWrapper = div.querySelector('.checkbox-wrapper');
+    const editIcon = div.querySelector('.edit-area');
+    const lockIcon = div.querySelector('.lock-icon');
     const childrenContainer = div.querySelector('.children-container');
+    const contentWrapper = div.querySelector('.node-content-wrapper');
 
-    contentDiv.ondblclick = (e) => {
-        if (e.target !== checkbox && e.target !== expandIconEl && e.target !== editIcon) {
-            openEditor(node.id);
+    contentDiv.onclick = (e) => {
+        if (e.target !== checkbox && e.target !== checkboxWrapper && e.target !== expandIconEl && e.target !== editIcon && e.target !== lockIcon) {
+            const editorPanel = document.getElementById('editorPanel');
+            if (editorPanel && editorPanel.style.display === 'flex') {
+                openEditor(node.id);
+            }
         }
-    };
-
-    contentDiv.onmouseenter = () => {
-        editIcon.style.opacity = '1';
-    };
-
-    contentDiv.onmouseleave = () => {
-        editIcon.style.opacity = '0';
     };
 
     editIcon.onclick = (e) => {
         e.stopPropagation();
         openEditor(node.id);
+    };
+
+    lockIcon.onclick = (e) => {
+        e.stopPropagation();
+        toggleLock(node.id);
     };
 
     expandIconEl.onclick = (e) => {
@@ -803,12 +856,19 @@ function openEditor(nodeId) {
         document.getElementById('nodeSummary').value = updatedNode.summary || '';
         document.getElementById('nodeTags').value = (updatedNode.tags || []).join(', ');
         document.getElementById('editorPanel').style.display = 'flex';
+
+        document.querySelectorAll('.edit-area').forEach(btn => btn.classList.remove('active'));
+        const activeEditBtn = document.querySelector(`.edit-btn-${nodeId}`);
+        if (activeEditBtn) {
+            activeEditBtn.classList.add('active');
+        }
     });
 }
 
 function closeEditor() {
     currentEditingNodeId = null;
     document.getElementById('editorPanel').style.display = 'none';
+    document.querySelectorAll('.edit-area').forEach(btn => btn.classList.remove('active'));
 }
 
 function saveNode() {
@@ -1686,6 +1746,53 @@ function handleProgress(data) {
     const loadingText = document.getElementById('loadingText');
     const loadingSubtext = document.getElementById('loadingSubtext');
 
+    const syncStatus = document.getElementById('syncStatus');
+    const syncStatusMessage = document.getElementById('syncStatusMessage');
+    const syncStatusProgress = document.getElementById('syncStatusProgress');
+    const syncStatusActions = document.getElementById('syncStatusActions');
+
+    if (data.phase) {
+        syncStatus.style.display = 'flex';
+
+        if (data.phase === 'init') {
+            syncStatusMessage.textContent = data.message;
+            syncStatusMessage.className = 'sync-status-message syncing';
+            syncStatusProgress.textContent = '';
+            syncStatusActions.style.display = 'flex';
+        } else if (data.phase === 'reading' || data.phase === 'building' || data.phase === 'writing') {
+            syncStatusMessage.textContent = data.message;
+            syncStatusMessage.className = 'sync-status-message syncing';
+            if (data.totalMessages && data.processed !== undefined) {
+                const percent = Math.round((data.processed / data.totalMessages) * 100);
+                syncStatusProgress.textContent = `${data.processed}/${data.totalMessages} (${percent}%)`;
+            }
+        } else if (data.phase === 'complete') {
+            syncStatusMessage.textContent = data.message;
+            syncStatusMessage.className = 'sync-status-message complete';
+            syncStatusProgress.textContent = '';
+            syncStatusActions.style.display = 'none';
+            setTimeout(() => {
+                syncStatus.style.display = 'none';
+            }, 3000);
+        } else if (data.phase === 'error') {
+            syncStatusMessage.textContent = `Error: ${data.message}`;
+            syncStatusMessage.className = 'sync-status-message error';
+            if (data.error) {
+                syncStatusProgress.textContent = data.error;
+            }
+            syncStatusActions.style.display = 'none';
+        } else if (data.phase === 'cancelled') {
+            syncStatusMessage.textContent = data.message;
+            syncStatusMessage.className = 'sync-status-message cancelled';
+            syncStatusProgress.textContent = '';
+            syncStatusActions.style.display = 'none';
+            setTimeout(() => {
+                syncStatus.style.display = 'none';
+            }, 2000);
+        }
+        return;
+    }
+
     if (data.status === 'loading') {
         progressBar.style.display = 'block';
         loadingSubtext.textContent = data.message;
@@ -1702,6 +1809,7 @@ function handleProgress(data) {
         loadingSubtext.textContent = data.message;
     }
 }
+
 
 function hideLoadingScreen() {
     setTimeout(() => {
@@ -1913,6 +2021,76 @@ function toggleOptionsPanel() {
     } else {
         panel.style.display = 'none';
     }
+}
+
+function startSync() {
+    fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'already_running') {
+            showNotification('Sync is already running');
+        } else if (data.status === 'started') {
+            showNotification('Sync started');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to start sync:', err);
+        showNotification('Failed to start sync');
+    });
+}
+
+function cancelSync() {
+    fetch('/api/sync/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'cancelled') {
+            showNotification('Sync cancelled');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to cancel sync:', err);
+        showNotification('Failed to cancel sync');
+    });
+}
+
+function toggleLock(nodeId) {
+    const node = allMessages[nodeId];
+    if (!node) return;
+
+    const newLockState = !node.locked;
+
+    fetch(`/api/messages/${nodeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locked: newLockState })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.locked !== undefined) {
+            node.locked = data.locked;
+
+            for (const folderId in folders) {
+                if (folders[folderId].nodes[nodeId]) {
+                    folders[folderId].nodes[nodeId] = node;
+                    break;
+                }
+            }
+            allMessages[nodeId] = node;
+
+            renderTree();
+            showNotification(data.locked ? 'Message locked' : 'Message unlocked');
+        }
+    })
+    .catch(err => {
+        console.error('Failed to toggle lock:', err);
+        showNotification('Failed to update lock status');
+    });
 }
 
 

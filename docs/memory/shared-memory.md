@@ -265,6 +265,76 @@ Links to related entries in shared memory or tool-specific memory
 
 ---
 
+### [2026-02-01 10:00 UTC] - Tool: Opencode - Implement SQLite cache system
+
+**Tool**: Opencode
+**Task Type**: User-Directed Task
+**Status**: Complete (Backend), Complete (Frontend), Complete (Fixes), In Progress (Testing)
+
+**Summary**: Implemented full SQLite cache system with automatic sync and lock functionality
+
+**Context**: User requested implementation of local SQLite cache system for OpenCode messages with automatic sync, lock state persistence, and cancelable sync operations.
+
+**Decisions Made**:
+- Created `db.go` with full SQLite schema (folders, nodes, tags tables)
+- Created `sync.go` with multi-phase sync (init → reading → building → writing → complete)
+- Modified `main.go` Store struct to include db and syncManager
+- Added API endpoints: `/api/sync`, `/api/sync/cancel`, `/api/messages/{id}` (PATCH for lock)
+- Added `Locked` field to MessageNode struct
+- Automatic sync on startup if DB is empty
+- Background sync if DB has data
+- Progress updates every 100 messages or 1 second
+- Sync status UI in header with cancel button
+- Lock icon (🔒/🔓) on each message node
+
+**Files Changed**:
+- Added: [`oc-message-explorer/db.go`](oc-message-explorer/db.go) - Database layer with CRUD operations
+- Modified: [`oc-message-explorer/main.go`](oc-message-explorer/main.go) - Store integration, API endpoints
+- Modified: [`oc-message-explorer/static/index.html`](oc-message-explorer/static/index.html) - Sync status UI, lock icon CSS
+- Modified: [`oc-message-explorer/static/app.js`](oc-message-explorer/static/app.js) - Sync handlers, lock toggle, progress updates
+- Modified: [`oc-message-explorer/go.mod`](oc-message-explorer/go.mod) - Added modernc.org/sqlite v1.33.1
+
+**Outcome**: SQLite cache system fully implemented. Database: `{exeName}.db`. Automatic sync on startup. Lock state persisted. Build successful.
+
+**Testing Tasks Pending**:
+- Test first run (empty cache)
+- Test second run (cached data)
+- Test search performance
+- Test lock/unlock persistence
+- Test sync cancellation
+- Test database corruption recovery
+- Test partial sync recovery
+
+---
+
+### [2026-02-01 11:00 UTC] - Tool: Opencode - Fix database deadlock
+
+**Tool**: Opencode
+**Task Type**: Bug Fix
+**Status**: Complete
+
+**Summary**: Fixed deadlock in GetNodesForFolder during initial database load
+
+**Context**: User reported "fatal error: all goroutines are asleep - deadlock!" when first loading. Stack trace showed deadlock in getTagsForNode called from GetNodesForFolder while holding read lock.
+
+**Decisions Made**:
+- Batched tag queries using single query with IN clause and placeholders()
+- Removed per-node database calls (getTagsForNode, getChildrenIDs) from GetNodesForFolder
+- Build parent-child relationships in-memory after loading all nodes
+- Added helper function `placeholders(count int)` for dynamic SQL generation
+- Removed mutex from GetNode (no longer needed for single node queries)
+- Ordered nodes by timestamp DESC in initial query
+
+**Files Changed**:
+- Modified: [`oc-message-explorer/db.go`](oc-message-explorer/db.go) - Fixed GetNodesForFolder deadlock, added placeholders() helper
+
+**Outcome**: Database deadlock fixed. App should now load successfully without locking up.
+
+**Testing**: User should run `oc-message-explorer.exe` again to verify successful startup.
+
+
+---
+
 ## Current Focus
 
 **Summary**: Changed message truncation from line-based to character-based with improved formatting
@@ -288,42 +358,51 @@ Links to related entries in shared memory or tool-specific memory
 ### Last Session
 
 **Tool**: Opencode
-**Time**: 2026-01-31 09:00 UTC
-**Summary**: Build release v0.0.2
-**Status**: Complete
+**Time**: 2026-02-01 00:00 UTC
+**Summary**: SQLite cache system implementation
+**Status**: Backend Complete, Frontend Complete, Testing In Progress
 
 ### Context
 
-Release v0.0.2 built with version bump from 0.0.1. Project is in scaffolding phase with no TypeScript source files yet.
+User requested implementation of local SQLite cache system for OpenCode messages. Branch `ts-sqlite-cache` created for this work.
 
 ### Planning
 
-Current features implemented:
-- Professional dark theme (GitHub-inspired)
-- User-only filter toggle and date range filtering
-- Activity graph visualization
-- Folder display in message nodes
-- Markdown rendering for all responses
-- Combine modal with drag-and-drop reordering
-- Copy combined text with separators
-- .env file configuration management via web UI
-- Todo list functionality with priority levels
-- AGENTS.md content loading and viewing
-- Task-oriented prompt optimization with AGENTS.md context
-- **Collapsible Options panel for cleaner UI**
-- **Full raw message text display (no truncation)**
-- **Auto-start browser on application launch**
-- **Viewport-based lazy loading: raw content loads automatically as you scroll**
-- **300px buffer margin for smooth scrolling experience**
-- **Security confirmed: no credential leaks in git history**
-- **Message truncation for list view (300+ chars truncated: first 150 + "..." + last 150, summary in [] brackets at top)**
-- **Editor reorganized: AI summary on right (280px sidebar), raw message on left (prominent)**
-- **Search filtering fixed: now properly shows empty state when no results found**
-- **加权搜索: 完整匹配优先，内容匹配加权最高(150/100)，其次是总结(90/60)**
-- **API test and model fetching fixed: improved error messages, consistent data sources**
+**SQLite Cache System Implementation**:
+- Database file: `{exeName}.db` (dynamically determined)
+- Lock state: Persisted to database
+- Sync behavior: Automatic on startup, cancelable, cached data visible immediately
+- Progress updates: Every 100 messages or 1 second (whichever is more frequent)
+- Message size: No limit
+- Database corruption: Delete and recreate
+- Partial syncs: Keep successful data, mark as partial, retry next time
+- Progress UI: Always visible during sync (non-blocking)
+
+**Implementation Phases**:
+1. Database Layer (`db.go`) - Schema, CRUD operations, search - **Complete**
+2. Sync Manager (`sync.go`) - Multi-phase sync with progress - **Complete**
+3. Store Integration (`main.go`) - Replace in-memory with DB - **Complete**
+4. API Enhancements - `/api/sync`, `/api/sync/cancel`, `/api/messages/{id}/lock` - **Complete**
+5. Frontend Updates (`index.html`, `app.js`) - Sync UI, lock icons - **Complete**
+6. Dependencies - Add `modernc.org/sqlite` - **Complete**
+7. Build & Test - Performance targets and testing strategy - **In Progress**
 
 ### Pending Tasks
 
+- [x] Create `oc-message-explorer/db.go` with full schema and CRUD operations
+- [x] Create `oc-message-explorer/sync.go` with multi-phase sync logic
+- [x] Modify `oc-message-explorer/main.go` Store struct and initialization
+- [x] Add new API endpoints (`/api/sync`, `/api/sync/cancel`, `/api/messages/{id}/lock`)
+- [x] Update `oc-message-explorer/static/index.html` with sync status UI and CSS
+- [x] Update `oc-message-explorer/static/app.js` with sync handling and lock toggle
+- [x] Update `oc-message-explorer/go.mod` with `modernc.org/sqlite` dependency
+- [ ] Test first run (empty cache)
+- [ ] Test second run (cached data)
+- [ ] Test search performance
+- [ ] Test lock/unlock persistence
+- [ ] Test sync cancellation
+- [ ] Test database corruption recovery
+- [ ] Test partial sync recovery
 - [ ] Enhanced search with advanced options (regex, filters)
 - [ ] Export in additional formats (PDF, plain text)
 - [ ] Message versioning and comparison
