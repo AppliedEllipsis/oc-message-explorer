@@ -445,13 +445,8 @@
         .node-checkbox {
             margin-right: 10px;
             cursor: pointer;
-            width: 16px;
-            height: 16px;
-        }
-
-        .node-content-wrapper {
-            flex: 1;
-            min-width: 0;
+            width: 20px;
+            height: 20px;
         }
 
         .node-header {
@@ -468,6 +463,41 @@
             font-weight: 600;
             letter-spacing: 0.3px;
         }
+
+        .edit-area {
+            padding: 4px 8px;
+            margin-left: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .edit-area:hover {
+            background: var(--bg-tertiary);
+            transform: scale(1.1);
+        }
+
+        .edit-area.active {
+            background: rgba(88, 166, 255, 0.2);
+        }
+
+        .checkbox-wrapper {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .checkbox-wrapper:hover {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
 
         .node-type.prompt {
             background: var(--accent);
@@ -531,11 +561,31 @@
 
         .editor-panel {
             width: 700px;
+            min-width: 300px;
+            max-width: 1200px;
             background: var(--bg-secondary);
             border-left: 1px solid var(--border);
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative;
+        }
+
+        .editor-resize-handle {
+            width: 6px;
+            background: var(--border);
+            cursor: col-resize;
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 10;
+            transition: background 0.15s ease;
+        }
+
+        .editor-resize-handle:hover {
+            background: var(--accent);
+            width: 8px;
         }
 
         .editor-header {
@@ -1231,6 +1281,73 @@
         .agents-preview li {
             margin: 0.3em 0;
         }
+
+        .sync-status {
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        .sync-status-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sync-status-message {
+            color: var(--text-secondary);
+        }
+
+        .sync-status-message.syncing {
+            color: var(--accent);
+        }
+
+        .sync-status-message.complete {
+            color: var(--success);
+        }
+
+        .sync-status-message.error {
+            color: var(--danger);
+        }
+
+        .sync-status-message.cancelled {
+            color: var(--text-muted);
+        }
+
+        .sync-status-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sync-status-actions .btn {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+
+        .lock-icon {
+            font-size: 16px;
+            margin-left: 8px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s ease;
+        }
+
+        .lock-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .lock-icon.locked {
+            color: var(--accent);
+        }
+
+        .lock-icon.unlocked {
+            color: var(--text-muted);
+        }
+
     </style>
 </head>
 <body>
@@ -1269,13 +1386,25 @@
             </div>
         </div>
 
-        <div class="main-content">
+    <div class="main-content">
             <div class="header">
                 <div>
                     <h1>OC Message Explorer</h1>
                     <div class="header-subtitle">View and manage your OpenChat history</div>
                 </div>
             </div>
+
+            <div class="sync-status" id="syncStatus">
+                <div class="sync-status-left">
+                    <span id="syncStatusMessage" class="sync-status-message">Ready</span>
+                    <span id="syncStatusProgress" style="color: var(--text-muted);"></span>
+                </div>
+                <div class="sync-status-actions" id="syncStatusActions" style="display: none;">
+                    <button class="btn" onclick="cancelSync()" id="cancelSyncBtn">Cancel</button>
+                </div>
+            </div>
+
+
 
             <div class="toolbar">
                 <input type="text" class="search-box" id="searchBox" placeholder="Search messages..." oninput="filterMessages()">
