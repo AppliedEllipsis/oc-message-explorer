@@ -184,7 +184,7 @@ func (d *Database) GetNodesForFolder(folderID string) (map[string]*MessageNode, 
 		node.Expanded = expanded == 1
 		node.Selected = selected == 1
 		node.HasLoaded = hasLoaded == 1
-		node.Selected = selected == 1
+		node.Locked = locked == 1
 
 		nodes[node.ID] = &node
 		nodeIDs = append(nodeIDs, node.ID)
@@ -294,6 +294,7 @@ func (d *Database) GetNode(id string) (*MessageNode, error) {
 	node.Expanded = expanded == 1
 	node.Selected = selected == 1
 	node.HasLoaded = hasLoaded == 1
+	node.Locked = locked == 1
 
 	tags, err := d.getTagsForNode(node.ID)
 	if err != nil {
@@ -344,7 +345,7 @@ func (d *Database) InsertNode(folderID string, node *MessageNode) error {
 		hasLoaded = 1
 	}
 	locked := 0
-	if node.Selected {
+	if node.Locked {
 		locked = 1
 	}
 
@@ -439,6 +440,7 @@ func (d *Database) SearchNodes(query string, searchRaw bool) (map[string]*Messag
 		node.Expanded = expanded == 1
 		node.Selected = selected == 1
 		node.HasLoaded = hasLoaded == 1
+		node.Locked = locked == 1
 
 		tags, err := d.getTagsForNode(node.ID)
 		if err != nil {
