@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -184,4 +185,12 @@ func BoolToInt(b bool) int {
 
 func IntToBool(i int) bool {
 	return i == 1
+}
+
+func JSONMarshal(v any) ([]byte, error) {
+	return json.Marshal(v)
+}
+
+func JSONUnmarshal(data []byte, v any) error {
+	return json.Unmarshal(data, v)
 }
