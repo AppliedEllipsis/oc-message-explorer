@@ -88,11 +88,35 @@ func (d *Database) createSchema() error {
 		FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
 	);
 
+	CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
+		node_id UNINDEXED,
+		content,
+		summary,
+		type,
+		tokenize = 'unicode61'
+	);
+
 	CREATE INDEX IF NOT EXISTS idx_nodes_folder_id ON nodes(folder_id);
 	CREATE INDEX IF NOT EXISTS idx_nodes_parent_id ON nodes(parent_id);
 	CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(type);
 	CREATE INDEX IF NOT EXISTS idx_nodes_timestamp ON nodes(timestamp);
 	CREATE INDEX IF NOT EXISTS idx_tags_node_id ON tags(node_id);
+	CREATE TRIGGER IF NOT EXISTS nodes_fts_insert AFTER INSERT ON nodes
+	BEGIN
+		INSERT INTO nodes_fts(node_id, content, summary, type)
+		VALUES (NEW.id, NEW.content, NEW.summary, NEW.type);
+	END;
+
+	CREATE TRIGGER IF NOT EXISTS nodes_fts_delete AFTER DELETE ON nodes
+	BEGIN
+		DELETE FROM nodes_fts WHERE node_id = OLD.id;
+	END;
+
+	CREATE TRIGGER IF NOT EXISTS nodes_fts_update AFTER UPDATE ON nodes
+	BEGIN
+		UPDATE nodes_fts SET content = NEW.content, summary = NEW.summary, type = NEW.type
+		WHERE node_id = NEW.id;
+	END;
 	`
 
 	_, err := d.db.Exec(schema)
@@ -464,6 +488,136 @@ func (d *Database) GetTotalMessageCount() (int, error) {
 func (d *Database) IsEmpty() (bool, error) {
 	count, err := d.GetTotalMessageCount()
 	return count == 0, err
+}
+
+func (d *Database) SearchNodes(query string, limit int) ([]map[string]interface{}, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	if query == "" {
+		return []map[string]interface{}{}, nil
+	}
+
+	sqlQuery := `
+		SELECT 
+			n.id,
+			n.type,
+			n.content,
+			n.summary,
+			n.timestamp,
+			n.parent_id,
+			f.id as folder_id,
+			f.name as folder_name,
+			f.color as folder_color,
+			bm25(nodes_fts) as rank
+		FROM nodes_fts
+		JOIN nodes n ON n.id = nodes_fts.node_id
+		LEFT JOIN folders f ON n.folder_id = f.id
+		WHERE nodes_fts MATCH ?
+		ORDER BY rank
+		LIMIT ?
+	`
+
+	rows, err := d.db.Query(sqlQuery, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("FTS search failed: %w", err)
+	}
+	defer rows.Close()
+
+	results := []map[string]interface{}{}
+	for rows.Next() {
+		var id, nodeType, content, summary, timestamp, folderID, folderName, folderColor string
+		var parentID sql.NullString
+		var rank float64
+
+		err := rows.Scan(
+			&id, &nodeType, &content, &summary, &timestamp, &parentID,
+			&folderID, &folderName, &folderColor, &rank,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		results = append(results, map[string]interface{}{
+			"id":           id,
+			"type":         nodeType,
+			"content":      content,
+			"summary":      summary,
+			"timestamp":    timestamp,
+			"parent_id":    parentID.String,
+			"folder_id":    folderID,
+			"folder_name":  folderName,
+			"folder_color": folderColor,
+			"rank":         rank,
+		})
+	}
+
+	return results, nil
+}
+
+func (d *Database) SearchNodesByType(query string, nodeType string, limit int) ([]map[string]interface{}, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	if query == "" {
+		return []map[string]interface{}{}, nil
+	}
+
+	sqlQuery := `
+		SELECT 
+			n.id,
+			n.type,
+			n.content,
+			n.summary,
+			n.timestamp,
+			n.parent_id,
+			f.id as folder_id,
+			f.name as folder_name,
+			f.color as folder_color,
+			bm25(nodes_fts) as rank
+		FROM nodes_fts
+		JOIN nodes n ON n.id = nodes_fts.node_id
+		LEFT JOIN folders f ON n.folder_id = f.id
+		WHERE nodes_fts MATCH ? AND n.type = ?
+		ORDER BY rank
+		LIMIT ?
+	`
+
+	rows, err := d.db.Query(sqlQuery, query, nodeType, limit)
+	if err != nil {
+		return nil, fmt.Errorf("FTS search by type failed: %w", err)
+	}
+	defer rows.Close()
+
+	results := []map[string]interface{}{}
+	for rows.Next() {
+		var id, typ, content, summary, timestamp, folderID, folderName, folderColor string
+		var parentID sql.NullString
+		var rank float64
+
+		err := rows.Scan(
+			&id, &typ, &content, &summary, &timestamp, &parentID,
+			&folderID, &folderName, &folderColor, &rank,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		results = append(results, map[string]interface{}{
+			"id":           id,
+			"type":         typ,
+			"content":      content,
+			"summary":      summary,
+			"timestamp":    timestamp,
+			"parent_id":    parentID.String,
+			"folder_id":    folderID,
+			"folder_name":  folderName,
+			"folder_color": folderColor,
+			"rank":         rank,
+		})
+	}
+
+	return results, nil
 }
 
 func (d *Database) DeleteAllData() error {

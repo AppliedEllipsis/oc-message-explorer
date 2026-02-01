@@ -505,26 +505,31 @@ function createNodeElement(node, messages, isRoot = false) {
     const folderInfo = getFolderInfo(node.id);
 
     div.innerHTML = `
-        <div class="node-content ${node.type}-node ${node.selected ? 'selected' : ''}" data-node-id="${node.id}">
-            <span class="expand-icon">${expandIcon}</span>
+        <div class="node-content ${node.type}-node ${node.selected ? 'selected' : ''}" 
+             role="treeitem" 
+             aria-expanded="${node.expanded}" 
+             aria-selected="${node.selected}"
+             aria-level="${node.parentId ? 2 : 1}"
+             data-node-id="${node.id}">
+            <button class="expand-icon" aria-label="${node.expanded ? 'Collapse' : 'Expand'}" aria-expanded="${node.expanded}">${expandIcon}</button>
             <span class="checkbox-wrapper">
-                <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''}>
+                <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''} aria-label="Select message for combination">
             </span>
-            <div class="edit-area edit-btn-${node.id}" title="Edit message">✏️</div>
-            <span class="node-type ${node.type}">${node.type}</span>
-            <span class="lock-icon ${node.locked ? 'locked' : 'unlocked'}" title="${node.locked ? 'Click to unlock' : 'Click to lock'}">${node.locked ? '🔒' : '🔓'}</span>
+            <button class="edit-area edit-btn-${node.id}" title="Edit message" aria-label="Edit message">✏️</button>
+            <span class="node-type ${node.type}" role="presentation">${node.type}</span>
+            <button class="lock-icon ${node.locked ? 'locked' : 'unlocked'}" title="${node.locked ? 'Click to unlock' : 'Click to lock'}" aria-pressed="${node.locked}" aria-label="${node.locked ? 'Unlock message' : 'Lock message'}">${node.locked ? '🔒' : '🔓'}</button>
             <div class="node-content-wrapper">
                 <div class="node-header">
                     <span class="node-text">${escapeHtml(displayContent)}</span>
                 </div>
                 <div class="node-meta">
                     ${folderInfo ? `<div class="node-folder"><span class="folder-color" style="background: ${folderInfo.color}"></span>${escapeHtml(folderInfo.name)}</div>` : ''}
-                    <span class="node-timestamp">${timestamp}</span>
-                    ${hasChildren ? `<span style="color: var(--text-muted); font-size: 12px; margin-left: 8px;">${node.children.length} child(ren)</span>` : ''}
+                    <span class="node-timestamp" aria-label="Timestamp: ${timestamp}">${timestamp}</span>
+                    ${hasChildren ? `<span style="color: var(--text-muted); font-size: 12px; margin-left: 8px;" aria-label="${node.children.length} child message${node.children.length > 1 ? 's' : ''}">${node.children.length} child(ren)</span>` : ''}
                 </div>
             </div>
         </div>
-        <div class="children-container" style="display: ${hasVisibleChildren && node.expanded ? 'block' : 'none'};"></div>
+        <div class="children-container" role="group" aria-label="Child messages" style="display: ${hasVisibleChildren && node.expanded ? 'block' : 'none'};"></div>
     `;
 
 
