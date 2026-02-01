@@ -335,9 +335,36 @@ Links to related entries in shared memory or tool-specific memory
 
 ---
 
+### [2026-02-01 15:36 UTC] - Tool: Opencode - Fix JSON unmarshaling for summary field
+
+**Tool**: Opencode
+**Task Type**: Bug Fix
+**Status**: Complete
+
+**Summary**: Fixed JSON unmarshaling error for messages with boolean summary field
+
+**Context**: User reported unmarshaling errors: "json: cannot unmarshal bool into Go struct field OpenCodeMessage.summary of type struct { Title string \"json:\\\"title\\\"\" }". Some OpenCode message files have `summary` as a boolean (false) instead of an object with `title` field.
+
+**Decisions Made**:
+- Changed `OpenCodeMessage.Summary` field from `struct { Title string }` to `any` type
+- Added `getSummaryTitle(summary any)` helper function to handle both bool and object types
+- Returns empty string when summary is bool (false) or nil
+- Extracts `title` from map[string]any when summary is an object
+- Updated both main.go and db.go to use new helper function
+
+**Files Changed**:
+- Modified: [`oc-message-explorer/main.go`](oc-message-explorer/main.go:84) - Changed Summary type to `any`, added getSummaryTitle helper
+- Modified: [`oc-message-explorer/db.go`](oc-message-explorer/db.go) - Updated to use getSummaryTitle helper
+
+**Outcome**: JSON unmarshaling now handles both boolean and object summary types. All messages should load without errors.
+
+**Testing**: User should run `oc-message-explorer.exe` to verify all messages load successfully.
+
+---
+
 ## Current Focus
 
-**Summary**: Changed message truncation from line-based to character-based with improved formatting
+**Summary**: Fixed JSON unmarshaling for summary field
 
 **Context**: User requested truncation look at characters instead of lines, break in the middle with "...", and AI summary in [] brackets at top.
 
