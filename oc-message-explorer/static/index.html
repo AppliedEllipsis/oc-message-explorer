@@ -1937,6 +1937,26 @@
                 <input type="text" class="form-input" id="openaiBaseUrl" placeholder="https://api.openai.com/v1">
                 <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Custom OpenAI-compatible API endpoint (leave blank for default)</small>
             </div>
+            <div class="form-group">
+                <label class="form-label">Anthropic API Key (optional)</label>
+                <input type="password" class="form-input" id="anthropicApiKey" placeholder="sk-ant-...">
+                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">For Claude models</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">AI Provider</label>
+                <select class="form-select" id="aiProvider">
+                    <option value="auto">Auto-select</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                </select>
+                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Auto-select will use OpenAI if available, otherwise Anthropic</small>
+            </div>
+            <div class="form-group" id="aiModelGroup" style="display: none;">
+                <label class="form-label">AI Model</label>
+                <select class="form-select" id="aiModel">
+                </select>
+                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Select model for the chosen provider</small>
+            </div>
             <div class="form-group" id="modelSelectGroup" style="display: none;">
                 <label class="form-label">Model</label>
                 <div style="display: flex; gap: 8px; margin-bottom: 6px;">
@@ -1996,7 +2016,18 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
                 Optimize Prompts
                 <button class="close-btn" onclick="hideModal('optimizeModal')">&times;</button>
             </div>
-            <div class="optimizer-section" style="flex: 0 0 auto; max-height: 200px;">
+            <div class="optimizer-section" style="flex: 0 0 auto;">
+                <label class="form-label">Template</label>
+                <select class="form-select" id="aiTemplate" onchange="updateTemplateDescription()">
+                    <option value="optimize">Optimize Prompts</option>
+                    <option value="summarize">Summarize Conversation</option>
+                    <option value="expand">Expand and Elaborate</option>
+                    <option value="refine">Refine and Polish</option>
+                    <option value="extract">Extract Key Points</option>
+                </select>
+                <div id="templateDescription" style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Optimize AI prompts for clarity and effectiveness</div>
+            </div>
+            <div class="form-group" style="flex: 0 0 auto; max-height: 200px;">
                 <label class="form-label">Combined Text</label>
                 <div class="optimizer-preview" id="optimizerPreview"></div>
             </div>
@@ -2035,6 +2066,7 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
     <script src="/static/command-palette.js"></script>
     <script src="/static/optimistic-ui.js"></script>
     <script src="/static/undo-redo.js"></script>
+    <script src="/static/ai-workflow.js"></script>
     <script src="/static/app.js"></script>
 
 </body>

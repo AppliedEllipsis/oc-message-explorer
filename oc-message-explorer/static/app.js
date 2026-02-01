@@ -34,12 +34,19 @@ function init() {
     loadTodos();
     setupModelFilter();
     setupEditorResize();
+    setupAIWorkflow();
     connectWebSocket();
 }
 
 function setupModelFilter() {
     const filterInput = document.getElementById('openaiModelFilter');
     filterInput.addEventListener('input', filterModelOptions);
+}
+
+function setupAIWorkflow() {
+    if (configManager && configManager.config) {
+        window.aiWorkflowManager.initialize(configManager.config);
+    }
 }
 
 function setupEditorResize() {
@@ -1458,20 +1465,8 @@ function optimizeCombinedPrompts() {
 }
 
 function optimizePrompts() {
-    const apiKey = configManager.config.openAIAPIKey;
-    const baseUrl = configManager.config.openaiBaseUrl || 'https://api.openai.com/v1';
-    const model = document.getElementById('openaiModel').value || configManager.config.openaiModel;
+    const templateId = document.getElementById('aiTemplate')?.value || 'optimize';
     const combinedText = combineOrder.map(node => node.content).join('\n\n---\n\n');
-
-    if (!apiKey) {
-        showNotification('Please set OpenAI API key in settings');
-        return;
-    }
-
-    if (!model) {
-        showNotification('Please select a model');
-        return;
-    }
 
     if (combineOrder.length === 0) {
         showNotification('No messages to combine');
@@ -1486,72 +1481,58 @@ function optimizePrompts() {
         optimizeBtn.textContent = 'Optimizing...';
     }
 
+    let accumulatedContent = '';
+
     resultDiv.innerHTML = `
         <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;">
             <div style="font-size: 32px; margin-bottom: 16px; animation: spin 1s linear infinite;">🤖</div>
-            <div style="color: var(--text-secondary);">AI is combining your notes...</div>
-            <div style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">${combineOrder.length} message(s) to combine</div>
+            <div style="color: var(--text-secondary);">AI is processing...</div>
+            <div style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">${combineOrder.length} message(s)</div>
         </div>
     `;
 
     showNotification('Starting optimization...');
 
-    const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'chat/completions' : baseUrl + '/chat/completions';
-
-    console.log('Calling optimization API with model:', model);
-    console.log('Combining', combineOrder.length, 'messages');
-
-    fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [
-                { role: 'system', content: 'You are a helpful assistant that combines and summarizes multiple notes into a clear, organized, and cohesive summary. Focus on extracting the key information and creating a unified document that flows well. Do not explain your process - just provide the combined summary.' },
-                { role: 'user', content: `Combine and summarize these notes:\n\n${combinedText}` }
-            ],
-            temperature: 0.7
-        })
-    })
-    .then(res => {
-        if (!res.ok) {
-            return res.text().then(text => {
-                console.error('API error response:', text);
-                if (res.status === 401) {
-                    throw new Error('Invalid API key');
-                } else if (res.status === 404) {
-                    throw new Error('Model not found - check model name and base URL');
-                } else if (res.status === 429) {
-                    throw new Error('Rate limit exceeded - try again later');
-                } else {
-                    throw new Error(`API error: ${res.status} - ${text}`);
-                }
-            });
-        }
-        return res.json();
-    })
-    .then(data => {
-        console.log('Optimization response:', data);
-
-        if (data.choices && data.choices[0]) {
-            const optimized = data.choices[0].message.content;
-
-            if (window.marked) {
-                resultDiv.innerHTML = `<div style="padding: 12px;">${window.marked.parse(optimized)}</div>`;
-            } else {
-                resultDiv.innerHTML = `<div style="padding: 12px;">${optimized}</div>`;
-            }
-
-            showNotification('✓ Notes combined successfully!');
-            document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
-        } else if (data.error) {
-            throw new Error(data.error.message || JSON.stringify(data.error));
+    window.aiWorkflowManager.stream(templateId, { prompt: combinedText }, {}, (chunk) => {
+        if (accumulatedContent === '') {
+            resultDiv.innerHTML = `<div style="padding: 12px; white-space: pre-wrap;">`;
+            accumulatedContent = chunk;
         } else {
-            throw new Error('No choices in API response');
+            accumulatedContent += chunk;
         }
+        
+        const contentEl = resultDiv.querySelector('div');
+        if (contentEl) {
+            contentEl.textContent = accumulatedContent;
+        }
+    })
+    .then((result) => {
+        const { model, provider } = result;
+        const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+        
+        const contentEl = resultDiv.querySelector('div') || resultDiv;
+        if (window.marked && accumulatedContent.includes('\n')) {
+            contentEl.innerHTML = `
+                <div style="padding: 12px;">
+                    ${window.marked.parse(accumulatedContent)}
+                </div>
+                <div style="padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted);">
+                    Generated by ${providerName} (${model})
+                </div>
+            `;
+        } else {
+            contentEl.innerHTML = `
+                <div style="padding: 12px;">
+                    ${accumulatedContent}
+                </div>
+                <div style="padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted);">
+                    Generated by ${providerName} (${model})
+                </div>
+            `;
+        }
+
+        showNotification(`✓ Optimization complete!`);
+        document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
     })
     .catch(err => {
         console.error('Optimization error:', err);
@@ -1560,7 +1541,6 @@ function optimizePrompts() {
                 <div style="font-size: 32px; margin-bottom: 16px;">❌</div>
                 <div style="font-weight: 600; margin-bottom: 8px;">Optimization Failed</div>
                 <div style="color: var(--text-secondary); font-size: 14px;">${escapeHtml(err.message || err.toString())}</div>
-                <div style="color: var(--text-muted); font-size: 13px; margin-top: 16px;">Check your settings and try again</div>
             </div>
         `;
         showNotification(`✗ Optimization failed: ${err.message}`);
@@ -1571,6 +1551,16 @@ function optimizePrompts() {
             optimizeBtn.textContent = 'Optimize';
         }
     });
+}
+
+function updateTemplateDescription() {
+    const templateId = document.getElementById('aiTemplate').value;
+    const template = window.aiWorkflowManager.getTemplate(templateId);
+    const descEl = document.getElementById('templateDescription');
+    
+    if (template && descEl) {
+        descEl.textContent = template.description;
+    }
 }
 
 function copyOptimizedResult() {
@@ -1697,6 +1687,8 @@ function saveSettings() {
     const optimizationPrompt = document.getElementById('optimizationPrompt').value.trim();
     const projectPath = document.getElementById('projectPath').value.trim();
     const agentsPath = document.getElementById('agentsPath').value.trim();
+    const anthropicApiKey = document.getElementById('anthropicApiKey').value.trim();
+    const aiProvider = document.getElementById('aiProvider').value;
 
     const updates = {
         openAIAPIKey: apiKey,
@@ -1704,7 +1696,9 @@ function saveSettings() {
         openaiModel: model,
         optimizationPrompt: optimizationPrompt,
         projectPath: projectPath,
-        agentsPath: agentsPath
+        agentsPath: agentsPath,
+        anthropicAPIKey: anthropicApiKey,
+        aiProvider: aiProvider
     };
 
     const saveBtn = event?.target;
@@ -1713,11 +1707,7 @@ function saveSettings() {
         saveBtn.textContent = 'Saving...';
     }
 
-    if (apiKey) {
-        showNotification('Testing and saving...');
-    } else {
-        showNotification('Saving settings...');
-    }
+    showNotification('Saving settings...');
 
     fetch('/api/config', {
         method: 'PUT',
@@ -1727,12 +1717,8 @@ function saveSettings() {
     .then(res => res.json())
     .then(config => {
         configManager.config = config;
-        showNotification('✓ Settings saved to .env');
-
-        if (config.openAIAPIKey) {
-            document.getElementById('modelSelectGroup').style.display = 'block';
-            fetchModels(false);
-        }
+        window.aiWorkflowManager.initialize(config);
+        showNotification('✓ Settings saved');
 
         setTimeout(() => hideModal('settingsModal'), 500);
     })
@@ -1759,7 +1745,7 @@ function loadSettings() {
             document.getElementById('openaiModel').value = config.openaiModel || '';
             document.getElementById('optimizationPrompt').value = config.optimizationPrompt ||
                 `First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
-
+ 
 Then, combine these prompts into a single, task-oriented prompt that will direct you to:
 
 1. Verify the existence of the components described in the prompts within the project codebase
@@ -1774,6 +1760,8 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
 - Type safety and error handling`;
             document.getElementById('projectPath').value = config.projectPath || '';
             document.getElementById('agentsPath').value = config.agentsPath || '';
+            document.getElementById('anthropicApiKey').value = config.anthropicAPIKey || '';
+            document.getElementById('aiProvider').value = config.aiProvider || 'auto';
 
             if (config.openAIAPIKey) {
                 document.getElementById('modelSelectGroup').style.display = 'block';
