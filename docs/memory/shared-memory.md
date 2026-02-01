@@ -895,6 +895,66 @@ When multiple tools have conflicting information:
 
 ---
 
+### [2026-02-01 23:30 UTC] - Tool: Opencode - Undo/Redo System Implementation
+
+**Tool**: Opencode
+**Task Type**: Assigned Task
+**Status**: Complete
+
+**Summary**: Implemented comprehensive undo/redo system with 100-action history
+
+**Context**: After completing Phase 3 tasks, implemented Phase 4 undo/redo system to improve user experience and provide safety net for actions.
+
+**Phase 4 Additional Completed**:
+- ✅ Undo/Redo System - Complete with 7 undoable actions
+
+**Implementation Details**:
+
+**UndoRedoManager Class**:
+- 100-action history stack with FIFO eviction
+- Separate undo and redo stacks
+- Execution pattern with inverse operations
+- Timestamps and unique IDs for tracking
+- Keyboard shortcuts: Ctrl+Shift+Z (undo), Ctrl+Y (redo)
+
+**Undoable Actions**:
+1. Message selection/deselection
+2. Message lock/unlock toggle
+3. Message edit (content, summary, tags, type)
+4. Delete message (with restore capability)
+5. Expand all messages
+6. Collapse all messages
+7. Unselect all messages
+
+**UI Features**:
+- Toolbar undo/redo buttons with disabled states
+- Visual feedback with action descriptions
+- Progress notifications for undo/redo operations
+- Fade animations for visual feedback
+
+**State Management**:
+- Original state capture for bulk operations
+- Folder association tracking for message restores
+- Clean rollback and re-execute patterns
+- Error handling with user notifications
+
+**Files Changed**:
+- Added: [`static/undo-redo.js`](oc-message-explorer/static/undo-redo.js) - UndoRedoManager class
+- Modified: [`static/app.js`](oc-message-explorer/static/app.js) - Integrated undo/redo to 7 actions
+- Modified: [`static/index.html`](oc-message-explorer/static/index.html) - Undo/redo toolbar buttons
+
+**Technical Highlights**:
+- Instant state updates with async server persistence
+- Minimal memory footprint with 100-action limit
+- Clean separation between execute/undo/persist
+- Keyboard shortcuts for power users
+
+**Outcome**: Phase 4 progress increased from 17% to 33% (2/6 tasks). Users can now safely undo/redo all major operations with full state restoration. System provides excellent UX safety net.
+
+**Cross-Tool Context**: Application now has comprehensive undo/redo capabilities. Remaining Phase 4 tasks all require external API integrations (AI providers) or are lower priority.
+
+---
+
 ### Version Control
 
 - `docs/memory/` directory is git-tracked
