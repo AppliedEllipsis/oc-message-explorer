@@ -1594,6 +1594,92 @@
             gap: 4px;
         }
 
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s ease-in-out infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-text {
+            height: 14px;
+            margin-bottom: 6px;
+        }
+
+        .skeleton-text.short { width: 60%; }
+        .skeleton-text.medium { width: 80%; }
+        .skeleton-text.long { width: 95%; }
+
+        .node-text.loading {
+            position: relative;
+        }
+
+        .node-text.loading .skeleton-text {
+            display: block;
+        }
+
+        .optimistic-indicator {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 9000;
+            animation: optimisticSlideIn 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        @keyframes optimisticSlideIn {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .optimistic-indicator.fade-out {
+            animation: optimisticFadeOut 0.3s ease forwards;
+        }
+
+        @keyframes optimisticFadeOut {
+            to {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+        }
+
+        .optimistic-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: optimisticSpin 0.6s linear infinite;
+        }
+
+        @keyframes optimisticSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        .optimistic-text {
+            font-size: 13px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
     </style>
 
 </head>
@@ -1945,6 +2031,7 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
     <script src="/static/marked.min.js"></script>
     <script src="/static/theme-engine.js"></script>
     <script src="/static/command-palette.js"></script>
+    <script src="/static/optimistic-ui.js"></script>
     <script src="/static/app.js"></script>
 
 </body>

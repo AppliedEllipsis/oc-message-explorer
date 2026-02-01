@@ -571,22 +571,44 @@ function createNodeElement(node, messages, isRoot = false) {
         e.stopPropagation();
         e.preventDefault();
         const isChecked = checkbox.checked;
-        node.selected = isChecked;
-        contentDiv.classList.toggle('selected', isChecked);
-        
-        for (const folderId in folders) {
-            if (folders[folderId].nodes[node.id]) {
-                folders[folderId].nodes[node.id] = node;
-                break;
+        const originalSelected = node.selected;
+
+        optimisticUI.execute({
+            id: `select-${node.id}`,
+            optimisticAction: async () => {
+                node.selected = isChecked;
+                contentDiv.classList.toggle('selected', isChecked);
+                
+                for (const folderId in folders) {
+                    if (folders[folderId].nodes[node.id]) {
+                        folders[folderId].nodes[node.id] = node;
+                        break;
+                    }
+                }
+                allMessages[node.id] = node;
+                updateGraph();
+            },
+            serverAction: async () => {
+                const response = await fetch(`/api/messages/${node.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(node)
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to save selection');
+                }
+                return response.json();
+            },
+            rollbackAction: async () => {
+                node.selected = originalSelected;
+                contentDiv.classList.toggle('selected', originalSelected);
+                if (folderId) {
+                    folders[folderId].nodes[node.id] = node;
+                }
+                allMessages[node.id] = node;
+                updateGraph();
             }
-        }
-        allMessages[node.id] = node;
-        
-        fetch(`/api/messages/${node.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(node)
-        }).catch(err => console.error('Failed to save selection:', err));
+        });
         
         updateGraph();
     };
@@ -671,15 +693,23 @@ function setupViewportObserver() {
 
     const options = {
         root: document.getElementById('treeContainer'),
-        rootMargin: '300px 0px 300px 0px',
+        rootMargin: '500px 0px 500px 0px',
         threshold: 0.01
     };
 
     viewportObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             const nodeId = entry.target.dataset.nodeId;
-            if (entry.isIntersecting && !loadingViewportNodes.has(nodeId)) {
-                loadNodeContentForViewport(nodeId);
+            const node = allMessages[nodeId];
+            
+            if (entry.isIntersecting) {
+                if (node && !node.hasLoaded && !loadingViewportNodes.has(nodeId)) {
+                    loadNodeContentForViewport(nodeId);
+                }
+            } else {
+                if (node && node.hasLoaded && shouldUnloadNode(node)) {
+                    unloadNodeContentForViewport(nodeId);
+                }
             }
         });
     }, options);
@@ -695,18 +725,76 @@ function observeVisibleNodes() {
     });
 }
 
+function shouldUnloadNode(node) {
+    if (!node || !node.content) return false;
+    
+    const contentLength = node.content.length;
+    const isLargeContent = contentLength > 5000;
+    
+    return isLargeContent && !node.locked && !node.selected;
+}
+
+function unloadNodeContentForViewport(nodeId) {
+    const node = allMessages[nodeId];
+    if (!node || !node.content) return;
+    
+    const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
+    if (!nodeEl) return;
+    
+    const originalContent = node.content;
+    
+    if (displayModeRaw) {
+        const textEl = nodeEl.querySelector('.node-text');
+        if (textEl) {
+            textEl.innerHTML = createSkeletonLoader();
+            textEl.classList.add('loading');
+        }
+    }
+}
+
+function createSkeletonLoader() {
+    return `
+        <div class="skeleton skeleton-text long"></div>
+        <div class="skeleton skeleton-text medium"></div>
+        <div class="skeleton skeleton-text short"></div>
+    `;
+}
+
 function loadNodeContentForViewport(nodeId) {
+    const node = allMessages[nodeId];
+    if (!node || node.hasLoaded) return;
+    
     loadingViewportNodes.add(nodeId);
+    
+    const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
+    if (nodeEl && displayModeRaw && node.content && node.content.length > 2000) {
+        const textEl = nodeEl.querySelector('.node-text');
+        if (textEl) {
+            textEl.innerHTML = createSkeletonLoader();
+            textEl.classList.add('loading');
+        }
+    }
+    
     loadNodeContent(nodeId).then(() => {
         loadingViewportNodes.delete(nodeId);
         const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
         if (nodeEl && displayModeRaw) {
-            const node = allMessages[nodeId];
-            if (node && node.content && node.content.trim() !== '') {
+            const updatedNode = allMessages[nodeId];
+            if (updatedNode && updatedNode.content && updatedNode.content.trim() !== '') {
                 const textEl = nodeEl.querySelector('.node-text');
                 if (textEl) {
-                    textEl.textContent = truncateContent(node.content, node.summary);
+                    textEl.classList.remove('loading');
+                    textEl.textContent = truncateContent(updatedNode.content, updatedNode.summary);
                 }
+            }
+        }
+    }).catch(err => {
+        loadingViewportNodes.delete(nodeId);
+        const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
+        if (nodeEl) {
+            const textEl = nodeEl.querySelector('.node-text');
+            if (textEl) {
+                textEl.classList.remove('loading');
             }
         }
     });
@@ -2070,17 +2158,13 @@ function toggleLock(nodeId) {
     const node = allMessages[nodeId];
     if (!node) return;
 
-    const newLockState = !node.locked;
+    const originalLockState = node.locked;
+    const newLockState = !originalLockState;
 
-    fetch(`/api/messages/${nodeId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locked: newLockState })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.locked !== undefined) {
-            node.locked = data.locked;
+    optimisticUI.execute({
+        id: `lock-${nodeId}`,
+        optimisticAction: async () => {
+            node.locked = newLockState;
 
             for (const folderId in folders) {
                 if (folders[folderId].nodes[nodeId]) {
@@ -2091,12 +2175,34 @@ function toggleLock(nodeId) {
             allMessages[nodeId] = node;
 
             renderTree();
+        },
+        serverAction: async () => {
+            const response = await fetch(`/api/messages/${nodeId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ locked: newLockState })
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update lock');
+            }
+            const data = await response.json();
             showNotification(data.locked ? 'Message locked' : 'Message unlocked');
-        }
-    })
-    .catch(err => {
-        console.error('Failed to toggle lock:', err);
-        showNotification('Failed to update lock status');
+            return data;
+        },
+        rollbackAction: async () => {
+            node.locked = originalLockState;
+
+            for (const folderId in folders) {
+                if (folders[folderId].nodes[nodeId]) {
+                    folders[folderId].nodes[nodeId] = node;
+                    break;
+                }
+            }
+            allMessages[nodeId] = node;
+
+            renderTree();
+        },
+        showPendingIndicator: true
     });
 }
 
