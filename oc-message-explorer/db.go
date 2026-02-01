@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"oc-message-explorer/internal/utils"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -667,7 +669,7 @@ func (sm *SyncManager) performSync() {
 				Type:      nodeType,
 				Content:   "",
 				Summary:   title,
-				Timestamp: formatTimestamp(ocMsg.Time.Created),
+				Timestamp: utils.FormatTimestamp(ocMsg.Time.Created),
 				ParentID:  ocMsg.ParentID,
 				Children:  []string{},
 				Tags:      nodeTags,
