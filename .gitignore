@@ -11,6 +11,13 @@ build/
 *.so
 
 # ==========================================
+# SQLite database files
+# ==========================================
+*.db
+*.db-shm
+*.db-wal
+
+# ==========================================
 # Dependencies
 # ==========================================
 node_modules/
@@ -39,6 +46,9 @@ pnpm-debug.log*
 # ==========================================
 # Editor directories and files
 # ==========================================
+# Visual Studio
+.vs/
+
 # VSCode (keep essential config files)
 .vscode/*
 !.vscode/settings.json
