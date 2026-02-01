@@ -19,6 +19,8 @@ let displayModeRaw = true;
 let hideEmptyResponses = true;
 let viewportObserver = null;
 let loadingViewportNodes = new Set();
+const DELETED_FOLDERS_MAP = {};
+
 
 
 function init() {
@@ -573,10 +575,11 @@ function createNodeElement(node, messages, isRoot = false) {
         const isChecked = checkbox.checked;
         const originalSelected = node.selected;
 
-        optimisticUI.execute({
-            id: `select-${node.id}`,
-            optimisticAction: async () => {
+        undoRedoManager.pushAction({
+            description: isChecked ? 'Select message' : 'Deselect message',
+            execute: async () => {
                 node.selected = isChecked;
+                checkbox.checked = isChecked;
                 contentDiv.classList.toggle('selected', isChecked);
                 
                 for (const folderId in folders) {
@@ -587,26 +590,32 @@ function createNodeElement(node, messages, isRoot = false) {
                 }
                 allMessages[node.id] = node;
                 updateGraph();
-            },
-            serverAction: async () => {
-                const response = await fetch(`/api/messages/${node.id}`, {
+                
+                await fetch(`/api/messages/${node.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(node)
                 });
-                if (!response.ok) {
-                    throw new Error('Failed to save selection');
-                }
-                return response.json();
             },
-            rollbackAction: async () => {
+            undo: async () => {
                 node.selected = originalSelected;
+                checkbox.checked = originalSelected;
                 contentDiv.classList.toggle('selected', originalSelected);
-                if (folderId) {
-                    folders[folderId].nodes[node.id] = node;
+                
+                for (const folderId in folders) {
+                    if (folders[folderId].nodes[node.id]) {
+                        folders[folderId].nodes[node.id] = node;
+                        break;
+                    }
                 }
                 allMessages[node.id] = node;
                 updateGraph();
+                
+                await fetch(`/api/messages/${node.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(node)
+                });
             }
         });
         
@@ -972,6 +981,7 @@ function saveNode() {
     const node = allMessages[currentEditingNodeId];
     if (!node) return;
 
+    const originalNode = { ...node };
     const updatedNode = {
         ...node,
         type: document.getElementById('nodeType').value,
@@ -980,19 +990,43 @@ function saveNode() {
         tags: document.getElementById('nodeTags').value.split(',').map(t => t.trim()).filter(t => t)
     };
 
-    fetch(`/api/messages/${currentEditingNodeId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedNode)
-    })
-    .then(res => res.json())
-    .then(() => {
-        showNotification('Message saved');
-        closeEditor();
-    })
-    .catch(err => {
-        console.error('Failed to save node:', err);
-        showNotification('Failed to save message');
+    undoRedoManager.pushAction({
+        description: 'Edit message',
+        execute: async () => {
+            for (const folderId in folders) {
+                if (folders[folderId].nodes[currentEditingNodeId]) {
+                    folders[folderId].nodes[currentEditingNodeId] = { ...updatedNode };
+                    break;
+                }
+            }
+            allMessages[currentEditingNodeId] = { ...updatedNode };
+
+            await fetch(`/api/messages/${currentEditingNodeId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedNode)
+            });
+
+            showNotification('Message saved');
+            closeEditor();
+        },
+        undo: async () => {
+            for (const folderId in folders) {
+                if (folders[folderId].nodes[currentEditingNodeId]) {
+                    folders[folderId].nodes[currentEditingNodeId] = { ...originalNode };
+                    break;
+                }
+            }
+            allMessages[currentEditingNodeId] = { ...originalNode };
+
+            await fetch(`/api/messages/${currentEditingNodeId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(originalNode)
+            });
+
+            renderTree();
+        }
     });
 }
 
@@ -1001,41 +1035,148 @@ function deleteNode() {
 
     if (!confirm('Delete this message?')) return;
 
-    fetch(`/api/messages/${currentEditingNodeId}`, {
-        method: 'DELETE'
-    })
-    .then(() => {
-        showNotification('Message deleted');
-        closeEditor();
-    })
-    .catch(err => {
-        console.error('Failed to delete node:', err);
-        showNotification('Failed to delete message');
+    const nodeId = currentEditingNodeId;
+    const deletedNode = { ...allMessages[nodeId] };
+    const deletedChildren = [];
+    const nodeFolderId = Object.keys(folders).find(folderId => folders[folderId].nodes[nodeId]);
+    
+    if (nodeFolderId) {
+        DELETED_FOLDERS_MAP[nodeId] = nodeFolderId;
+    }
+
+    undoRedoManager.pushAction({
+        description: 'Delete message',
+        execute: async () => {
+            await fetch(`/api/messages/${nodeId}`, {
+                method: 'DELETE'
+            });
+
+            for (const folderId in folders) {
+                if (folders[folderId].nodes[nodeId]) {
+                    delete folders[folderId].nodes[nodeId];
+                    break;
+                }
+            }
+            delete allMessages[nodeId];
+
+            showNotification('Message deleted');
+            closeEditor();
+        },
+        undo: async () => {
+            const targetFolderId = DELETED_FOLDERS_MAP[nodeId];
+            if (targetFolderId && folders[targetFolderId]) {
+                if (!folders[targetFolderId].nodes) folders[targetFolderId].nodes = {};
+                folders[targetFolderId].nodes[nodeId] = { ...deletedNode };
+            }
+            allMessages[nodeId] = { ...deletedNode };
+
+            await fetch(`/api/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folderId: targetFolderId, node: deletedNode })
+            }).catch(err => console.error('Failed to restore message:', err));
+
+            renderTree();
+            showNotification('Message restored');
+        }
     });
 }
 
 function expandAll() {
-    Object.values(allMessages).forEach(node => {
+    const originalStates = Object.entries(allMessages).reduce((acc, [id, node]) => {
         if (node.children && node.children.length > 0) {
-            node.expanded = true;
+            acc[id] = node.expanded;
+        }
+        return acc;
+    }, {});
+
+    undoRedoManager.pushAction({
+        description: 'Expand all messages',
+        execute: async () => {
+            Object.values(allMessages).forEach(node => {
+                if (node.children && node.children.length > 0) {
+                    node.expanded = true;
+                }
+            });
+            renderTree();
+            showNotification('All messages expanded');
+        },
+        undo: async () => {
+            Object.entries(originalStates).forEach(([id, wasExpanded]) => {
+                if (allMessages[id]) {
+                    allMessages[id].expanded = wasExpanded;
+                }
+            });
+            renderTree();
+            showNotification('Expand all undone');
         }
     });
-    renderTree();
 }
 
 function collapseAll() {
-    Object.values(allMessages).forEach(node => {
-        node.expanded = false;
+    const originalStates = Object.entries(allMessages).reduce((acc, [id, node]) => {
+        if (node.children && node.children.length > 0) {
+            acc[id] = node.expanded;
+        }
+        return acc;
+    }, {});
+
+    undoRedoManager.pushAction({
+        description: 'Collapse all messages',
+        execute: async () => {
+            Object.values(allMessages).forEach(node => {
+                node.expanded = false;
+            });
+            renderTree();
+            showNotification('All messages collapsed');
+        },
+        undo: async () => {
+            Object.entries(originalStates).forEach(([id, wasExpanded]) => {
+                if (allMessages[id]) {
+                    allMessages[id].expanded = wasExpanded;
+                }
+            });
+            renderTree();
+            showNotification('Collapse all undone');
+        }
     });
-    renderTree();
 }
 
 function unselectAll() {
-    Object.values(allMessages).forEach(node => {
-        node.selected = false;
+    const originalSelected = Object.entries(allMessages).reduce((acc, [id, node]) => {
+        if (node.selected) {
+            acc[id] = true;
+        }
+        return acc;
+    }, {});
+
+    undoRedoManager.pushAction({
+        description: 'Unselect all messages',
+        execute: async () => {
+            Object.values(allMessages).forEach(node => {
+                node.selected = false;
+                const folderId = Object.keys(folders).find(fid => folders[fid].nodes[node.id]);
+                if (folderId) {
+                    folders[folderId].nodes[node.id].selected = false;
+                }
+            });
+            renderTree();
+            showNotification('All messages unchecked');
+        },
+        undo: async () => {
+            Object.entries(originalSelected).forEach(([id]) => {
+                if (allMessages[id]) {
+                    allMessages[id].selected = true;
+                    const folderId = Object.keys(folders).find(fid => folders[fid].nodes[id]);
+                    if (folderId) {
+                        folders[folderId].nodes[id].selected = true;
+                    }
+                }
+            });
+            renderTree();
+            showNotification('Unselect all undone');
+        }
     });
-    renderTree();
-    showNotification('All messages unchecked');
 }
 
 function showNewFolderModal() {
@@ -2161,9 +2302,9 @@ function toggleLock(nodeId) {
     const originalLockState = node.locked;
     const newLockState = !originalLockState;
 
-    optimisticUI.execute({
-        id: `lock-${nodeId}`,
-        optimisticAction: async () => {
+    undoRedoManager.pushAction({
+        description: newLockState ? 'Lock message' : 'Unlock message',
+        execute: async () => {
             node.locked = newLockState;
 
             for (const folderId in folders) {
@@ -2175,8 +2316,7 @@ function toggleLock(nodeId) {
             allMessages[nodeId] = node;
 
             renderTree();
-        },
-        serverAction: async () => {
+
             const response = await fetch(`/api/messages/${nodeId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -2187,9 +2327,8 @@ function toggleLock(nodeId) {
             }
             const data = await response.json();
             showNotification(data.locked ? 'Message locked' : 'Message unlocked');
-            return data;
         },
-        rollbackAction: async () => {
+        undo: async () => {
             node.locked = originalLockState;
 
             for (const folderId in folders) {
@@ -2201,8 +2340,13 @@ function toggleLock(nodeId) {
             allMessages[nodeId] = node;
 
             renderTree();
-        },
-        showPendingIndicator: true
+
+            await fetch(`/api/messages/${nodeId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ locked: originalLockState })
+            });
+        }
     });
 }
 

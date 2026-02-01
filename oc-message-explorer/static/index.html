@@ -1776,6 +1776,8 @@
                     <button class="btn primary" onclick="showNewMessageModal('prompt')" aria-label="Create new prompt">New Prompt</button>
                 </div>
                 <div class="toolbar-right">
+                    <button class="btn" id="undoBtn" onclick="undoRedoManager.undo()" disabled aria-label="Undo last action" title="Undo (Ctrl+Shift+Z)">↩️ Undo</button>
+                    <button class="btn" id="redoBtn" onclick="undoRedoManager.redo()" disabled aria-label="Redo last action" title="Redo (Ctrl+Y)">↪️ Redo</button>
                     <button class="btn" onclick="copySelected()" aria-label="Copy selected messages">Copy</button>
                     <button class="btn" onclick="showCombineModal()" aria-label="Combine selected messages">Combine</button>
                     <button class="btn" onclick="unselectAll()" aria-label="Deselect all messages">Uncheck All</button>
@@ -2032,6 +2034,7 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
     <script src="/static/theme-engine.js"></script>
     <script src="/static/command-palette.js"></script>
     <script src="/static/optimistic-ui.js"></script>
+    <script src="/static/undo-redo.js"></script>
     <script src="/static/app.js"></script>
 
 </body>
