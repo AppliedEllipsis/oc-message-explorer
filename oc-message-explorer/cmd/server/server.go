@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -24,23 +24,28 @@ func Run() {
 	flag.BoolVar(&noBrowser, "no-browser", false, "Disable automatic browser opening")
 	flag.Parse()
 
+	slog.Info("Starting OC Message Explorer server")
+
 	store := NewStore()
 	exeDir := utils.GetExecutableDir()
 	staticDir := filepath.Join(exeDir, "static")
 
+	slog.Info("Static files", "directory", staticDir)
+
 	router := mux.NewRouter()
 
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
-
 	setupRoutes(router, store, exeDir)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
+		slog.Error("Failed to listen", "error", err)
 		log.Fatal(err)
 	}
 
 	port := listener.Addr().(*net.TCPAddr).Port
 	url := fmt.Sprintf("http://127.0.0.1:%d", port)
+	slog.Info("Server listening", "url", url, "port", port)
 
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("  OC Message Explorer")
@@ -59,6 +64,7 @@ func Run() {
 
 	go func() {
 		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
+			slog.Error("Server error", "error", err)
 			serverErrors <- err
 		}
 	}()
@@ -73,21 +79,26 @@ func Run() {
 	shutdownChan := make(chan os.Signal, 1)
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 
+	slog.Info("Server running, waiting for shutdown signal")
+
 	select {
 	case err := <-serverErrors:
-		log.Printf("Server error: %v", err)
+		slog.Error("Fatal server error", "error", err)
 	case <-shutdownChan:
+		slog.Info("Shutdown signal received")
 		fmt.Printf("\nShutting down...\n")
+		slog.Info("Starting graceful shutdown")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("Server shutdown error: %v", err)
+		slog.Error("Server shutdown error", "error", err)
 	}
 
 	fmt.Println("\nServer stopped gracefully")
+	slog.Info("Server stopped")
 }
 
 type Store interface {
