@@ -35,7 +35,18 @@ function init() {
     setupModelFilter();
     setupEditorResize();
     setupAIWorkflow();
+
+    syncFilterStates();
+
     connectWebSocket();
+}
+
+function syncFilterStates() {
+    userOnlyFilter = document.getElementById('userOnlyFilter').checked;
+    sortAscending = document.getElementById('sortAscending').checked;
+    hideEmptyResponses = document.getElementById('hideEmptyResponses').checked;
+    searchModeRaw = document.getElementById('searchRawOnly').checked;
+    displayModeRaw = document.getElementById('displayRawMessages').checked;
 }
 
 function setupModelFilter() {
@@ -99,8 +110,6 @@ function connectWebSocket() {
 
     ws.onopen = () => {
         console.log('WebSocket connected');
-        document.getElementById('loadingScreen').classList.add('hidden');
-        document.getElementById('mainContainer').style.display = 'flex';
     };
 
     ws.onmessage = (event) => {
@@ -112,6 +121,10 @@ function connectWebSocket() {
             renderTree();
             updateGraph();
             updateTagCloud();
+
+            if (message.type === 'init') {
+                hideLoadingScreen();
+            }
         } else if (message.type === 'progress') {
             handleProgress(message.data);
         }
