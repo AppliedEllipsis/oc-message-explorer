@@ -1730,7 +1730,6 @@ func main() {
 			}
 
 			if themeId, ok := data["themeId"]; ok && themeId != "" {
-				configManager.config.ThemeID = themeId
 				if err := configManager.setEnv("THEME_ID", themeId); err != nil {
 					respondError(w, http.StatusInternalServerError, err.Error())
 					return
