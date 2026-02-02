@@ -131,11 +131,16 @@ type ConfigManager struct {
 var configManager *ConfigManager
 
 func NewConfigManager() *ConfigManager {
+	exeDir := getExecutableDir()
 	cm := &ConfigManager{
 		todos:     make([]TodoItem, 0),
-		envPath:   ".env",
-		storePath: "config.json",
+		envPath:   filepath.Join(exeDir, ".env"),
+		storePath: filepath.Join(exeDir, "config.json"),
 	}
+
+	log.Printf("[CONFIG] Executable directory: %s", exeDir)
+	log.Printf("[CONFIG] .env path: %s", cm.envPath)
+	log.Printf("[CONFIG] config.json path: %s", cm.storePath)
 
 	cm.loadEnv()
 
@@ -147,8 +152,10 @@ func NewConfigManager() *ConfigManager {
 }
 
 func (cm *ConfigManager) loadEnv() {
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: No .env file found, using defaults")
+	if err := godotenv.Load(cm.envPath); err != nil {
+		log.Printf("[CONFIG] Warning: No .env file found at %s, using defaults", cm.envPath)
+	} else {
+		log.Printf("[CONFIG] Loaded .env file from %s", cm.envPath)
 	}
 
 	cm.mu.Lock()
@@ -162,6 +169,12 @@ func (cm *ConfigManager) loadEnv() {
 	cm.config.AIProvider = getEnvWithDefault("AI_PROVIDER", "auto")
 	cm.config.ThemeID = getEnvWithDefault("THEME_ID", "github-dark")
 	cm.mu.Unlock()
+
+	log.Printf("[CONFIG] Loaded: OpenAI key=%t, Anthropic key=%t, Provider=%s, Model=%s",
+		cm.config.OpenAIAPIKey != "",
+		cm.config.AnthropicAPIKey != "",
+		cm.config.AIProvider,
+		cm.config.OpenAIModel)
 }
 
 func (cm *ConfigManager) getEnv(key string) string {
