@@ -1777,6 +1777,52 @@ function optimizePrompts() {
     }
 
     let accumulatedContent = '';
+    let hasScrolledManually = false;
+    const autoScrollCheckbox = document.getElementById('autoScrollCheckbox');
+
+    // Auto-scroll state tracking
+    function shouldAutoScroll() {
+        return autoScrollCheckbox.checked && !hasScrolledManually;
+    }
+
+    function scrollToBottom() {
+        if (resultDiv && shouldAutoScroll()) {
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+        }
+    }
+
+    // Add scroll listener to detect manual scrolling
+    const handleScroll = () => {
+        const checkbox = document.getElementById('autoScrollCheckbox');
+        if (checkbox.checked) {
+            // Check if user is scrolled away from bottom
+            const isScrolledUp = resultDiv.scrollTop < resultDiv.scrollHeight - resultDiv.clientHeight - 50;
+            if (isScrolledUp && autoScrollCheckbox.checked) {
+                hasScrolledManually = true;
+            }
+        }
+    };
+
+    // Remove old listener and add new one
+    resultDiv.removeEventListener('scroll', handleScroll);
+    resultDiv.addEventListener('scroll', handleScroll);
+
+    // Handle auto-scroll checkbox change
+    autoScrollCheckbox.removeEventListener('change', null);
+
+    const checkboxContainer = autoScrollCheckbox.parentNode;
+    const handleCheckboxChange = (e) => {
+        if (e.target === autoScrollCheckbox && autoScrollCheckbox.checked) {
+            hasScrolledManually = false;
+            // Scroll to bottom immediately if checkbox is checked
+            setTimeout(scrollToBottom, 0);
+        }
+    };
+    checkboxContainer.removeEventListener('click', handleCheckboxChange);
+    checkboxContainer.addEventListener('click', handleCheckboxChange);
+
+    // Reset scroll state when optimization starts
+    hasScrolledManually = false;
 
     resultDiv.innerHTML = `
         <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;">
@@ -1799,12 +1845,13 @@ function optimizePrompts() {
         const contentEl = resultDiv.querySelector('div');
         if (contentEl) {
             contentEl.textContent = accumulatedContent;
+            scrollToBottom();
         }
     })
     .then((result) => {
         const { model, provider } = result;
         const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
-        
+
         const contentEl = resultDiv.querySelector('div') || resultDiv;
         if (window.marked && accumulatedContent.includes('\n')) {
             contentEl.innerHTML = `
@@ -1828,6 +1875,9 @@ function optimizePrompts() {
 
         showNotification(`✓ Optimization complete!`);
         document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
+
+        // Scroll to bottom after completion
+        setTimeout(scrollToBottom, 0);
     })
     .catch(err => {
         console.error('Optimization error:', err);

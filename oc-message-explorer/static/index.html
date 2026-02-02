@@ -2508,6 +2508,10 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
             </div>
             <div class="form-group" style="flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; padding: 16px 0 0;">
                 <label class="form-label">Optimized Result</label>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <input type="checkbox" id="autoScrollCheckbox" checked aria-label="Auto-scroll to bottom during AI streaming">
+                    <label for="autoScrollCheckbox" style="font-size: 13px; color: var(--text-secondary); user-select: none; cursor: pointer;">Auto-scroll</label>
+                </div>
                 <div class="optimizer-preview" id="optimizerResult" style="height: 100%;">
                     <div style="color: var(--text-muted); text-align: center; padding: 40px;">
                         Click "Optimize" to combine your notes
