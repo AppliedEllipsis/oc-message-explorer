@@ -55,8 +55,11 @@ function setupSidebarState() {
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('sidebarToggle');
     if (sidebar && toggleBtn) {
-        sidebar.classList.add('collapsed');
-        toggleBtn.style.display = 'flex';
+        sidebar.classList.remove('collapsed');
+        toggleBtn.style.display = 'none';
+        toggleBtn.style.visibility = 'hidden';
+        toggleBtn.style.position = 'absolute';
+        toggleBtn.style.left = '-9999px';
     }
 }
 
