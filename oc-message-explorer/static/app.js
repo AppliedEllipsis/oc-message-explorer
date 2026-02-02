@@ -67,7 +67,7 @@ function toggleSidebar() {
     sidebar.classList.toggle('collapsed');
 
     const isCollapsed = sidebar.classList.contains('collapsed');
-    toggleBtn.textContent = '☰';
+    toggleBtn.textContent = isCollapsed ? '☰' : '×';
     toggleBtn.setAttribute('aria-label', isCollapsed ? 'Show sidebar (Ctrl+B)' : 'Hide sidebar (Ctrl+B)');
 
     localStorage.setItem('sidebarCollapsed', isCollapsed);
