@@ -469,202 +469,212 @@
         .toolbar-panel {
             display: none;
             position: absolute;
-            top: calc(100% + 8px);
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-lg);
-            z-index: 1000;
+            top: calc(100% + 12px);
+            background: rgba(22, 24, 29, 0.85);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-lg);
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.1),
+                0 20px 40px -4px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+            z-index: 1100;
             overflow: hidden;
-            animation: dropdownFade 0.2s cubic-bezier(0, 0, 0.2, 1);
+            animation: dropdownFade 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: top;
         }
 
         .dropdown-menu {
-            right: 0;
-            min-width: 320px;
-            padding: 6px 0;
-        }
-
-        /* More prominent border when dropdown is shown */
-        .dropdown-menu.show {
-            border: 1px solid var(--accent);
-            box-shadow: 
-                0 0 0 1px rgba(79, 156, 255, 0.15),
-                0 12px 32px rgba(0, 0, 0, 0.3),
-                0 6px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .toolbar-panel {
-            padding: 12px;
-            min-width: 320px;
+            left: 0;
+            right: auto;
+            min-width: 240px;
+            padding: 8px;
             flex-direction: column;
-            gap: 8px;
         }
 
-        @keyframes dropdownFade {
-            from { opacity: 0; transform: translateY(-8px); }
-            to { opacity: 1; transform: translateY(0); }
+        .dropdown-menu.align-right {
+            left: auto;
+            right: 0;
         }
 
+        /* Active/Show state */
         .dropdown-menu.show,
         .toolbar-panel.show {
             display: flex;
+            border: 1px solid rgba(107, 138, 253, 0.3);
+            box-shadow: 
+                0 10px 40px -10px rgba(0, 0, 0, 0.5),
+                0 0 20px -5px rgba(107, 138, 253, 0.2),
+                0 0 0 1px rgba(107, 138, 253, 0.2) inset;
+        }
+
+        .toolbar-panel {
+            padding: 16px;
+            min-width: 340px;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        @keyframes dropdownFade {
+            from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         .dropdown-menu-item {
             width: 100%;
-            padding: 12px 16px;
+            padding: 10px 12px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             background: transparent;
             border: none;
+            border-radius: var(--radius-sm);
             color: var(--text-primary);
             font-size: 13px;
             font-family: inherit;
             text-align: left;
-            transition: all 0.15s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
-            min-height: 40px;
-            white-space: nowrap;
+            min-height: 38px;
+            font-weight: 500;
         }
 
         .dropdown-menu-item:hover:not(:disabled) {
-            background: var(--bg-hover);
-            padding-left: 20px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--accent-hover);
+            transform: translateX(4px);
+        }
+
+        .dropdown-menu-item:active:not(:disabled) {
+            background: var(--accent-soft);
+            transform: translateX(2px);
         }
 
         .dropdown-menu-item:disabled {
-            opacity: 0.4;
+            opacity: 0.3;
             cursor: not-allowed;
-            filter: grayscale(1);
+            filter: grayscale(0.8);
         }
 
         .dropdown-menu-item .icon {
             font-size: 16px;
-            width: 20px;
+            width: 24px;
+            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            opacity: 0.8;
+            transition: transform 0.2s ease;
+        }
+
+        .dropdown-menu-item:hover .icon {
+            transform: scale(1.15);
+            opacity: 1;
         }
 
         .dropdown-menu-item .text {
             flex: 1;
-            font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         .dropdown-menu-item .shortcut {
-            font-size: 11px;
+            font-size: 10px;
             color: var(--text-muted);
-            font-family: 'SF Mono', SFMono-Regular, Consolas, monospace;
-            background: var(--bg-tertiary);
-            padding: 3px 8px;
+            font-family: inherit;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 2px 6px;
             border-radius: 4px;
-            margin-left: 12px;
+            margin-left: 8px;
             font-weight: 400;
-            flex-shrink: 0;
-            white-space: nowrap;
+            letter-spacing: 0.05em;
+            opacity: 0.7;
         }
 
         .dropdown-menu-divider {
             height: 1px;
-            background: var(--border-light);
-            margin: 8px 0;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.08), transparent);
+            margin: 6px 4px;
         }
 
         .dropdown-menu-header {
-            padding: 10px 16px;
-            font-size: 10px;
+            padding: 8px 12px 4px;
+            font-size: 11px;
             font-weight: 700;
-            color: var(--accent);
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            background: linear-gradient(to right, var(--accent-soft), transparent);
-            border-bottom: 1px solid var(--border-light);
+            letter-spacing: 0.1em;
+            opacity: 0.6;
             margin-bottom: 4px;
         }
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .dropdown-menu {
-                right: auto;
-                left: 8px;
-                width: auto;
-                max-width: 300px;
-                min-width: 260px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .dropdown-menu {
-                left: 4px;
-                right: 4px;
-                min-width: 200px;
-            }
-
-            .dropdown-menu-item {
-                padding: 10px 12px;
-                font-size: 13px;
-            }
-
-            .dropdown-menu-item .shortcut {
-                display: none;
-            }
-        }
-
 
         .toolbar-btn {
             padding: 8px 14px;
             background: var(--bg-tertiary);
-            color: var(--text-primary);
+            color: var(--text-secondary);
             border: 1px solid var(--border-light);
             border-radius: var(--radius-sm);
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.15s ease;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             white-space: nowrap;
+            position: relative;
         }
 
         .toolbar-btn:hover {
             background: var(--bg-hover);
-            border-color: var(--text-muted);
+            border-color: rgba(255, 255, 255, 0.15);
+            color: var(--text-primary);
             transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .toolbar-btn:active {
+            transform: translateY(0);
         }
 
         .toolbar-btn .text {
-            font-weight: 600;
+            font-weight: 500;
             pointer-events: none;
         }
 
-        #moreBtn {
-            border-color: var(--accent);
-            background: var(--bg-tertiary);
-        }
-
-        #moreBtn:hover {
-            border-color: var(--accent-hover);
-            background: var(--accent-soft);
-        }
-
         .toolbar-btn.active {
-            background: var(--accent-soft, rgba(59, 130, 246, 0.15));
-            border-color: var(--accent, #4f9cff);
-            color: var(--text-primary);
+            background: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent-hover);
+            box-shadow: 0 0 15px rgba(107, 138, 253, 0.1);
+        }
+
+        #moreBtn {
+            border-color: transparent;
+            background: transparent;
+        }
+
+        #moreBtn:hover, #moreBtn.active {
+            background: var(--bg-hover);
+            border-color: var(--border);
         }
 
         .toolbar-btn .icon {
             font-size: 16px;
             pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+
+        .toolbar-btn:hover .icon, .toolbar-btn.active .icon {
+            opacity: 1;
         }
 
         .theme-list {
@@ -678,9 +688,9 @@
             align-items: center;
             gap: 8px;
             padding: 8px 12px;
-            border-radius: var(--border-radius);
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            transition: background var(--transition-duration);
+            transition: all 0.2s ease;
         }
 
         .theme-item:hover {
@@ -688,14 +698,14 @@
         }
 
         .theme-item.active {
-            background: rgba(88, 166, 255, 0.1);
+            background: var(--accent-soft);
             border: 1px solid var(--accent);
         }
 
         .theme-preview {
             width: 24px;
             height: 24px;
-            border-radius: 3px;
+            border-radius: 4px;
             border: 1px solid var(--border);
         }
 
@@ -722,11 +732,12 @@
             font-size: 14px;
             width: 280px;
             outline: none;
-            transition: all 0.15s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .search-box:focus {
             border-color: var(--accent);
+            background: var(--bg-hover);
             box-shadow: 0 0 0 3px var(--accent-soft);
         }
 
@@ -734,37 +745,37 @@
             color: var(--text-muted);
         }
 
-        .search-box:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-soft);
-        }
-
         .filter-toggle {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
+            gap: 10px;
+            padding: 8px 14px;
             background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 6px;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
             font-size: 13px;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            color: var(--text-secondary);
         }
 
         .filter-toggle:hover {
             background: var(--bg-hover);
+            color: var(--text-primary);
         }
 
         .filter-toggle input[type="checkbox"] {
-            margin: 0;
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
             cursor: pointer;
         }
 
         .filter-toggle.active {
             border-color: var(--accent);
             background: var(--accent-soft);
+            color: var(--text-primary);
         }
 
         .tree-container {
@@ -1639,6 +1650,7 @@
             overflow: hidden;
             display: -webkit-box;
             -webkit-line-clamp: 3;
+            line-clamp: 3;
             -webkit-box-orient: vertical;
             line-height: 1.4;
         }
@@ -1664,6 +1676,13 @@
             border-top: 1px solid var(--border);
             display: flex;
             gap: 8px;
+            align-items: center;
+        }
+
+        .combine-modal-content .modal-header {
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
         }
 
         .combined-preview {
@@ -2357,50 +2376,49 @@
                         <span class="text">Actions</span>
                     </button>
                     <div class="dropdown-menu" id="moreMenu" role="menu" aria-label="Actions menu">
-                        <div class="dropdown-menu-header">Actions</div>
+                        <div class="dropdown-menu-header">View</div>
                         <button class="dropdown-menu-item" onclick="expandAll()" role="menuitem">
-                            <span class="icon">📂</span>
-                            <span class="text">Expand All</span>
+                            <span class="icon">⇱</span>
+                            <span class="text">Expand Explorer</span>
                         </button>
                         <button class="dropdown-menu-item" onclick="collapseAll()" role="menuitem">
-                            <span class="icon">📁</span>
-                            <span class="text">Collapse All</span>
+                            <span class="icon">⇲</span>
+                            <span class="text">Collapse Explorer</span>
                         </button>
                         <div class="dropdown-menu-divider"></div>
-                        <button class="dropdown-menu-item" onclick="unselectAll()" role="menuitem">
-                            <span class="icon">✓</span>
-                            <span class="text">Uncheck All</span>
-                        </button>
-                        <div class="dropdown-menu-divider"></div>
+                        <div class="dropdown-menu-header">Edit</div>
                         <button class="dropdown-menu-item" id="undoMenuItem" onclick="undoRedoManager.undo()" disabled role="menuitem">
-                            <span class="icon">↩️</span>
+                            <span class="icon">↺</span>
                             <span class="text">Undo</span>
-                            <span class="shortcut">Ctrl+Shift+Z</span>
+                            <span class="shortcut">Ctrl+Z</span>
                         </button>
                         <button class="dropdown-menu-item" id="redoMenuItem" onclick="undoRedoManager.redo()" disabled role="menuitem">
-                            <span class="icon">↪️</span>
+                            <span class="icon">↻</span>
                             <span class="text">Redo</span>
                             <span class="shortcut">Ctrl+Y</span>
                         </button>
+                        <button class="dropdown-menu-item" onclick="unselectAll()" role="menuitem">
+                            <span class="icon">◻</span>
+                            <span class="text">Clear Checked</span>
+                        </button>
                         <div class="dropdown-menu-divider"></div>
-                        <div class="dropdown-menu-header">Data</div>
+                        <div class="dropdown-menu-header">System</div>
                         <button class="dropdown-menu-item" onclick="exportData()" role="menuitem">
-                            <span class="icon">⬇️</span>
-                            <span class="text">Export</span>
+                            <span class="icon">📥</span>
+                            <span class="text">Export Data</span>
                         </button>
                         <button class="dropdown-menu-item" onclick="document.getElementById('importFile').click()" role="menuitem">
-                            <span class="icon">⬆️</span>
-                            <span class="text">Import</span>
+                            <span class="icon">📤</span>
+                            <span class="text">Import Data</span>
                         </button>
                         <div class="dropdown-menu-divider"></div>
-                        <div class="dropdown-menu-header">Configuration</div>
                         <button class="dropdown-menu-item" onclick="showSettingsModal()" role="menuitem">
-                            <span class="icon">🤖</span>
-                            <span class="text">AI Configuration</span>
+                            <span class="icon">�</span>
+                            <span class="text">Model Settings</span>
                         </button>
                         <button class="dropdown-menu-item" onclick="toggleThemePanel()" role="menuitem">
-                            <span class="icon">🎨</span>
-                            <span class="text">Change Theme</span>
+                            <span class="icon">✨</span>
+                            <span class="text">Interface Theme</span>
                         </button>
                     </div>
                     <div id="themePanel" class="toolbar-panel" role="dialog" aria-label="Select theme">
@@ -2601,6 +2619,50 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
                         Path to AGENTS.md file. Can be relative to project path or absolute.
                     </small>
                 </div>
+                <div class="form-group">
+                    <label class="form-label" for="promptTemplateSelector">AI Prompt Templates</label>
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                        <select class="form-select" id="promptTemplateSelector" style="flex: 1;" onchange="loadPromptTemplate()">
+                            <option value="">-- Select a template to edit --</option>
+                        </select>
+                        <button class="btn" onclick="addNewPromptTemplate()" aria-label="Add new prompt template" title="Add new template">+ New</button>
+                        <button class="btn" onclick="deletePromptTemplate()" id="deletePromptTemplateBtn" disabled aria-label="Delete selected prompt template" title="Delete template">Delete</button>
+                    </div>
+                    <div id="promptTemplateEditor" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label" for="promptTemplateName">Template Name</label>
+                            <input type="text" class="form-input" id="promptTemplateName" placeholder="e.g., My Custom Prompt" aria-label="Template name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="promptTemplateDescription">Description</label>
+                            <input type="text" class="form-input" id="promptTemplateDescription" placeholder="Brief description of what this template does" aria-label="Template description">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="promptTemplateSystem">System Prompt</label>
+                            <textarea class="editor-textarea" id="promptTemplateSystem" style="height: 100px;" placeholder="System prompt for the AI" aria-label="System prompt"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="promptTemplateUser">User Prompt</label>
+                            <textarea class="editor-textarea" id="promptTemplateUser" style="height: 120px;" placeholder="User prompt template. Use {prompt} as placeholder for input." aria-label="User prompt"></textarea>
+                            <small style="color: var(--text-muted); font-size: 13px; margin-top: 4px; display: block;">
+                                Use {prompt} as the placeholder for the input content.
+                            </small>
+                        </div>
+                        <div style="display: flex; gap: 12px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label class="form-label" for="promptTemplateTemperature">Temperature</label>
+                                <input type="number" class="form-input" id="promptTemplateTemperature" min="0" max="2" step="0.1" value="0.7" aria-label="AI temperature">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label class="form-label" for="promptTemplateMaxTokens">Max Tokens</label>
+                                <input type="number" class="form-input" id="promptTemplateMaxTokens" min="1" max="8000" step="100" value="2000" aria-label="AI max tokens">
+                            </div>
+                        </div>
+                    </div>
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
+                        Edit existing AI prompt templates or create custom ones. Only customized templates are saved to .env.
+                    </small>
+                </div>
             </div>
             <div class="editor-actions" style="flex-shrink: 0; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
                 <button class="btn primary" onclick="saveSettings()" aria-label="Save settings to .env file" title="Save (Ctrl+S)">Save to .env</button>
@@ -2615,17 +2677,6 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
             <div class="modal-header">
                 <h2>Optimize Prompts with AI</h2>
                 <button class="close-btn" onclick="hideModal('optimizeModal')" aria-label="Close optimize dialog" title="Close (Escape)">&times;</button>
-            </div>
-            <div class="optimizer-section" style="flex: 0 0 auto;">
-                <label class="form-label">Template</label>
-                <select class="form-select" id="aiTemplate" onchange="updateTemplateDescription()">
-                    <option value="optimize">Optimize Prompts</option>
-                    <option value="summarize">Summarize Conversation</option>
-                    <option value="expand">Expand and Elaborate</option>
-                    <option value="refine">Refine and Polish</option>
-                    <option value="extract">Extract Key Points</option>
-                </select>
-                <div id="templateDescription" style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Optimize AI prompts for clarity and effectiveness</div>
             </div>
             <div class="form-group" style="flex: 0 0 auto; max-height: 200px;">
                 <label class="form-label">Combined Text</label>
@@ -2667,9 +2718,23 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
 
     <div class="modal" id="combineModal">
         <div class="modal-content combine-modal-content" style="width: 900px; max-height: 95vh;">
-            <div class="modal-header">
-                <h2>Combine Messages</h2>
-                <button class="close-btn" onclick="hideModal('combineModal')" aria-label="Close combine dialog" title="Close (Escape)">&times;</button>
+            <div class="modal-header" style="flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 300px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <h2 style="margin: 0;">Combine Messages</h2>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <label class="form-label" for="combineTemplate" style="margin-bottom: 0;">AI Template:</label>
+                    <select class="form-select" id="combineTemplate" style="width: 250px;" onchange="updateCombineTemplateDescription()">
+                        <option value="override_latest">Override Latest</option>
+                        <option value="smart_merge">Smart Merge</option>
+                        <option value="summary">Summary</option>
+                        <option value="expand">Expand</option>
+                        <option value="code_optimized">Code Optimized</option>
+                        <option value="optimize" selected>General Optimize</option>
+                    </select>
+                    <button class="btn primary" onclick="optimizeCombinedPrompts()" aria-label="Generate with AI" title="Generate with AI using selected template">⚡ Generate</button>
+                    <button class="close-btn" onclick="hideModal('combineModal')" aria-label="Close combine dialog" title="Close (Escape)">&times;</button>
+                </div>
             </div>
             <div class="combine-container">
                 <div class="combine-list-sidebar">
@@ -2683,8 +2748,8 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
                 <div class="combined-preview" id="combinedPreview" role="region" aria-label="Combined message preview"></div>
             </div>
             <div class="combine-actions">
-                <button class="btn primary" onclick="optimizeCombinedPrompts()" aria-label="Combine with AI" title="Combine with AI (Summarize/Optimize)">⚡ AI Optimize</button>
-                <button class="btn" onclick="copyCombined()" aria-label="Copy combined text to clipboard" title="Copy combined text (Ctrl+C)">📋 Copy Combined</button>
+                <div id="combineTemplateDescription" style="font-size: 12px; color: var(--text-muted); flex: 1;">Latest message is the primary source, resolve conflicts using it</div>
+                <button class="btn" onclick="copyCombined()" aria-label="Copy combined text to clipboard" title="Copy combined text (Ctrl+C)">📋 Copy</button>
                 <button class="btn" onclick="hideModal('combineModal')" aria-label="Close combine dialog" title="Close">Close</button>
             </div>
         </div>

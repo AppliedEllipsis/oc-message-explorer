@@ -99,6 +99,15 @@ function setupSidebarState() {
     toggleBtn.onclick = toggleSidebar;
     header.insertBefore(toggleBtn, header.firstChild);
 
+    try {
+        const savedCollapsed = localStorage.getItem('sidebarCollapsed');
+        if (savedCollapsed === 'true') {
+            sidebar.classList.add('collapsed');
+        }
+    } catch (e) {
+        console.warn('[STORAGE] Failed to load sidebar state:', e);
+    }
+
     const isCollapsed = sidebar.classList.contains('collapsed');
     if (isCollapsed) {
         toggleBtn.textContent = '☰';
@@ -137,7 +146,11 @@ function toggleSidebar() {
         toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
     }
 
-    localStorage.setItem('sidebarCollapsed', isCollapsed);
+    try {
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+    } catch (e) {
+        console.warn('[STORAGE] Failed to save sidebar state:', e);
+    }
 }
 
 document.addEventListener('keydown', (e) => {
@@ -189,7 +202,11 @@ function setupEditorResize() {
         const delta = startY - e.clientY;
         const newHeight = Math.max(300, Math.min(window.innerHeight * 0.8, startHeight + delta));
         editorPanel.style.height = newHeight + 'px';
-        localStorage.setItem('editorPanelHeight', newHeight);
+        try {
+            localStorage.setItem('editorPanelHeight', newHeight);
+        } catch (e) {
+            console.warn('[STORAGE] Failed to save editor height:', e);
+        }
     });
 
     document.addEventListener('mouseup', () => {
@@ -1245,14 +1262,14 @@ async function duplicateNode(nodeId) {
         }
 
         showNotification('✓ Message duplicated');
-        
+
         // Update UI
         await updateAllMessages();
-        
+
         // Scroll to and highlight the new message
         setTimeout(() => {
-            const newNodes = Object.values(allMessages).filter(n => 
-                n.content === node.content && 
+            const newNodes = Object.values(allMessages).filter(n =>
+                n.content === node.content &&
                 n.timestamp !== node.timestamp
             );
             if (newNodes.length > 0) {
@@ -1838,6 +1855,7 @@ function copyCombined() {
 
 function optimizeCombinedPrompts() {
     const combined = combineOrder.map(node => node.content).join('\n\n---\n\n');
+    const selectedTemplate = document.getElementById('combineTemplate')?.value || 'optimize';
 
     hideModal('combineModal');
 
@@ -1847,9 +1865,163 @@ function optimizeCombinedPrompts() {
         document.getElementById('optimizerPreview').innerHTML = window.marked.parse(combined);
     }
 
-    document.getElementById('optimizeModal').classList.add('active');
+    const resultDiv = document.getElementById('optimizerResult');
+    const optimizeBtn = document.querySelector('#optimizeModal .btn.primary');
 
-    setTimeout(() => optimizePrompts(), 500);
+    if (optimizeBtn) {
+        optimizeBtn.disabled = true;
+        optimizeBtn.textContent = 'Optimizing...';
+    }
+
+    let accumulatedContent = '';
+    let hasScrolledManually = false;
+    const autoScrollCheckbox = document.getElementById('autoScrollCheckbox');
+
+    if (!autoScrollCheckbox) {
+        console.error('[ERROR] autoScrollCheckbox not found');
+        return;
+    }
+
+    function shouldAutoScroll() {
+        return autoScrollCheckbox.checked && !hasScrolledManually;
+    }
+
+    function scrollToBottom() {
+        if (resultDiv && shouldAutoScroll()) {
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+        }
+    }
+
+    const handleScroll = () => {
+        const isScrolledUp = resultDiv.scrollTop < resultDiv.scrollHeight - resultDiv.clientHeight - 50;
+        if (isScrolledUp && autoScrollCheckbox.checked) {
+            autoScrollCheckbox.checked = false;
+            hasScrolledManually = true;
+        }
+    };
+
+    resultDiv.removeEventListener('scroll', handleScroll);
+    resultDiv.addEventListener('scroll', handleScroll);
+
+    const handleUserInteraction = () => {
+        if (autoScrollCheckbox.checked) {
+            autoScrollCheckbox.checked = false;
+            hasScrolledManually = true;
+        }
+    };
+
+    resultDiv.removeEventListener('mousedown', handleUserInteraction);
+    resultDiv.addEventListener('mousedown', handleUserInteraction);
+
+    hasScrolledManually = false;
+
+    resultDiv.innerHTML = `
+        <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;">
+            <div style="font-size: 32px; margin-bottom: 16px; animation: spin 1s linear infinite;">🤖</div>
+            <div style="color: var(--text-secondary);">AI is processing...</div>
+            <div style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">${combineOrder.length} message(s)</div>
+        </div>
+    `;
+
+    document.getElementById('optimizeModal').classList.add('active');
+    showNotification('Starting optimization...');
+
+    window.aiWorkflowManager.stream(selectedTemplate, { prompt: combined }, {}, (chunk) => {
+        if (accumulatedContent === '') {
+            resultDiv.innerHTML = `<div style="padding: 12px; white-space: pre-wrap;">`;
+            accumulatedContent = chunk;
+        } else {
+            accumulatedContent += chunk;
+        }
+
+        const contentEl = resultDiv.querySelector('div');
+        if (contentEl) {
+            contentEl.textContent = accumulatedContent;
+            scrollToBottom();
+        }
+    })
+        .then((result) => {
+            const { model, provider } = result;
+            const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+            const contentEl = resultDiv.querySelector('div') || resultDiv;
+            if (window.marked && accumulatedContent.includes('\n')) {
+                contentEl.innerHTML = `
+                <div style="padding: 12px;">
+                    ${window.marked.parse(accumulatedContent)}
+                </div>
+                <div style="padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted);">
+                    Generated by ${providerName} (${model})
+                </div>
+            `;
+            } else {
+                contentEl.innerHTML = `
+                <div style="padding: 12px;">
+                    ${accumulatedContent}
+                </div>
+                <div style="padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted);">
+                    Generated by ${providerName} (${model})
+                </div>
+            `;
+            }
+
+            showNotification(`✓ Optimization complete!`);
+            document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
+
+            setTimeout(scrollToBottom, 0);
+        })
+        .catch(err => {
+            console.error('Optimization error:', err);
+
+            const errorText = err?.message || err?.toString() || 'Unknown error';
+
+            const errorHelp = errorText.includes('No AI provider configured') ||
+                errorText.includes('No API key configured') ||
+                errorText.includes('AI provider error')
+                ? '<div style="margin-top: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px; border-left: 3px solid var(--accent);">' +
+                '<div style="font-size: 13px; color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">How to fix:</div>' +
+                '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">' +
+                '1. Click the ⋮ <strong>Actions</strong> button in the toolbar<br>' +
+                '2. Click <strong>🤖 AI Configuration</strong> from the dropdown menu<br>' +
+                '3. Enter your OpenAI API key in the API Key field<br>' +
+                '4. Click <strong>Save to .env</strong><br>' +
+                '5. Try optimizing again' +
+                '</div></div>' : '';
+
+            resultDiv.innerHTML = `
+            <div style="color: var(--danger); text-align: center; padding: 40px;">
+                <div style="font-size: 32px; margin-bottom: 16px;">❌</div>
+                <div style="font-weight: 600; margin-bottom: 8px;">Optimization Failed</div>
+                <div style="color: var(--text-secondary); font-size: 14px; max-width: 400px; margin: 0 auto;">${escapeHtml(errorText)}</div>
+                ${errorHelp}
+            </div>
+        `;
+            showNotification(`✗ Optimization failed: ${err.message || 'Unknown error'}`);
+
+            if (errorText.includes('No AI provider configured') || errorText.includes('No API key')) {
+                setTimeout(() => {
+                    const moreBtn = document.getElementById('moreBtn');
+                    if (moreBtn) {
+                        moreBtn.style.animation = 'pulse 2s ease-in-out 3';
+                    }
+                }, 500);
+            }
+        })
+        .finally(() => {
+            if (optimizeBtn) {
+                optimizeBtn.disabled = false;
+                optimizeBtn.textContent = 'Optimize';
+            }
+        });
+}
+
+function updateCombineTemplateDescription() {
+    const templateId = document.getElementById('combineTemplate')?.value || 'override_latest';
+    const template = window.aiWorkflowManager?.getTemplate(templateId);
+    const descElement = document.getElementById('combineTemplateDescription');
+    if (template && descElement) {
+        descElement.textContent = template.description || '';
+    }
 }
 
 function optimizePrompts() {
@@ -2139,6 +2311,19 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
                 fetchModels(false);
             }
 
+            if (config.customPrompts) {
+                try {
+                    customPromptTemplates = JSON.parse(config.customPrompts);
+                } catch (e) {
+                    console.error('Failed to parse custom prompts:', e);
+                    customPromptTemplates = {};
+                }
+            } else {
+                customPromptTemplates = {};
+            }
+
+            initPromptTemplates();
+
             document.getElementById('settingsModal').classList.add('active');
         })
         .catch(err => {
@@ -2167,6 +2352,10 @@ function saveSettings() {
         anthropicAPIKey: anthropicApiKey,
         aiProvider: aiProvider
     };
+
+    if (Object.keys(customPromptTemplates).length > 0) {
+        updates.customPrompts = JSON.stringify(customPromptTemplates);
+    }
 
     const saveBtn = event?.target;
     if (saveBtn) {
@@ -2237,6 +2426,197 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
         })
         .catch(err => {
             console.error('Failed to load settings:', err);
+        });
+}
+
+let customPromptTemplates = {};
+let currentTemplateId = null;
+
+function initPromptTemplates() {
+    const selector = document.getElementById('promptTemplateSelector');
+    if (!selector) return;
+
+    selector.innerHTML = '<option value="">-- Select a template to edit --</option>';
+
+    const templates = window.aiWorkflowManager?.getPromptTemplates() || {};
+    Object.entries(templates).forEach(([id, template]) => {
+        const isCustom = customPromptTemplates[id] !== undefined;
+        const label = template.name + (isCustom ? ' (Custom)' : ' (Default)');
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = label;
+        selector.appendChild(option);
+    });
+
+    Object.entries(customPromptTemplates).forEach(([id, template]) => {
+        if (!templates[id]) {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = template.name + ' (Custom)';
+            selector.appendChild(option);
+        }
+    });
+}
+
+function loadPromptTemplate() {
+    const selector = document.getElementById('promptTemplateSelector');
+    const editor = document.getElementById('promptTemplateEditor');
+    const deleteBtn = document.getElementById('deletePromptTemplateBtn');
+
+    const id = selector.value;
+    currentTemplateId = id;
+
+    if (!id) {
+        editor.style.display = 'none';
+        deleteBtn.disabled = true;
+        return;
+    }
+
+    editor.style.display = 'block';
+
+    let template = window.aiWorkflowManager?.getTemplate(id) || customPromptTemplates[id];
+    if (!template) {
+        template = {
+            name: '',
+            description: '',
+            system: '',
+            user: '{prompt}',
+            temperature: 0.7,
+            maxTokens: 2000
+        };
+    }
+
+    document.getElementById('promptTemplateName').value = template.name || '';
+    document.getElementById('promptTemplateDescription').value = template.description || '';
+    document.getElementById('promptTemplateSystem').value = template.system || '';
+    document.getElementById('promptTemplateUser').value = template.user || '{prompt}';
+    document.getElementById('promptTemplateTemperature').value = template.temperature || 0.7;
+    document.getElementById('promptTemplateMaxTokens').value = template.maxTokens || 2000;
+
+    const isCustom = customPromptTemplates[id] !== undefined;
+    const isDefault = window.aiWorkflowManager?.getTemplate(id) !== undefined;
+
+    if (isCustom && !isDefault) {
+        deleteBtn.disabled = false;
+    } else if (isDefault && customPromptTemplates[id]) {
+        deleteBtn.disabled = false;
+    } else {
+        deleteBtn.disabled = true;
+    }
+}
+
+function saveCurrentPromptTemplate() {
+    const id = currentTemplateId;
+    if (!id) return;
+
+    const template = {
+        name: document.getElementById('promptTemplateName').value.trim(),
+        description: document.getElementById('promptTemplateDescription').value.trim(),
+        system: document.getElementById('promptTemplateSystem').value.trim(),
+        user: document.getElementById('promptTemplateUser').value.trim(),
+        temperature: parseFloat(document.getElementById('promptTemplateTemperature').value) || 0.7,
+        maxTokens: parseInt(document.getElementById('promptTemplateMaxTokens').value) || 2000
+    };
+
+    if (!template.name) {
+        showNotification('Please enter a template name');
+        return;
+    }
+
+    customPromptTemplates[id] = template;
+
+    const updates = { customPrompts: JSON.stringify(customPromptTemplates) };
+
+    return fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+    })
+        .then(res => res.json())
+        .then(config => {
+            configManager.config = config;
+            if (config.customPrompts) {
+                customPromptTemplates = JSON.parse(config.customPrompts);
+            }
+            initPromptTemplates();
+
+            const selector = document.getElementById('promptTemplateSelector');
+            selector.value = id;
+            loadPromptTemplate();
+
+            showNotification('✓ Prompt template saved');
+        })
+        .catch(err => {
+            console.error('Failed to save prompt template:', err);
+            showNotification('✗ Failed to save template');
+        });
+}
+
+function addNewPromptTemplate() {
+    while (true) {
+        const id = 'custom_' + Date.now();
+        if (!window.aiWorkflowManager?.getTemplate(id) && !customPromptTemplates[id]) {
+            currentTemplateId = id;
+
+            const template = {
+                name: 'New Custom Template',
+                description: 'Description of what this template does',
+                system: 'You are a helpful assistant.',
+                user: 'Process this: {prompt}',
+                temperature: 0.7,
+                maxTokens: 2000
+            };
+
+            customPromptTemplates[id] = template;
+            loadPromptTemplate();
+            initPromptTemplates();
+
+            const selector = document.getElementById('promptTemplateSelector');
+            selector.value = id;
+            loadPromptTemplate();
+
+            break;
+        }
+    }
+}
+
+function deletePromptTemplate() {
+    const id = currentTemplateId;
+    if (!id || !customPromptTemplates[id]) {
+        showNotification('Cannot delete default templates');
+        return;
+    }
+
+    if (!confirm('Delete this custom template?')) {
+        return;
+    }
+
+    delete customPromptTemplates[id];
+
+    const updates = { customPrompts: Object.keys(customPromptTemplates).length > 0 ? JSON.stringify(customPromptTemplates) : '' };
+
+    return fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+    })
+        .then(res => res.json())
+        .then(config => {
+            configManager.config = config;
+            if (config.customPrompts) {
+                customPromptTemplates = JSON.parse(config.customPrompts);
+            }
+            initPromptTemplates();
+
+            document.getElementById('promptTemplateSelector').value = '';
+            currentTemplateId = null;
+            loadPromptTemplate();
+
+            showNotification('✓ Prompt template deleted');
+        })
+        .catch(err => {
+            console.error('Failed to delete prompt template:', err);
+            showNotification('✗ Failed to delete template');
         });
 }
 
@@ -2999,19 +3379,47 @@ function toggleMoreMenu() {
     const menu = document.getElementById('moreMenu');
     const btn = document.getElementById('moreBtn');
 
-    if (!menu) {
-        console.error('[ERROR] moreMenu element not found');
-        return;
-    }
-    if (!btn) {
-        console.error('[ERROR] moreBtn element not found');
+    if (!menu || !btn) {
+        console.error('[ERROR] moreMenu or moreBtn element not found');
         return;
     }
 
     const isShown = menu.classList.toggle('show');
     btn.setAttribute('aria-expanded', isShown);
+    btn.classList.toggle('active', isShown);
+
+    if (isShown) {
+        const btnRect = btn.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Use a temporary show for measurement if needed, but it's already shown
+        const menuRect = menu.getBoundingClientRect();
+
+        // Horizontal alignment
+        if (btnRect.left + menuRect.width > viewportWidth - 20) {
+            menu.style.left = 'auto';
+            menu.style.right = '0';
+        } else {
+            menu.style.left = '0';
+            menu.style.right = 'auto';
+        }
+
+        // Vertical safety check - if it would go off bottom, flip to top
+        if (btnRect.bottom + menuRect.height > viewportHeight - 20) {
+            menu.style.top = 'auto';
+            menu.style.bottom = 'calc(100% + 12px)';
+            menu.style.transformOrigin = 'bottom';
+        } else {
+            menu.style.top = 'calc(100% + 12px)';
+            menu.style.bottom = 'auto';
+            menu.style.transformOrigin = 'top';
+        }
+    }
+
     console.log('[MORE] Menu is now:', isShown ? 'shown' : 'hidden');
 }
+
 
 async function selectTheme(themeId) {
     try {
@@ -3033,9 +3441,7 @@ function updateThemeActiveState(themeId) {
     });
 }
 
-document.addEventListener('click', (e) => {
-    // This is a duplicate of the one in setupMoreMenu, but let's keep it clean
-});
+// Click handler for closing panels is already in setupMoreMenu
 
 document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey) {

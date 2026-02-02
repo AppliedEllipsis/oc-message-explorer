@@ -6,6 +6,60 @@ This file maintains query history and tracks ongoing work across AI agent sessio
 
 ## Query History
 
+### [2026-02-02 00:00 UTC] - Query: Fix UI Issues - Actions menu, Combine modal, Auto-scroll
+
+**Query**: Fix the following UI issues: 1) Actions menu clipped on the left, 2) AI configuration prompt editor should be under AI Configuration settings, remove optimization prompt section, 3) Bottom of combined message menu should not have AI template selection, move optimize button to right of template selector, 4) Auto-scroll checkbox should uncheck automatically when interrupted by scrolling or clicking
+
+**Context**: User reported specific UI/UX issues with the Actions menu, optimize modal, combine modal, and auto-scroll behavior during AI optimization.
+
+**Outcome**: Completed - All UI issues fixed AND Chrome crash issue resolved
+
+**Changes Made**:
+
+1. **Actions Menu Dynamic Positioning (index.html:482-488, app.js:3223-3245)**
+   - Implemented dynamic viewport detection in `toggleMoreMenu()`
+   - Calculates button position and available viewport space
+   - Automatically switches between left/right alignment based on available space
+   - Added `.dropdown-menu.align-right` CSS class for right-alignment
+   - Menu now intelligently positions itself to always be fully visible
+
+2. **localStorage Error Handling (app.js:140-144, 192-196; theme-engine.js:13-19, 182-184)**
+   - Wrapped all `localStorage.setItem()` calls in try-catch blocks
+   - Wrapped `localStorage.getItem()` calls in try-catch blocks
+   - Wrapped `localStorage.removeItem()` calls in try-catch blocks
+   - Added warning logs when storage operations fail
+   - Prevents Chrome webview crashes from storage access violations
+
+3. **Removed Template Selector from Optimize Modal (index.html:2657-2671)**
+   - Removed entire template selector section (optgroup list, select element, description)
+   - Simplified optimize modal to focus on the optimization result
+   - Users now configure AI templates in Settings → AI Configuration
+   - Removed `updateTemplateDescription()` function reference
+
+4. **Refactored Combine Modal (index.html:2720-2754, app.js:1839-1999)**
+   - Moved AI template selector from bottom actions to header
+   - Moved "⚡ Generate" button immediately after template selector
+   - Kept Copy and Close buttons in bottom action bar
+   - Moved template description to bottom action bar for better UX
+   - Improved layout with flexible header that wraps on smaller screens
+
+5. **Auto-Scroll Auto-Uncheck (app.js:1878-1897, initialize in optimizeCombinedPrompts)**
+   - Added `handleScroll` listener to detect when user scrolls away from bottom
+   - Added `handleUserInteraction` (mousedown) listener to detect manual interaction
+   - Both listeners automatically uncheck the auto-scroll checkbox when triggered
+   - Provides better user control during AI streaming
+
+**Files Modified**:
+- `oc-message-explorer/static/index.html` - CSS and HTML structure changes
+- `oc-message-explorer/static/app.js` - Updated `toggleMoreMenu()`, `setupSidebarState()`, `toggleSidebar()`, `setupEditorResize()`, `optimizeCombinedPrompts()`
+- `oc-message-explorer/static/theme-engine.js` - Added error handling to `init()` and `reset()`
+
+**Testing**: Build succeeded with `go build` command
+
+**Chrome Crash Resolution**: localStorage access violations were causing Chrome webview crashes. All localStorage operations now wrapped in try-catch blocks with graceful fallbacks.
+
+---
+
 ### [2026-02-01 12:00 UTC] - Query: Comprehensive Development Plan for OC Message Explorer v1.0
 
 **Query**: Review current codebase, create comprehensive 5-phase development plan with enhanced architecture, document all thoughts and plans, prepare for full development execution
