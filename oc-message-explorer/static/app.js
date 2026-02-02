@@ -655,7 +655,7 @@ function createNodeElement(node, messages, isRoot = false) {
              aria-level="${node.parentId ? 2 : 1}"
              data-node-id="${node.id}"
              ondblclick="toggleEditNode('${node.id}')">
-            <button class="expand-icon" aria-label="${node.expanded ? 'Collapse' : 'Expand'}" aria-expanded="${node.expanded}">${expandIcon}</button>
+            ${hasVisibleChildren ? `<button class="expand-icon" aria-label="${node.expanded ? 'Collapse' : 'Expand'}" aria-expanded="${node.expanded}">${expandIcon}</button>` : '<span class="expand-spacer"></span>'}
             <span class="checkbox-wrapper">
                 <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''} aria-label="Select message for combination">
             </span>
@@ -727,12 +727,14 @@ function createNodeElement(node, messages, isRoot = false) {
         };
     }
 
-    expandIconEl.onclick = (e) => {
-        console.log('[CLICK] Expand icon clicked for node:', node.id);
-        e.stopPropagation();
-        toggleExpand(node.id);
-        renderTree();
-    };
+    if (expandIconEl) {
+        expandIconEl.onclick = (e) => {
+            console.log('[CLICK] Expand icon clicked for node:', node.id);
+            e.stopPropagation();
+            toggleExpand(node.id);
+            renderTree();
+        };
+    }
 
     checkbox.onclick = (e) => {
         console.log('[CLICK] Checkbox clicked for node:', node.id, 'checked:', checkbox.checked);
