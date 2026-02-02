@@ -2278,14 +2278,22 @@ function clearModelFilter() {
     filterModelOptions();
 }
 
-function showNotification(message) {
+function showNotification(message, type = 'default') {
     const notification = document.getElementById('notification');
     if (!notification) {
         console.error('[ERROR] notification element not found');
         return;
     }
     notification.textContent = message;
+    notification.className = ''; // Clear all classes
     notification.classList.add('show');
+
+    // Add type-specific styling
+    if (type === 'error') {
+        notification.classList.add('notification-error');
+    } else if (type === 'info') {
+        notification.classList.add('notification-info');
+    }
 
     setTimeout(() => {
         notification.classList.remove('show');

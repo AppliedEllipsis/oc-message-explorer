@@ -118,7 +118,7 @@ class CommandPalette {
         id: 'export-data',
         name: 'Export data',
         icon: '📤',
-        shortcut: 'Ctrl+E',
+        shortcut: 'Ctrl+Shift+S',
         description: 'Export all messages to JSON',
         action: () => {
           exportData();
