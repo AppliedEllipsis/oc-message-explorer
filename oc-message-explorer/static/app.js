@@ -1829,14 +1829,40 @@ function optimizePrompts() {
     })
     .catch(err => {
         console.error('Optimization error:', err);
+
+        const errorText = err?.message || err?.toString() || 'Unknown error';
+
+        const errorHelp = errorText.includes('No AI provider configured') ||
+                          errorText.includes('No API key configured') ||
+                          errorText.includes('AI provider error')
+            ? '<div style="margin-top: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px; border-left: 3px solid var(--accent);">' +
+            '<div style="font-size: 13px; color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">How to fix:</div>' +
+            '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">' +
+            '1. Click the ⋮ <strong>Actions</strong> button in the toolbar<br>' +
+            '2. Click <strong>🤖 AI Configuration</strong> from the dropdown menu<br>' +
+            '3. Enter your OpenAI API key in the API Key field<br>' +
+            '4. Click <strong>Save to .env</strong><br>' +
+            '5. Try optimizing again' +
+            '</div></div>' : '';
+
         resultDiv.innerHTML = `
             <div style="color: var(--danger); text-align: center; padding: 40px;">
                 <div style="font-size: 32px; margin-bottom: 16px;">❌</div>
                 <div style="font-weight: 600; margin-bottom: 8px;">Optimization Failed</div>
-                <div style="color: var(--text-secondary); font-size: 14px;">${escapeHtml(err.message || err.toString())}</div>
+                <div style="color: var(--text-secondary); font-size: 14px; max-width: 400px; margin: 0 auto;">${escapeHtml(errorText)}</div>
+                ${errorHelp}
             </div>
         `;
-        showNotification(`✗ Optimization failed: ${err.message}`);
+        showNotification(`✗ Optimization failed: ${err.message || 'Unknown error'}`);
+
+        if (errorText.includes('No AI provider configured') || errorText.includes('No API key')) {
+            setTimeout(() => {
+                const moreBtn = document.getElementById('moreBtn');
+                if (moreBtn) {
+                    moreBtn.style.animation = 'pulse 2s ease-in-out 3';
+                }
+            }, 500);
+        }
     })
     .finally(() => {
         if (optimizeBtn) {
@@ -2559,8 +2585,11 @@ function toggleOptionsPanel() {
             optionsToggleBtn.classList.add('active');
         }
         document.getElementById('tagsPanel').style.display = 'none';
-        document.getElementById('tagsToggleBtn').setAttribute('aria-expanded', 'false');
-        document.getElementById('tagsToggleBtn').classList.remove('active');
+        const tagsToggleBtn = document.getElementById('tagsToggleBtn');
+        if (tagsToggleBtn) {
+            tagsToggleBtn.setAttribute('aria-expanded', 'false');
+            tagsToggleBtn.classList.remove('active');
+        }
         console.log('[FILTERS] Panel shown');
     } else {
         panel.style.display = 'none';
@@ -2587,8 +2616,11 @@ function toggleTagsPanel() {
             tagsToggleBtn.classList.add('active');
         }
         document.getElementById('optionsPanel').style.display = 'none';
-        document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
-        document.getElementById('optionsToggleBtn').classList.remove('active');
+        const optionsToggleBtn = document.getElementById('optionsToggleBtn');
+        if (optionsToggleBtn) {
+            optionsToggleBtn.setAttribute('aria-expanded', 'false');
+            optionsToggleBtn.classList.remove('active');
+        }
         console.log('[TAGS] Panel shown');
     } else {
         panel.style.display = 'none';

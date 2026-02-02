@@ -86,6 +86,7 @@ func (h *Handlers) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/api/todos/{id}", h.handleTodoByID)
 	router.HandleFunc("/api/agents-content", h.handleAgentsContent)
 	router.HandleFunc("/api/settings/theme", h.handleThemeSettings)
+	router.HandleFunc("/api/ai/stream", h.handleAIStream)
 }
 
 func (h *Handlers) handleWebSocket(w http.ResponseWriter, r *http.Request) {
