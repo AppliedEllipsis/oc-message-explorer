@@ -185,26 +185,83 @@ func (h *Handlers) handleMessages(w http.ResponseWriter, r *http.Request) {
 		if node.Timestamp == "" {
 			node.Timestamp = time.Now().Format(time.RFC3339)
 		}
+		// Initialize empty children array if not provided
+		if node.Children == nil {
+			node.Children = []string{}
+		}
 
 		h.store.Lock()
 		defer h.store.Unlock()
 		folders := h.store.GetFoldersMap()
-		if folder, exists := folders["all"]; exists {
-			folder.Nodes[node.ID] = &node
-		} else {
-			folder := &models.Folder{
-				ID:        "all",
-				Name:      "All Messages",
-				Color:     "#6c5ce7",
-				CreatedAt: time.Now().Format(time.RFC3339),
-				Nodes:     map[string]*models.MessageNode{node.ID: &node},
+
+		// If folderIds is provided, add to those folders
+		folderIds := r.URL.Query()["folderIds"]
+		if len(folderIds) == 0 {
+			// Default to "all" folder if no folders specified
+			folderIds = []string{"all"}
+		}
+
+		for _, folderID := range folderIds {
+			folder, exists := folders[folderID]
+			if !exists {
+				// Create folder if it doesn't exist
+				folder = &models.Folder{
+					ID:        folderID,
+					Name:      "All Messages",
+					Color:     "#6c5ce7",
+					CreatedAt: time.Now().Format(time.RFC3339),
+					Nodes:     map[string]*models.MessageNode{node.ID: &node},
+				}
+				folders[folderID] = folder
+			} else {
+				folder.Nodes[node.ID] = &node
 			}
-			folders["all"] = folder
+		}
+
+		// Update parent's children array if parentId is set
+		if node.ParentID != "" {
+			parentNode := h.store.GetNode(node.ParentID)
+			if parentNode != nil {
+				children := parentNode.Children
+				if children == nil {
+					children = []string{}
+				}
+				if !containsString(children, node.ID) {
+					children = append(children, node.ID)
+					parentNode.Children = children
+					// Update parent in all folders that reference it
+					for _, folder := range folders {
+						if folder.Nodes[parentNode.ID] != nil {
+							folder.Nodes[parentNode.ID] = parentNode
+						}
+					}
+				}
+			}
+		}
+
+		// Update all nodes in folders to the new node
+		// This ensures any folder that should have the node now has it
+		for _, folder := range folders {
+			if folder.Nodes[node.ID] != nil {
+				// Already has the node, check if it's the same reference
+				if folder.Nodes[node.ID] != &node {
+					folder.Nodes[node.ID] = &node
+				}
+			}
 		}
 
 		h.store.Broadcast(models.WSMessage{Type: models.MessageTypeUpdate, Data: h.store.ToJSON()})
 		respondJSON(w, node)
 	}
+}
+
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Handlers) handleMessageByID(w http.ResponseWriter, r *http.Request) {

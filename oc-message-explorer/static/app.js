@@ -67,7 +67,7 @@ function init() {
     const searchBox = document.getElementById('searchBox');
     if (searchBox) {
         console.log('[INIT] Found searchBox, adding event listener');
-        searchBox.addEventListener('input', function() {
+        searchBox.addEventListener('input', function () {
             console.log('[SEARCH] Search box input event triggered');
             filterMessages();
         });
@@ -475,21 +475,21 @@ function filterMessages() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query })
         })
-        .then(res => res.json())
-        .then(results => {
-            console.log('[SEARCH] Got results:', Object.keys(results || {}).length);
-            if (results) {
-                searchResults = results;
-                expandSearchResults(results);
-            } else {
-                searchResults = {};
-            }
-            renderTree();
-        })
-        .catch(err => {
-            console.error('[SEARCH] Search error:', err);
-            renderTree();
-        });
+            .then(res => res.json())
+            .then(results => {
+                console.log('[SEARCH] Got results:', Object.keys(results || {}).length);
+                if (results) {
+                    searchResults = results;
+                    expandSearchResults(results);
+                } else {
+                    searchResults = {};
+                }
+                renderTree();
+            })
+            .catch(err => {
+                console.error('[SEARCH] Search error:', err);
+                renderTree();
+            });
     }, 300);
 }
 
@@ -673,6 +673,8 @@ function createNodeElement(node, messages, isRoot = false) {
             <div class="node-actions">
                 <div class="node-action-group">
                     <button class="node-action-btn edit-action-btn-${node.id}" title="Edit message" aria-label="Edit message">✏️</button>
+                    <button class="node-action-btn copy-action-btn-${node.id}" title="Copy content" aria-label="Copy content">📋</button>
+                    <button class="node-action-btn duplicate-action-btn-${node.id}" title="Duplicate message" aria-label="Duplicate message">📑</button>
                     <button class="node-action-btn lock-icon-${node.locked ? 'locked' : 'unlocked'}" title="${node.locked ? 'Click to unlock' : 'Click to lock'}" aria-pressed="${node.locked}" aria-label="${node.locked ? 'Unlock message' : 'Lock message'}">${node.locked ? '🔒' : '🔓'}</button>
                 </div>
             </div>
@@ -724,6 +726,24 @@ function createNodeElement(node, messages, isRoot = false) {
             console.log('[CLICK] Lock button clicked for node:', node.id);
             e.stopPropagation();
             toggleLock(node.id);
+        };
+    }
+
+    const copyBtn = div.querySelector(`.copy-action-btn-${node.id}`);
+    if (copyBtn) {
+        copyBtn.onclick = (e) => {
+            console.log('[CLICK] Copy button clicked for node:', node.id);
+            e.stopPropagation();
+            copyNode(node.id);
+        };
+    }
+
+    const duplicateBtn = div.querySelector(`.duplicate-action-btn-${node.id}`);
+    if (duplicateBtn) {
+        duplicateBtn.onclick = (e) => {
+            console.log('[CLICK] Duplicate button clicked for node:', node.id);
+            e.stopPropagation();
+            duplicateNode(node.id);
         };
     }
 
@@ -888,7 +908,7 @@ function setupViewportObserver() {
         entries.forEach(entry => {
             const nodeId = entry.target.dataset.nodeId;
             const node = allMessages[nodeId];
-            
+
             if (entry.isIntersecting) {
                 if (node && !node.hasLoaded && !loadingViewportNodes.has(nodeId)) {
                     loadNodeContentForViewport(nodeId);
@@ -914,22 +934,22 @@ function observeVisibleNodes() {
 
 function shouldUnloadNode(node) {
     if (!node || !node.content) return false;
-    
+
     const contentLength = node.content.length;
     const isLargeContent = contentLength > 5000;
-    
+
     return isLargeContent && !node.locked && !node.selected;
 }
 
 function unloadNodeContentForViewport(nodeId) {
     const node = allMessages[nodeId];
     if (!node || !node.content) return;
-    
+
     const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
     if (!nodeEl) return;
-    
+
     const originalContent = node.content;
-    
+
     if (displayModeRaw) {
         const textEl = nodeEl.querySelector('.node-text');
         if (textEl) {
@@ -1175,6 +1195,79 @@ function confirmSaveNode() {
         saveNode();
     } else {
         console.log('[EDITOR] Save cancelled by user');
+    }
+}
+
+function copyNode(nodeId) {
+    const node = allMessages[nodeId];
+    if (!node) return;
+
+    const contentToCopy = node.content || node.summary || '';
+    if (!contentToCopy) {
+        showNotification('Nothing to copy');
+        return;
+    }
+
+    navigator.clipboard.writeText(contentToCopy).then(() => {
+        showNotification('✓ Content copied to clipboard');
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        showNotification('Failed to copy');
+    });
+}
+
+async function duplicateNode(nodeId) {
+    const node = allMessages[nodeId];
+    if (!node) return;
+
+    showNotification('Duplicating message...');
+
+    try {
+        // Find which folders the original node is in
+        const folderIds = Object.keys(folders).filter(folderId => folders[folderId].nodes[nodeId]);
+
+        const response = await fetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: node.type,
+                content: node.content,
+                tags: node.tags || [],
+                parentId: node.parentId,
+                summary: node.summary,
+                sessionId: node.sessionId || '',
+                folderIds: folderIds || ['all']
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to duplicate message');
+        }
+
+        showNotification('✓ Message duplicated');
+        
+        // Update UI
+        await updateAllMessages();
+        
+        // Scroll to and highlight the new message
+        setTimeout(() => {
+            const newNodes = Object.values(allMessages).filter(n => 
+                n.content === node.content && 
+                n.timestamp !== node.timestamp
+            );
+            if (newNodes.length > 0) {
+                const newNode = newNodes[newNodes.length - 1];
+                const nodeEl = document.querySelector(`.node-content[data-node-id="${newNode.id}"]`);
+                if (nodeEl) {
+                    nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    nodeEl.classList.add('highlight');
+                    setTimeout(() => nodeEl.classList.remove('highlight'), 2000);
+                }
+            }
+        }, 500);
+    } catch (err) {
+        console.error('Failed to duplicate:', err);
+        showNotification('Failed to duplicate message');
     }
 }
 
@@ -1475,29 +1568,29 @@ function createFolder() {
             nodes: {}
         })
     })
-    .then(res => res.json())
-    .then(() => {
-        showNotification('Folder created');
-        hideModal('newFolderModal');
-        document.getElementById('folderName').value = '';
-    })
-    .catch(err => {
-        console.error('Failed to create folder:', err);
-        showNotification('Failed to create folder');
-    });
+        .then(res => res.json())
+        .then(() => {
+            showNotification('Folder created');
+            hideModal('newFolderModal');
+            document.getElementById('folderName').value = '';
+        })
+        .catch(err => {
+            console.error('Failed to create folder:', err);
+            showNotification('Failed to create folder');
+        });
 }
 
 function deleteFolder(folderId) {
     fetch(`/api/folders/${folderId}`, {
         method: 'DELETE'
     })
-    .then(() => {
-        showNotification('Folder deleted');
-    })
-    .catch(err => {
-        console.error('Failed to delete folder:', err);
-        showNotification('Failed to delete folder');
-    });
+        .then(() => {
+            showNotification('Folder deleted');
+        })
+        .catch(err => {
+            console.error('Failed to delete folder:', err);
+            showNotification('Failed to delete folder');
+        });
 }
 
 function createMessage() {
@@ -1521,17 +1614,17 @@ function createMessage() {
             parentId
         })
     })
-    .then(res => res.json())
-    .then(() => {
-        showNotification('Message created');
-        hideModal('newMessageModal');
-        document.getElementById('newMessageContent').value = '';
-        document.getElementById('newMessageTags').value = '';
-    })
-    .catch(err => {
-        console.error('Failed to create message:', err);
-        showNotification('Failed to create message');
-    });
+        .then(res => res.json())
+        .then(() => {
+            showNotification('Message created');
+            hideModal('newMessageModal');
+            document.getElementById('newMessageContent').value = '';
+            document.getElementById('newMessageTags').value = '';
+        })
+        .catch(err => {
+            console.error('Failed to create message:', err);
+            showNotification('Failed to create message');
+        });
 }
 
 function copySelected() {
@@ -1841,20 +1934,20 @@ function optimizePrompts() {
         } else {
             accumulatedContent += chunk;
         }
-        
+
         const contentEl = resultDiv.querySelector('div');
         if (contentEl) {
             contentEl.textContent = accumulatedContent;
             scrollToBottom();
         }
     })
-    .then((result) => {
-        const { model, provider } = result;
-        const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+        .then((result) => {
+            const { model, provider } = result;
+            const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
 
-        const contentEl = resultDiv.querySelector('div') || resultDiv;
-        if (window.marked && accumulatedContent.includes('\n')) {
-            contentEl.innerHTML = `
+            const contentEl = resultDiv.querySelector('div') || resultDiv;
+            if (window.marked && accumulatedContent.includes('\n')) {
+                contentEl.innerHTML = `
                 <div style="padding: 12px;">
                     ${window.marked.parse(accumulatedContent)}
                 </div>
@@ -1862,8 +1955,8 @@ function optimizePrompts() {
                     Generated by ${providerName} (${model})
                 </div>
             `;
-        } else {
-            contentEl.innerHTML = `
+            } else {
+                contentEl.innerHTML = `
                 <div style="padding: 12px;">
                     ${accumulatedContent}
                 </div>
@@ -1871,33 +1964,33 @@ function optimizePrompts() {
                     Generated by ${providerName} (${model})
                 </div>
             `;
-        }
+            }
 
-        showNotification(`✓ Optimization complete!`);
-        document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
+            showNotification(`✓ Optimization complete!`);
+            document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
 
-        // Scroll to bottom after completion
-        setTimeout(scrollToBottom, 0);
-    })
-    .catch(err => {
-        console.error('Optimization error:', err);
+            // Scroll to bottom after completion
+            setTimeout(scrollToBottom, 0);
+        })
+        .catch(err => {
+            console.error('Optimization error:', err);
 
-        const errorText = err?.message || err?.toString() || 'Unknown error';
+            const errorText = err?.message || err?.toString() || 'Unknown error';
 
-        const errorHelp = errorText.includes('No AI provider configured') ||
-                          errorText.includes('No API key configured') ||
-                          errorText.includes('AI provider error')
-            ? '<div style="margin-top: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px; border-left: 3px solid var(--accent);">' +
-            '<div style="font-size: 13px; color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">How to fix:</div>' +
-            '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">' +
-            '1. Click the ⋮ <strong>Actions</strong> button in the toolbar<br>' +
-            '2. Click <strong>🤖 AI Configuration</strong> from the dropdown menu<br>' +
-            '3. Enter your OpenAI API key in the API Key field<br>' +
-            '4. Click <strong>Save to .env</strong><br>' +
-            '5. Try optimizing again' +
-            '</div></div>' : '';
+            const errorHelp = errorText.includes('No AI provider configured') ||
+                errorText.includes('No API key configured') ||
+                errorText.includes('AI provider error')
+                ? '<div style="margin-top: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px; border-left: 3px solid var(--accent);">' +
+                '<div style="font-size: 13px; color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">How to fix:</div>' +
+                '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">' +
+                '1. Click the ⋮ <strong>Actions</strong> button in the toolbar<br>' +
+                '2. Click <strong>🤖 AI Configuration</strong> from the dropdown menu<br>' +
+                '3. Enter your OpenAI API key in the API Key field<br>' +
+                '4. Click <strong>Save to .env</strong><br>' +
+                '5. Try optimizing again' +
+                '</div></div>' : '';
 
-        resultDiv.innerHTML = `
+            resultDiv.innerHTML = `
             <div style="color: var(--danger); text-align: center; padding: 40px;">
                 <div style="font-size: 32px; margin-bottom: 16px;">❌</div>
                 <div style="font-weight: 600; margin-bottom: 8px;">Optimization Failed</div>
@@ -1905,30 +1998,30 @@ function optimizePrompts() {
                 ${errorHelp}
             </div>
         `;
-        showNotification(`✗ Optimization failed: ${err.message || 'Unknown error'}`);
+            showNotification(`✗ Optimization failed: ${err.message || 'Unknown error'}`);
 
-        if (errorText.includes('No AI provider configured') || errorText.includes('No API key')) {
-            setTimeout(() => {
-                const moreBtn = document.getElementById('moreBtn');
-                if (moreBtn) {
-                    moreBtn.style.animation = 'pulse 2s ease-in-out 3';
-                }
-            }, 500);
-        }
-    })
-    .finally(() => {
-        if (optimizeBtn) {
-            optimizeBtn.disabled = false;
-            optimizeBtn.textContent = 'Optimize';
-        }
-    });
+            if (errorText.includes('No AI provider configured') || errorText.includes('No API key')) {
+                setTimeout(() => {
+                    const moreBtn = document.getElementById('moreBtn');
+                    if (moreBtn) {
+                        moreBtn.style.animation = 'pulse 2s ease-in-out 3';
+                    }
+                }, 500);
+            }
+        })
+        .finally(() => {
+            if (optimizeBtn) {
+                optimizeBtn.disabled = false;
+                optimizeBtn.textContent = 'Optimize';
+            }
+        });
 }
 
 function updateTemplateDescription() {
     const templateId = document.getElementById('aiTemplate').value;
     const template = window.aiWorkflowManager.getTemplate(templateId);
     const descEl = document.getElementById('templateDescription');
-    
+
     if (template && descEl) {
         descEl.textContent = template.description;
     }
@@ -1966,13 +2059,13 @@ function moveNode(nodeId, newParentId, newIndex) {
             newIndex
         })
     })
-    .then(() => {
-        showNotification('Message moved');
-    })
-    .catch(err => {
-        console.error('Failed to move node:', err);
-        showNotification('Failed to move message');
-    });
+        .then(() => {
+            showNotification('Message moved');
+        })
+        .catch(err => {
+            console.error('Failed to move node:', err);
+            showNotification('Failed to move message');
+        });
 }
 
 function exportData() {
@@ -1993,14 +2086,14 @@ function importData(event) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             })
-            .then(() => {
-                showNotification('Data imported');
-                event.target.value = '';
-            })
-            .catch(err => {
-                console.error('Failed to import:', err);
-                showNotification('Failed to import data');
-            });
+                .then(() => {
+                    showNotification('Data imported');
+                    event.target.value = '';
+                })
+                .catch(err => {
+                    console.error('Failed to import:', err);
+                    showNotification('Failed to import data');
+                });
         } catch (err) {
             console.error('Failed to parse JSON:', err);
             showNotification('Failed to parse file');
@@ -2088,24 +2181,24 @@ function saveSettings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
     })
-    .then(res => res.json())
-    .then(config => {
-        configManager.config = config;
-        window.aiWorkflowManager.initialize(config);
-        showNotification('✓ Settings saved');
+        .then(res => res.json())
+        .then(config => {
+            configManager.config = config;
+            window.aiWorkflowManager.initialize(config);
+            showNotification('✓ Settings saved');
 
-        setTimeout(() => hideModal('settingsModal'), 500);
-    })
-    .catch(err => {
-        console.error('Failed to save settings:', err);
-        showNotification(`✗ Failed to save: ${err.message}`);
-    })
-    .finally(() => {
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.textContent = 'Save to .env';
-        }
-    });
+            setTimeout(() => hideModal('settingsModal'), 500);
+        })
+        .catch(err => {
+            console.error('Failed to save settings:', err);
+            showNotification(`✗ Failed to save: ${err.message}`);
+        })
+        .finally(() => {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save to .env';
+            }
+        });
 }
 
 function loadSettings() {
@@ -2173,47 +2266,47 @@ function testApiKey() {
             'Authorization': `Bearer ${apiKey}`
         }
     })
-    .then(res => {
-        if (res.ok) {
-            return res.json();
-        } else {
-            return res.text().then(text => {
-                if (res.status === 401) {
-                    throw new Error('Invalid API key');
-                } else if (res.status === 404) {
-                    throw new Error('Invalid base URL - /models endpoint not found');
-                } else if (res.status === 403) {
-                    throw new Error('Access forbidden - check API permissions');
-                } else {
-                    throw new Error(`API error: ${res.status} - ${text || res.statusText}`);
-                }
-            });
-        }
-    })
-    .then(data => {
-        if (!data.data || !Array.isArray(data.data)) {
-            throw new Error('Invalid response format from API');
-        }
+        .then(res => {
+            if (res.ok) {
+                return res.json();
+            } else {
+                return res.text().then(text => {
+                    if (res.status === 401) {
+                        throw new Error('Invalid API key');
+                    } else if (res.status === 404) {
+                        throw new Error('Invalid base URL - /models endpoint not found');
+                    } else if (res.status === 403) {
+                        throw new Error('Access forbidden - check API permissions');
+                    } else {
+                        throw new Error(`API error: ${res.status} - ${text || res.statusText}`);
+                    }
+                });
+            }
+        })
+        .then(data => {
+            if (!data.data || !Array.isArray(data.data)) {
+                throw new Error('Invalid response format from API');
+            }
 
-        document.getElementById('modelSelectGroup').style.display = 'block';
-        populateModels(data.data);
+            document.getElementById('modelSelectGroup').style.display = 'block';
+            populateModels(data.data);
 
-        const modelCount = data.data.length;
-        showNotification(`✓ Connection valid! Found ${modelCount} models`);
+            const modelCount = data.data.length;
+            showNotification(`✓ Connection valid! Found ${modelCount} models`);
 
-        return true;
-    })
-    .catch(err => {
-        console.error('API key test failed:', err);
-        showNotification(`✗ Test failed: ${err.message}`);
-        throw err;
-    })
-    .finally(() => {
-        if (testBtn) {
-            testBtn.disabled = false;
-            testBtn.textContent = 'Test Connection';
-        }
-    });
+            return true;
+        })
+        .catch(err => {
+            console.error('API key test failed:', err);
+            showNotification(`✗ Test failed: ${err.message}`);
+            throw err;
+        })
+        .finally(() => {
+            if (testBtn) {
+                testBtn.disabled = false;
+                testBtn.textContent = 'Test Connection';
+            }
+        });
 }
 
 function fetchModels(showNotificationOnSuccess = true, apiKey = null, baseUrl = null) {
@@ -2244,34 +2337,34 @@ function fetchModels(showNotificationOnSuccess = true, apiKey = null, baseUrl = 
             'Authorization': `Bearer ${effectiveApiKey}`
         }
     })
-    .then(res => {
-        if (!res.ok) {
-            return res.text().then(text => {
-                throw new Error(`Failed to fetch models: ${res.status} - ${text || res.statusText}`);
-            });
-        }
-        return res.json();
-    })
-    .then(data => {
-        console.log('Models response:', data);
-        populateModels(data.data);
-        document.getElementById('modelSelectGroup').style.display = 'block';
-        if (showNotificationOnSuccess) {
-            showNotification('Models loaded');
-        }
-    })
-    .catch(err => {
-        console.error('Failed to fetch models:', err);
-        if (showNotificationOnSuccess) {
-            showNotification(`Error: ${err.message}`);
-        }
-    })
-    .finally(() => {
-        if (refreshBtn && showNotificationOnSuccess) {
-            refreshBtn.disabled = false;
-            refreshBtn.textContent = 'Refresh Models';
-        }
-    });
+        .then(res => {
+            if (!res.ok) {
+                return res.text().then(text => {
+                    throw new Error(`Failed to fetch models: ${res.status} - ${text || res.statusText}`);
+                });
+            }
+            return res.json();
+        })
+        .then(data => {
+            console.log('Models response:', data);
+            populateModels(data.data);
+            document.getElementById('modelSelectGroup').style.display = 'block';
+            if (showNotificationOnSuccess) {
+                showNotification('Models loaded');
+            }
+        })
+        .catch(err => {
+            console.error('Failed to fetch models:', err);
+            if (showNotificationOnSuccess) {
+                showNotification(`Error: ${err.message}`);
+            }
+        })
+        .finally(() => {
+            if (refreshBtn && showNotificationOnSuccess) {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = 'Refresh Models';
+            }
+        });
 }
 
 function populateModels(models) {
@@ -2462,13 +2555,13 @@ function setupDragAndDrop() {
                     newIndex: -1
                 })
             })
-            .then(() => {
-                showNotification('Message moved');
-            })
-            .catch(err => {
-                console.error('Failed to move node:', err);
-                showNotification('Failed to move message');
-            });
+                .then(() => {
+                    showNotification('Message moved');
+                })
+                .catch(err => {
+                    console.error('Failed to move node:', err);
+                    showNotification('Failed to move message');
+                });
         }
     };
 }
@@ -2534,7 +2627,7 @@ function renderTodos() {
 
 function addTodo() {
     const text = document.getElementById('newTodoText').value.trim();
-    
+
     if (!text) {
         showNotification('Please enter a todo item');
         return;
@@ -2548,34 +2641,34 @@ function addTodo() {
             priority: 'medium'
         })
     })
-    .then(res => res.json())
-    .then(todo => {
-        configManager.todos.push(todo);
-        renderTodos();
-        document.getElementById('newTodoText').value = '';
-        showNotification('Todo added');
-    })
-    .catch(err => {
-        console.error('Failed to add todo:', err);
-        showNotification('Failed to add todo');
-    });
+        .then(res => res.json())
+        .then(todo => {
+            configManager.todos.push(todo);
+            renderTodos();
+            document.getElementById('newTodoText').value = '';
+            showNotification('Todo added');
+        })
+        .catch(err => {
+            console.error('Failed to add todo:', err);
+            showNotification('Failed to add todo');
+        });
 }
 
 function toggleTodo(id) {
     fetch(`/api/todos/${id}`, {
         method: 'PUT'
     })
-    .then(res => res.json())
-    .then(data => {
-        renderTodos();
-        if (data.completed) {
-            showNotification('Todo completed');
-        }
-    })
-    .catch(err => {
-        console.error('Failed to toggle todo:', err);
-        showNotification('Failed to update todo');
-    });
+        .then(res => res.json())
+        .then(data => {
+            renderTodos();
+            if (data.completed) {
+                showNotification('Todo completed');
+            }
+        })
+        .catch(err => {
+            console.error('Failed to toggle todo:', err);
+            showNotification('Failed to update todo');
+        });
 }
 
 function deleteTodo(id) {
@@ -2584,19 +2677,19 @@ function deleteTodo(id) {
     fetch(`/api/todos/${id}`, {
         method: 'DELETE'
     })
-    .then(res => {
-        if (res.ok) {
-            configManager.todos = configManager.todos.filter(t => t.id !== id);
-            renderTodos();
-            showNotification('Todo deleted');
-        } else {
+        .then(res => {
+            if (res.ok) {
+                configManager.todos = configManager.todos.filter(t => t.id !== id);
+                renderTodos();
+                showNotification('Todo deleted');
+            } else {
+                showNotification('Failed to delete todo');
+            }
+        })
+        .catch(err => {
+            console.error('Failed to delete todo:', err);
             showNotification('Failed to delete todo');
-        }
-    })
-    .catch(err => {
-        console.error('Failed to delete todo:', err);
-        showNotification('Failed to delete todo');
-    });
+        });
 }
 
 function loadAgentsContent() {
@@ -2604,13 +2697,13 @@ function loadAgentsContent() {
         .then(res => res.json())
         .then(data => {
             const preview = document.getElementById('agentsPreview');
-            
+
             if (window.marked) {
                 preview.innerHTML = window.marked.parse(data.content);
             } else {
                 preview.textContent = data.content;
             }
-            
+
             document.getElementById('agentsContentModal').classList.add('active');
         })
         .catch(err => {
@@ -2633,63 +2726,55 @@ function copyAgentsContent() {
 function toggleOptionsPanel() {
     console.log('[CLICK] Filters button clicked');
     const panel = document.getElementById('optionsPanel');
-    if (!panel) {
-        console.error('[ERROR] optionsPanel element not found');
-        return;
+    const tagsPanel = document.getElementById('tagsPanel');
+    const themePanel = document.getElementById('themePanel');
+    const moreMenu = document.getElementById('moreMenu');
+
+    if (!panel) return;
+
+    // Close others
+    if (tagsPanel) tagsPanel.classList.remove('show');
+    if (themePanel) themePanel.classList.remove('show');
+    if (moreMenu) moreMenu.classList.remove('show');
+
+    const isShown = panel.classList.toggle('show');
+    const btn = document.getElementById('optionsToggleBtn');
+    if (btn) {
+        btn.setAttribute('aria-expanded', isShown);
+        btn.classList.toggle('active', isShown);
     }
-    const optionsToggleBtn = document.getElementById('optionsToggleBtn');
-    if (panel.style.display === 'none') {
-        panel.style.display = 'flex';
-        if (optionsToggleBtn) {
-            optionsToggleBtn.setAttribute('aria-expanded', 'true');
-            optionsToggleBtn.classList.add('active');
-        }
-        document.getElementById('tagsPanel').style.display = 'none';
-        const tagsToggleBtn = document.getElementById('tagsToggleBtn');
-        if (tagsToggleBtn) {
-            tagsToggleBtn.setAttribute('aria-expanded', 'false');
-            tagsToggleBtn.classList.remove('active');
-        }
-        console.log('[FILTERS] Panel shown');
-    } else {
-        panel.style.display = 'none';
-        if (optionsToggleBtn) {
-            optionsToggleBtn.setAttribute('aria-expanded', 'false');
-            optionsToggleBtn.classList.remove('active');
-        }
-        console.log('[FILTERS] Panel hidden');
-    }
+
+    // Reset other buttons
+    document.getElementById('tagsToggleBtn')?.classList.remove('active');
+    document.getElementById('themeToggleBtn')?.classList.remove('active');
+    document.getElementById('moreBtn')?.classList.remove('active');
 }
 
 function toggleTagsPanel() {
     console.log('[CLICK] Tags button clicked');
     const panel = document.getElementById('tagsPanel');
-    if (!panel) {
-        console.error('[ERROR] tagsPanel element not found');
-        return;
+    const optionsPanel = document.getElementById('optionsPanel');
+    const themePanel = document.getElementById('themePanel');
+    const moreMenu = document.getElementById('moreMenu');
+
+    if (!panel) return;
+
+    // Close others
+    if (optionsPanel) optionsPanel.classList.remove('show');
+    if (themePanel) themePanel.classList.remove('show');
+    if (moreMenu) moreMenu.classList.remove('show');
+
+    const isShown = panel.classList.toggle('show');
+    const btn = document.getElementById('tagsToggleBtn');
+    if (btn) {
+        btn.setAttribute('aria-expanded', isShown);
+        btn.classList.toggle('active', isShown);
     }
-    const tagsToggleBtn = document.getElementById('tagsToggleBtn');
-    if (panel.style.display === 'none') {
-        panel.style.display = 'flex';
-        if (tagsToggleBtn) {
-            tagsToggleBtn.setAttribute('aria-expanded', 'true');
-            tagsToggleBtn.classList.add('active');
-        }
-        document.getElementById('optionsPanel').style.display = 'none';
-        const optionsToggleBtn = document.getElementById('optionsToggleBtn');
-        if (optionsToggleBtn) {
-            optionsToggleBtn.setAttribute('aria-expanded', 'false');
-            optionsToggleBtn.classList.remove('active');
-        }
-        console.log('[TAGS] Panel shown');
-    } else {
-        panel.style.display = 'none';
-        if (tagsToggleBtn) {
-            tagsToggleBtn.setAttribute('aria-expanded', 'false');
-            tagsToggleBtn.classList.remove('active');
-        }
-        console.log('[TAGS] Panel hidden');
-    }
+
+    // Reset other buttons
+    document.getElementById('optionsToggleBtn')?.classList.remove('active');
+    document.getElementById('themeToggleBtn')?.classList.remove('active');
+    document.getElementById('moreBtn')?.classList.remove('active');
 }
 
 function startSync() {
@@ -2697,18 +2782,18 @@ function startSync() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
     })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'already_running') {
-            showNotification('Sync is already running');
-        } else if (data.status === 'started') {
-            showNotification('Sync started');
-        }
-    })
-    .catch(err => {
-        console.error('Failed to start sync:', err);
-        showNotification('Failed to start sync');
-    });
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'already_running') {
+                showNotification('Sync is already running');
+            } else if (data.status === 'started') {
+                showNotification('Sync started');
+            }
+        })
+        .catch(err => {
+            console.error('Failed to start sync:', err);
+            showNotification('Failed to start sync');
+        });
 }
 
 function cancelSync() {
@@ -2716,16 +2801,16 @@ function cancelSync() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
     })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'cancelled') {
-            showNotification('Sync cancelled');
-        }
-    })
-    .catch(err => {
-        console.error('Failed to cancel sync:', err);
-        showNotification('Failed to cancel sync');
-    });
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'cancelled') {
+                showNotification('Sync cancelled');
+            }
+        })
+        .catch(err => {
+            console.error('Failed to cancel sync:', err);
+            showNotification('Failed to cancel sync');
+        });
 }
 
 function toggleLock(nodeId) {
@@ -2800,34 +2885,55 @@ function toggleLock(nodeId) {
 
 function toggleThemePanel() {
     const panel = document.getElementById('themePanel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    const optionsPanel = document.getElementById('optionsPanel');
+    const tagsPanel = document.getElementById('tagsPanel');
+    const moreMenu = document.getElementById('moreMenu');
+
+    if (!panel) return;
+
+    // Close others
+    if (optionsPanel) optionsPanel.classList.remove('show');
+    if (tagsPanel) tagsPanel.classList.remove('show');
+    if (moreMenu) moreMenu.classList.remove('show');
+
+    const isShown = panel.classList.toggle('show');
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) {
+        btn.setAttribute('aria-expanded', isShown);
+        btn.classList.toggle('active', isShown);
+    }
+
+    // Reset other buttons
+    document.getElementById('optionsToggleBtn')?.classList.remove('active');
+    document.getElementById('tagsToggleBtn')?.classList.remove('active');
+    document.getElementById('moreBtn')?.classList.remove('active');
 }
 
 async function initThemeSelector() {
     const themeList = document.getElementById('themeList');
-    
+
     try {
         const response = await fetch('/static/themes/themes.json');
         const data = await response.json();
-        
+
         themeList.innerHTML = '';
-        
+
         data.themes.forEach(theme => {
             const div = document.createElement('div');
             div.className = 'theme-item';
             div.dataset.themeId = theme.id;
             div.onclick = () => selectTheme(theme.id);
-            
+
             div.innerHTML = `
                 <div class="theme-info">
                     <div class="theme-name">${escapeHtml(theme.name)}</div>
                     <div class="theme-type">${theme.type}</div>
                 </div>
             `;
-            
+
             themeList.appendChild(div);
         });
-        
+
         window.themeEngine.addEventListener('themeChanged', (data) => {
             updateThemeActiveState(data.themeId);
         });
@@ -2843,66 +2949,46 @@ function setupMoreMenu() {
     // Inline onclick is sufficient, document click handler below handles closing
 
     document.addEventListener('click', (e) => {
-        const moreMenu = document.getElementById('moreMenu');
-        const moreBtn = document.getElementById('moreBtn');
-        const optionsPanel = document.getElementById('optionsPanel');
-        const optionsToggle = document.getElementById('optionsToggleBtn');
-        const tagsPanel = document.getElementById('tagsPanel');
-        const tagsToggle = document.getElementById('tagsToggleBtn');
-        const themePanel = document.getElementById('themePanel');
-        const themeToggle = document.getElementById('themeToggleBtn');
+        const panels = [
+            { id: 'moreMenu', btnId: 'moreBtn' },
+            { id: 'optionsPanel', btnId: 'optionsToggleBtn' },
+            { id: 'tagsPanel', btnId: 'tagsToggleBtn' },
+            { id: 'themePanel', btnId: 'themeToggleBtn' }
+        ];
 
-        if (moreMenu && moreMenu.classList.contains('show') &&
-            !moreMenu.contains(e.target) && e.target !== moreBtn) {
-            toggleMoreMenu();
-        }
-
-        if (optionsPanel && optionsPanel.style.display !== 'none' &&
-            !optionsPanel.contains(e.target) && e.target !== optionsToggle) {
-            optionsPanel.style.display = 'none';
-            document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
-        }
-
-        if (tagsPanel && tagsPanel.style.display !== 'none' &&
-            !tagsPanel.contains(e.target) && e.target !== tagsToggle) {
-            tagsPanel.style.display = 'none';
-            document.getElementById('tagsToggleBtn').setAttribute('aria-expanded', 'false');
-        }
-
-        if (themePanel && themePanel.style.display !== 'none' &&
-            !themePanel.contains(e.target) && e.target !== themeToggle) {
-            themePanel.style.display = 'none';
-            if (themeToggle) {
-                themeToggle.setAttribute('aria-expanded', 'false');
+        panels.forEach(p => {
+            const panel = document.getElementById(p.id);
+            const btn = document.getElementById(p.btnId);
+            if (panel && panel.classList.contains('show') &&
+                !panel.contains(e.target) && e.target !== btn && !btn?.contains(e.target)) {
+                panel.classList.remove('show');
+                btn?.classList.remove('active');
+                btn?.setAttribute('aria-expanded', 'false');
             }
-        }
+        });
     });
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            const moreMenu = document.getElementById('moreMenu');
-            const optionsPanel = document.getElementById('optionsPanel');
-            const tagsPanel = document.getElementById('tagsPanel');
-            const themePanel = document.getElementById('themePanel');
+            const panels = ['moreMenu', 'optionsPanel', 'tagsPanel', 'themePanel'];
+            panels.forEach(id => {
+                const panel = document.getElementById(id);
+                if (panel && panel.classList.contains('show')) {
+                    panel.classList.remove('show');
+                    // Find associated button
+                    let btnId;
+                    if (id === 'moreMenu') btnId = 'moreBtn';
+                    else if (id === 'optionsPanel') btnId = 'optionsToggleBtn';
+                    else if (id === 'tagsPanel') btnId = 'tagsToggleBtn';
+                    else if (id === 'themePanel') btnId = 'themeToggleBtn';
 
-            if (moreMenu && moreMenu.classList.contains('show')) {
-                toggleMoreMenu();
-            }
-            if (optionsPanel && optionsPanel.style.display !== 'none') {
-                optionsPanel.style.display = 'none';
-                document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
-            }
-            if (tagsPanel && tagsPanel.style.display !== 'none') {
-                tagsPanel.style.display = 'none';
-                document.getElementById('tagsToggleBtn').setAttribute('aria-expanded', 'false');
-            }
-            if (themePanel && themePanel.style.display !== 'none') {
-                themePanel.style.display = 'none';
-                const themeToggle = document.getElementById('themeToggleBtn');
-                if (themeToggle) {
-                    themeToggle.setAttribute('aria-expanded', 'false');
+                    const btn = document.getElementById(btnId);
+                    if (btn) {
+                        btn.classList.remove('active');
+                        btn.setAttribute('aria-expanded', 'false');
+                    }
                 }
-            }
+            });
         }
     });
     console.log('[INIT] setupMoreMenu() initialized');
@@ -2948,22 +3034,14 @@ function updateThemeActiveState(themeId) {
 }
 
 document.addEventListener('click', (e) => {
-    const panel = document.getElementById('themePanel');
-    const toggleBtn = document.getElementById('themeToggleBtn');
-    if (panel && panel.style.display !== 'none' && 
-        !panel.contains(e.target) && e.target !== toggleBtn) {
-        panel.style.display = 'none';
-    }
+    // This is a duplicate of the one in setupMoreMenu, but let's keep it clean
 });
 
 document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey) {
         if (e.key === 't') {
             e.preventDefault();
-            const panel = document.getElementById('themePanel');
-            if (panel) {
-                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-            }
+            toggleThemePanel();
         }
     }
 });
