@@ -4,6 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OC Message Explorer</title>
+    <link rel="stylesheet" href="/static/themes/base/base.css">
+    <style>
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: var(--accent);
+            color: var(--bg-primary);
+            padding: 8px 16px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 10000;
+            transition: top 0.2s;
+        }
+
+        .skip-link:focus {
+            top: 0;
+        }
+    </style>
     <style>
         * {
             margin: 0;
@@ -12,30 +43,39 @@
         }
 
         :root {
-            --bg-primary: #0d1117;
-            --bg-secondary: #161b22;
-            --bg-tertiary: #21262d;
-            --bg-hover: #30363d;
-            --text-primary: #e6edf3;
-            --text-secondary: #8b949e;
-            --text-muted: #6e7681;
-            --accent: #58a6ff;
-            --accent-hover: #79c0ff;
-            --border: #30363d;
-            --success: #238636;
-            --danger: #da3633;
-            --warning: #d29922;
+            --bg-primary: #1a1f26;
+            --bg-secondary: #222730;
+            --bg-tertiary: #2a2f3a;
+            --bg-hover: #353b48;
+            --text-primary: #f0f2f5;
+            --text-secondary: #a0a5ac;
+            --text-muted: #6b7178;
+            --accent: #4f9cff;
+            --accent-hover: #7ab3ff;
+            --accent-soft: rgba(79, 156, 255, 0.12);
+            --border: #3a404d;
+            --border-light: #2f3542;
+            --success: #3ab583;
+            --danger: #e55858;
+            --warning: #dcb16c;
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2);
+            --sidebar-width: 240px;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             height: 100vh;
             overflow: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            font-size: 16px;
+            font-size: 15px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.5;
         }
 
         .container {
@@ -44,30 +84,92 @@
         }
 
         .sidebar {
-            width: 280px;
+            width: 240px;
             background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
+            border-right: 1px solid var(--border-light);
             flex-shrink: 0;
             overflow-y: auto;
+            transition: width 0.25s ease, opacity 0.25s ease, padding 0.25s ease;
+            z-index: 1;
         }
 
-        .sidebar-header {
-            padding: 16px;
-            border-bottom: 1px solid var(--border);
-            font-size: 14px;
-            font-weight: 600;
+        .sidebar.collapsed {
+            width: 0;
+            border-right-width: 0;
+            opacity: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            min-width: 0;
+            z-index: 0;
+        }
+
+        .main-content-inner {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+            transition: padding-left 0.25s ease;
+        }
+
+        .sidebar.collapsed ~ .main-content .main-content-inner {
+            padding-left: 48px;
+        }
+
+        .app-header {
+            background: var(--bg-secondary);
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-toggle {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
             color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .app-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
         .sidebar-section-title {
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-muted);
+            padding: 12px 16px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-secondary);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
+            background: linear-gradient(to right, var(--border-light), transparent);
+            border-bottom: 1px solid var(--border-light);
         }
 
         .folder-list {
@@ -78,31 +180,43 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            padding: 12px 16px;
+            padding: 16px;
         }
 
         .tag-cloud-item {
-            padding: 6px 12px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 16px;
+            padding: 8px 14px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 18px;
             font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.15s ease;
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            color: var(--text-primary);
         }
 
         .tag-cloud-item:hover {
-            background: var(--bg-hover);
-            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.4);
+            transform: translateY(-1px);
+            color: #ffffff;
         }
 
         .tag-cloud-item.active {
             background: var(--accent);
-            border-color: var(--accent);
+            border-color: var(--accent-hover);
             color: #ffffff;
+            box-shadow: 0 2px 8px rgba(79, 156, 255, 0.4);
+        }
+
+        .tag-cloud-item .tag-count {
+            font-size: 11px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 10px;
         }
 
         .tag-cloud-item .tag-count {
@@ -155,11 +269,16 @@
         }
 
         .todo-text {
-            font-size: 15px;
+            font-size: 14px;
             color: var(--text-primary);
+            font-weight: 500;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .todo-item:hover .todo-text {
+            color: var(--text-primary);
         }
 
         .todo-priority {
@@ -225,11 +344,11 @@
         }
 
         .folder-item {
-            padding: 10px 16px;
+            padding: 8px 14px;
             cursor: pointer;
             border-left: 3px solid transparent;
             transition: all 0.15s ease;
-            font-size: 15px;
+            font-size: 14px;
             color: var(--text-secondary);
         }
 
@@ -239,7 +358,7 @@
 
         .folder-item.active {
             border-left-color: var(--accent);
-            background: var(--bg-tertiary);
+            background: var(--accent-soft);
             color: var(--text-primary);
             font-weight: 500;
         }
@@ -260,13 +379,13 @@
         }
 
         .btn {
-            padding: 8px 16px;
+            padding: 8px 14px;
             background: var(--bg-tertiary);
             color: var(--text-primary);
-            border: 1px solid var(--border);
-            border-radius: 6px;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 500;
             transition: all 0.15s ease;
         }
@@ -276,69 +395,249 @@
             border-color: var(--text-muted);
         }
 
+        .btn .btn-icon {
+            font-size: 16px;
+        }
+
         .btn.primary {
-            background: var(--success);
-            border-color: var(--success);
+            background: var(--accent);
+            border-color: var(--accent);
             color: #ffffff;
         }
 
         .btn.primary:hover {
-            background: #2ea043;
-            border-color: #2ea043;
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
         }
 
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
 
-        .header {
-            background: var(--bg-secondary);
-            padding: 16px 24px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header h1 {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .header-subtitle {
-            font-size: 15px;
-            color: var(--text-secondary);
-        }
 
         .toolbar {
             background: var(--bg-secondary);
-            padding: 12px 24px;
-            border-bottom: 1px solid var(--border);
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-light);
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
             flex-wrap: wrap;
+            position: relative;
         }
 
         .toolbar-right {
             margin-left: auto;
             display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border-light);
+            margin: 0 4px;
+        }
+
+        .theme-selector {
+            position: relative;
+        }
+
+        .more-menu {
+            position: relative;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius-md);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2);
+            min-width: 220px;
+            z-index: 1000;
+            overflow: hidden;
+            min-height: 100px;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-menu-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.1s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .dropdown-menu-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .dropdown-menu-item i,
+        .dropdown-menu-item span.icon {
+            font-size: 16px;
+            color: var(--text-primary);
+            width: 20px;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .dropdown-menu-item span.text {
+            flex: 1;
+            font-size: 14px;
+            color: var(--text-primary);
+            font-weight: 500;
+            pointer-events: none;
+        }
+
+        .dropdown-menu-item .shortcut {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
+            background: var(--bg-primary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            pointer-events: none;
+        }
+
+        .dropdown-menu-divider {
+            height: 1px;
+            background: var(--border-light);
+            margin: 6px 0;
+        }
+
+        .dropdown-menu-header {
+            padding: 10px 14px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toolbar-btn {
+            padding: 8px 14px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--text-muted);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .toolbar-btn .text {
+            font-weight: 600;
+            pointer-events: none;
+        }
+
+        #moreBtn {
+            border-color: var(--accent);
+            background: var(--bg-tertiary);
+        }
+
+        #moreBtn:hover {
+            border-color: var(--accent-hover);
+            background: var(--accent-soft);
+        }
+
+        .toolbar-btn.active {
+            background: var(--accent-soft, rgba(59, 130, 246, 0.15));
+            border-color: var(--accent, #4f9cff);
+            color: var(--text-primary);
+        }
+
+        .toolbar-btn .icon {
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .theme-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .theme-item {
+            display: flex;
+            align-items: center;
             gap: 8px;
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background var(--transition-duration);
+        }
+
+        .theme-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .theme-item.active {
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid var(--accent);
+        }
+
+        .theme-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+        }
+
+        .theme-info {
+            flex: 1;
+        }
+
+        .theme-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .theme-type {
+            font-size: 11px;
+            color: var(--text-muted);
         }
 
         .search-box {
-            padding: 8px 12px;
-            background: var(--bg-primary);
+            padding: 9px 14px;
+            background: var(--bg-tertiary);
             color: var(--text-primary);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            font-size: 15px;
-            width: 300px;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            width: 280px;
+            outline: none;
+            transition: all 0.15s ease;
+        }
+
+        .search-box:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        .search-box::placeholder {
+            color: var(--text-muted);
         }
 
         .search-box:focus {
@@ -377,11 +676,12 @@
         .tree-container {
             flex: 1;
             overflow-y: auto;
-            padding: 16px 24px;
+            overflow-x: hidden;
+            padding: 20px 20px 20px 30px;
         }
 
         .tree-node {
-            margin-left: 16px;
+            margin-left: 0;
             padding: 4px 0;
         }
 
@@ -392,23 +692,72 @@
         .node-content {
             display: flex;
             align-items: center;
-            padding: 10px 12px;
+            padding: 12px 12px 12px 8px;
             background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 6px;
+            border: 2px solid var(--border-light);
+            border-radius: var(--radius-md);
             cursor: pointer;
             transition: all 0.15s ease;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
+            gap: 8px;
         }
 
         .node-content:hover {
             background: var(--bg-tertiary);
-            border-color: var(--text-muted);
+            border-color: var(--border);
         }
 
         .node-content.selected {
-            background: rgba(88, 166, 255, 0.1);
+            background: var(--accent-soft);
             border-color: var(--accent);
+        }
+
+        .node-actions {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-left: auto;
+            position: relative;
+        }
+
+        .node-action-btn {
+            padding: 6px 8px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+        }
+
+        .node-action-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .node-action-btn.active {
+            color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .node-action-group {
+            display: flex;
+            position: relative;
+            z-index: 1;
+        }
+
+        .node-action-group .node-action-btn:not(:first-child) {
+            margin-left: -8px;
+        }
+
+        .node-action-group .node-action-btn:hover {
+            z-index: 10;
         }
 
         .node-content.prompt-node {
@@ -442,11 +791,19 @@
             color: var(--text-secondary);
         }
 
+        .expand-spacer {
+            width: 20px;
+            text-align: center;
+            margin-right: 8px;
+            display: inline-block;
+        }
+
         .node-checkbox {
             margin-right: 10px;
             cursor: pointer;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
         }
 
         .node-header {
@@ -456,12 +813,12 @@
         }
 
         .node-type {
-            font-size: 12px;
+            font-size: 11px;
             padding: 3px 8px;
-            border-radius: 3px;
+            border-radius: var(--radius-sm);
             text-transform: uppercase;
             font-weight: 600;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.5px;
         }
 
         .edit-area {
@@ -494,8 +851,12 @@
         }
 
         .checkbox-wrapper:hover {
-            background: var(--bg-tertiary);
+            background: rgba(79, 156, 255, 0.1);
             border-radius: 4px;
+        }
+
+        .checkbox-wrapper:hover .node-checkbox {
+            border-color: var(--accent);
         }
 
 
@@ -536,11 +897,42 @@
 
         .node-meta {
             display: flex;
-            gap: 12px;
             align-items: center;
-            font-size: 13px;
-            color: var(--text-muted);
+            gap: 12px;
             margin-top: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            flex-wrap: wrap;
+        }
+
+        .node-folder {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .node-folder .folder-color {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .node-timestamp {
+            padding: 2px 6px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 11px;
+            color: #7ab3ff;
         }
 
         .node-folder {
@@ -560,32 +952,38 @@
         }
 
         .editor-panel {
-            width: 700px;
-            min-width: 300px;
-            max-width: 1200px;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100vw;
+            height: 500px;
+            min-height: 300px;
+            max-height: 80vh;
             background: var(--bg-secondary);
-            border-left: 1px solid var(--border);
+            border-top: 1px solid var(--accent);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            position: relative;
+            z-index: 5000;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
         .editor-resize-handle {
-            width: 6px;
+            height: 8px;
             background: var(--border);
-            cursor: col-resize;
+            cursor: row-resize;
             position: absolute;
             left: 0;
+            right: 0;
             top: 0;
-            bottom: 0;
             z-index: 10;
             transition: background 0.15s ease;
         }
 
         .editor-resize-handle:hover {
             background: var(--accent);
-            width: 8px;
+            height: 10px;
         }
 
         .editor-header {
@@ -600,7 +998,7 @@
 
         .editor-content {
             flex: 1;
-            padding: 16px;
+            padding: 16px 16px 16px 30px;
             overflow-y: auto;
             display: flex;
             flex-direction: row;
@@ -614,10 +1012,61 @@
         }
 
         .editor-sidebar {
-            width: 280px;
+            width: 220px;
+            min-width: 220px;
             display: flex;
             flex-direction: column;
             gap: 12px;
+            border-left: 1px solid var(--border-light);
+            padding-left: 16px;
+        }
+
+        .editor-summary-input {
+            font-size: 13px;
+            padding: 6px 10px;
+            margin-bottom: 12px;
+        }
+
+        .editor-actions-vertical {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .icon-action-vertical {
+            width: 100%;
+            height: 40px;
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            font-size: 14px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .icon-action-vertical:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--text-muted);
+        }
+
+        .icon-action-vertical.btn-save:hover {
+            background: var(--success);
+            color: #0d1117;
+            border-color: var(--success);
+        }
+
+        .icon-action-vertical.btn-delete:hover {
+            background: var(--danger);
+            color: #ffffff;
+            border-color: var(--danger);
         }
 
         .editor-textarea {
@@ -723,6 +1172,29 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
+        .modal-body {
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .modal-body::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .modal-body::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 4px;
+        }
+
+        .modal-body::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
         .modal-header {
             margin-bottom: 16px;
             display: flex;
@@ -808,6 +1280,16 @@
             transform: translateY(0);
         }
 
+        .notification-error {
+            border-color: var(--danger) !important;
+            background: rgba(229, 88, 88, 0.1) !important;
+        }
+
+        .notification-info {
+            border-color: var(--accent) !important;
+            background: rgba(79, 156, 255, 0.1) !important;
+        }
+
         .loading-screen {
             position: fixed;
             top: 0;
@@ -836,6 +1318,11 @@
         @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
 
         .loading-text {
@@ -934,24 +1421,27 @@
 
         .combine-item {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 8px;
-            padding: 10px 12px;
+            padding: 12px;
             background: var(--bg-primary);
             border: 1px solid var(--border);
             border-radius: 6px;
             margin-bottom: 6px;
-            cursor: move;
+            cursor: pointer;
             transition: all 0.15s ease;
         }
 
         .combine-item:hover {
             border-color: var(--accent);
             background: var(--bg-tertiary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
         }
 
         .combine-item.combine-dragging {
             opacity: 0.5;
+            cursor: move;
         }
 
         .combine-item.combine-dragover {
@@ -961,15 +1451,24 @@
 
         .combine-item-drag {
             color: var(--text-muted);
-            cursor: move;
+            cursor: grab;
             font-size: 14px;
-            padding: 4px;
+            padding: 4px 0;
             user-select: none;
+            flex-shrink: 0;
         }
 
         .combine-item-content {
             flex: 1;
             min-width: 0;
+            overflow: hidden;
+        }
+
+        .combine-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
         }
 
         .combine-item-type {
@@ -978,7 +1477,7 @@
             border-radius: 3px;
             text-transform: uppercase;
             font-weight: 600;
-            margin-right: 8px;
+            flex-shrink: 0;
         }
 
         .combine-item-type.prompt {
@@ -991,12 +1490,33 @@
             color: #0d1117;
         }
 
+        .combine-item-type.user {
+            background: var(--success);
+            color: #0d1117;
+        }
+
+        .combine-item-type.auto {
+            background: var(--accent);
+            color: #ffffff;
+            border: 1px dashed var(--accent);
+        }
+
+        .combine-item-timestamp {
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .combine-item-text {
             font-size: 12px;
             color: var(--text-secondary);
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            line-height: 1.4;
         }
 
         .combine-item-remove {
@@ -1149,7 +1669,7 @@
         }
 
         .optimizer-preview {
-            overflow-y: auto;
+            overflow: visible;
             padding: 12px;
             background: var(--bg-primary);
             border: 1px solid var(--border);
@@ -1163,16 +1683,18 @@
         #optimizerPreview {
             max-height: 200px;
             min-height: 100px;
+            overflow-y: auto;
         }
 
         #optimizerResult {
             height: auto;
             flex: 1;
+            overflow-y: auto;
         }
 
         #optimizerResult div[style*="padding: 12px"] {
             height: 100%;
-            overflow-y: auto;
+            overflow: visible;
         }
 
         .optimizer-preview h1,
@@ -1348,9 +1870,281 @@
             color: var(--text-muted);
         }
 
+        .command-palette {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+        }
+
+        .command-palette.visible {
+            display: block;
+        }
+
+        .command-palette-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .command-palette-container {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            max-width: 90vw;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            animation: commandPaletteIn 0.15s ease;
+        }
+
+        @keyframes commandPaletteIn {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        .command-palette-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .command-palette-input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .command-palette-input:focus {
+            border-color: var(--accent);
+        }
+
+        .command-palette-results {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .command-palette-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background var(--transition-duration);
+        }
+
+        .command-palette-item:hover,
+        .command-palette-item.active {
+            background: var(--bg-hover);
+        }
+
+        .command-palette-item-icon {
+            font-size: 20px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+
+        .command-palette-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .command-palette-item-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .command-palette-item name mark {
+            background: var(--accent);
+            color: var(--bg-primary);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        .command-palette-item-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .command-palette-item-shortcut {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--bg-tertiary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .command-palette-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .command-palette-empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .command-palette-empty-text {
+            font-size: 15px;
+        }
+
+        .command-palette-footer {
+            padding: 8px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 16px;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .command-palette-footer .command-shortcut {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s ease-in-out infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-text {
+            height: 14px;
+            margin-bottom: 6px;
+        }
+
+        .skeleton-text.short { width: 60%; }
+        .skeleton-text.medium { width: 80%; }
+        .skeleton-text.long { width: 95%; }
+
+        .node-text.loading {
+            position: relative;
+        }
+
+        .node-text.loading .skeleton-text {
+            display: block;
+        }
+
+        .optimistic-indicator {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 9000;
+            animation: optimisticSlideIn 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        @keyframes optimisticSlideIn {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .optimistic-indicator.fade-out {
+            animation: optimisticFadeOut 0.3s ease forwards;
+        }
+
+        @keyframes optimisticFadeOut {
+            to {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+        }
+
+        .optimistic-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: optimisticSpin 0.6s linear infinite;
+        }
+
+        @keyframes optimisticSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        .optimistic-text {
+            font-size: 13px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .editor-summary-input::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .editor-summary-input::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .editor-summary-input::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 4px;
+        }
+
+        .editor-summary-input::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
     </style>
+
 </head>
 <body>
+    <a href="#searchBox" class="skip-link">Skip to search</a>
     <div class="loading-screen" id="loadingScreen">
         <div class="loading-icon">⏳</div>
         <div class="loading-text" id="loadingText">Loading OpenChat messages...</div>
@@ -1361,93 +2155,139 @@
     </div>
 
     <div class="container" id="mainContainer" style="display: none;">
-        <div class="sidebar">
-            <div class="sidebar-header">Folders</div>
-            <div class="controls">
-                <button class="btn primary" onclick="reloadData()">Reload</button>
-                <button class="btn" onclick="showNewFolderModal()">New</button>
-            </div>
-            <ul class="folder-list" id="folderList">
-                <li class="folder-item active" data-folder="all">
-                    <div class="folder-name">All Messages</div>
-                </li>
-            </ul>
-
-            <div class="sidebar-header" style="margin-top: 24px;">Tags</div>
-            <div class="tag-cloud" id="tagCloud">
-                <div class="tag-cloud-item" onclick="clearTagFilter()">Clear All</div>
-            </div>
-
-            <div class="sidebar-header" style="margin-top: 24px;">Todos</div>
-            <div class="todo-list" id="todoList"></div>
-            <div class="controls" style="padding: 0 16px 16px;">
-                <input type="text" class="form-input" id="newTodoText" placeholder="Add todo..." style="width: 100%;">
-                <button class="btn primary" onclick="addTodo()" style="width: 100%; margin-top: 8px;">Add</button>
-            </div>
-        </div>
-
     <div class="main-content">
-            <div class="header">
-                <div>
-                    <h1>OC Message Explorer</h1>
-                    <div class="header-subtitle">View and manage your OpenChat history</div>
-                </div>
+        <div class="main-content-inner">
+            <div class="app-header">
+                <h1 class="app-title">OC Message Explorer</h1>
             </div>
 
-            <div class="sync-status" id="syncStatus">
-                <div class="sync-status-left">
-                    <span id="syncStatusMessage" class="sync-status-message">Ready</span>
-                    <span id="syncStatusProgress" style="color: var(--text-muted);"></span>
+                <div class="sync-status" id="syncStatus">
+                    <div class="sync-status-left">
+                        <span id="syncStatusMessage" class="sync-status-message">Ready</span>
+                        <span id="syncStatusProgress" style="color: var(--text-muted);"></span>
+                    </div>
+                    <div class="sync-status-actions" id="syncStatusActions" style="display: none;">
+                        <button class="btn" onclick="cancelSync()" id="cancelSyncBtn" aria-label="Cancel background sync" title="Cancel sync (Esc)">Cancel</button>
+                    </div>
                 </div>
-                <div class="sync-status-actions" id="syncStatusActions" style="display: none;">
-                    <button class="btn" onclick="cancelSync()" id="cancelSyncBtn">Cancel</button>
-                </div>
-            </div>
 
 
 
-            <div class="toolbar">
-                <input type="text" class="search-box" id="searchBox" placeholder="Search messages..." oninput="filterMessages()">
-                <button class="btn" onclick="toggleOptionsPanel()" id="optionsToggleBtn">Options ⚙️</button>
-                <div id="optionsPanel" style="display: none; flex-wrap: wrap; gap: 8px; align-items: center;">
-                    <label class="filter-toggle" id="searchToggle">
-                        <input type="checkbox" id="searchRawOnly" onchange="toggleSearchMode()">
-                        <span>Raw only</span>
-                    </label>
+
+            <div class="toolbar" role="toolbar" aria-label="Main toolbar">
+                <input type="text" class="search-box" id="searchBox" placeholder="Search..." oninput="filterMessages()" aria-label="Search messages" aria-controls="treeContainer">
+                <button class="toolbar-btn" onclick="toggleOptionsPanel()" id="optionsToggleBtn" aria-expanded="false" aria-controls="optionsPanel" aria-label="Filter options" title="Filters">
+                    <span class="icon">🔍</span>
+                    <span>Filters</span>
+                </button>
+
+                <button class="toolbar-btn" onclick="toggleTagsPanel()" id="tagsToggleBtn" aria-expanded="false" aria-controls="tagsPanel" aria-label="Tag filters" title="Tags">
+                    <span class="icon">🏷️</span>
+                    <span>Tags</span>
+                </button>
+
+                <div id="optionsPanel" style="display: none; flex-direction: column; gap: 8px; padding: 12px; position: absolute; top: calc(100% + 4px); left: 0; background: var(--bg-secondary); border: 1px solid var(--accent); border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2); z-index: 1000; min-width: 280px; min-height: 100px; visibility: visible !important;" role="group" aria-label="Filter options">
+                    <div class="dropdown-menu-header">Quick Filters</div>
                     <label class="filter-toggle" id="filterToggle">
                         <input type="checkbox" id="userOnlyFilter" onchange="toggleUserFilter()">
-                        <span>User only</span>
-                    </label>
-                    <label class="filter-toggle active" id="displayToggle">
-                        <input type="checkbox" id="displayRawMessages" checked onchange="toggleDisplayMode()">
-                        <span>Show raw</span>
+                        <span>User messages only</span>
                     </label>
                     <label class="filter-toggle active" id="emptyToggle">
                         <input type="checkbox" id="hideEmptyResponses" checked onchange="toggleHideEmptyResponses()">
-                        <span>No empty res</span>
+                        <span>Hide empty responses</span>
                     </label>
                     <label class="filter-toggle" id="sortToggle">
                         <input type="checkbox" id="sortAscending" checked onchange="toggleSortOrder()">
                         <span>Newest first</span>
                     </label>
-                    <input type="date" class="form-input" id="startDate" style="width: 150px;" title="Start date">
-                    <input type="date" class="form-input" id="endDate" style="width: 150px;" title="End date">
-                    <button class="btn primary" onclick="showNewMessageModal('prompt')">New Prompt</button>
+                    <div class="dropdown-menu-divider"></div>
+                    <div class="dropdown-menu-header">Date Range</div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="date" class="form-input" id="startDate" style="flex: 1;" title="Start date" aria-label="Start date">
+                        <input type="date" class="form-input" id="endDate" style="flex: 1;" title="End date" aria-label="End date">
+                    </div>
                 </div>
-                <div class="toolbar-right">
-                    <button class="btn" onclick="copySelected()">Copy</button>
-                    <button class="btn" onclick="showCombineModal()">Combine</button>
-                    <button class="btn" onclick="unselectAll()">Uncheck All</button>
-                    <button class="btn" onclick="showSettingsModal()">Settings</button>
-                    <button class="btn" onclick="exportData()">Export</button>
-                    <button class="btn" onclick="document.getElementById('importFile').click()">Import</button>
-                    <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importData(event)">
-                    <button class="btn" onclick="expandAll()">Expand</button>
-                    <button class="btn" onclick="collapseAll()">Collapse</button>
+
+                <div id="tagsPanel" style="display: none; flex-direction: column; gap: 8px; padding: 12px; position: absolute; top: calc(100% + 4px); left: 80px; background: var(--bg-secondary); border: 1px solid var(--accent); border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2); z-index: 999; min-width: 220px; max-width: 300px; max-height: 400px; overflow-y: auto;" role="group" aria-label="Tag filters">
+                    <div class="dropdown-menu-header">Filter by Tags</div>
+                    <div id="tagCloud" class="tag-cloud" role="group" aria-label="Filter by tags">
+                        <button class="tag-cloud-item" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>
+                    </div>
                 </div>
+
+                <div class="toolbar-divider"></div>
+
+                <button class="toolbar-btn" onclick="copySelected()" aria-label="Copy selected" title="Copy (Ctrl+C)">
+                    <span class="icon">📋</span>
+                    <span class="text">Copy</span>
+                </button>
+                <button class="toolbar-btn" onclick="showCombineModal()" aria-label="Combine selected" title="Combine">
+                    <span class="icon">🔗</span>
+                    <span class="text">Combine</span>
+                </button>
+
+                <div class="more-menu">
+                    <button class="toolbar-btn" id="moreBtn" onclick="toggleMoreMenu()" aria-expanded="false" aria-haspopup="true" aria-label="Actions" title="Actions">
+                        <span class="icon">⋮</span>
+                        <span class="text">Actions</span>
+                    </button>
+                    <div class="dropdown-menu" id="moreMenu" role="menu" aria-label="Actions menu">
+                        <div class="dropdown-menu-header">Actions</div>
+                        <button class="dropdown-menu-item" onclick="expandAll()" role="menuitem">
+                            <span class="icon">📂</span>
+                            <span class="text">Expand All</span>
+                        </button>
+                        <button class="dropdown-menu-item" onclick="collapseAll()" role="menuitem">
+                            <span class="icon">📁</span>
+                            <span class="text">Collapse All</span>
+                        </button>
+                        <div class="dropdown-menu-divider"></div>
+                        <button class="dropdown-menu-item" onclick="unselectAll()" role="menuitem">
+                            <span class="icon">✓</span>
+                            <span class="text">Uncheck All</span>
+                        </button>
+                        <div class="dropdown-menu-divider"></div>
+                        <button class="dropdown-menu-item" id="undoMenuItem" onclick="undoRedoManager.undo()" disabled role="menuitem">
+                            <span class="icon">↩️</span>
+                            <span class="text">Undo</span>
+                            <span class="shortcut">Ctrl+Shift+Z</span>
+                        </button>
+                        <button class="dropdown-menu-item" id="redoMenuItem" onclick="undoRedoManager.redo()" disabled role="menuitem">
+                            <span class="icon">↪️</span>
+                            <span class="text">Redo</span>
+                            <span class="shortcut">Ctrl+Y</span>
+                        </button>
+                        <div class="dropdown-menu-divider"></div>
+                        <div class="dropdown-menu-header">Data</div>
+                        <button class="dropdown-menu-item" onclick="exportData()" role="menuitem">
+                            <span class="icon">⬇️</span>
+                            <span class="text">Export</span>
+                        </button>
+                        <button class="dropdown-menu-item" onclick="document.getElementById('importFile').click()" role="menuitem">
+                            <span class="icon">⬆️</span>
+                            <span class="text">Import</span>
+                        </button>
+                        <div class="dropdown-menu-divider"></div>
+                        <div class="dropdown-menu-header">Configuration</div>
+                        <button class="dropdown-menu-item" onclick="showSettingsModal()" role="menuitem">
+                            <span class="icon">🤖</span>
+                            <span class="text">AI Configuration</span>
+                        </button>
+                        <button class="dropdown-menu-item" onclick="toggleThemePanel()" role="menuitem">
+                            <span class="icon">🎨</span>
+                            <span class="text">Change Theme</span>
+                        </button>
+                    </div>
+                    <div id="themePanel" style="display: none; position: absolute; top: calc(100% + 4px); right: 0; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; z-index: 1001; min-width: 220px; box-shadow: var(--shadow-md);" role="dialog" aria-label="Select theme">
+                        <div class="dropdown-menu-header">Theme</div>
+                        <div id="themeList" class="theme-list" role="listbox"></div>
+                    </div>
+                </div>
+
+                <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importData(event)" aria-label="Import JSON file">
             </div>
 
-            <div class="tree-container" id="treeContainer">
+            <div class="tree-container" id="treeContainer" role="tree" aria-label="Messages">
                 <div class="empty-state">
                     <h3>No messages</h3>
                     <p>Reload to load your OpenChat history</p>
@@ -1457,20 +2297,21 @@
 
         <div class="editor-panel" id="editorPanel" style="display: none;">
             <div class="editor-header">
-                Editor
-                <button class="close-btn" onclick="closeEditor()">✕</button>
+                <span class="editor-title">Edit Message</span>
+                <button class="close-btn" onclick="closeEditor()" aria-label="Close editor panel" title="Close (Escape)">&times;</button>
             </div>
-            <div class="editor-content">
+            <div class="editor-resize-handle" id="editorResizeHandle"></div>
+            <div class="editor-content" id="editorContent">
                 <div class="editor-main">
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
                         <label class="form-label">Raw Message (what you typed)</label>
-                        <textarea class="editor-textarea" id="nodeContent" placeholder="Your actual message..." style="height: 100%; min-height: 400px;"></textarea>
+                        <textarea class="editor-textarea" id="nodeContent" placeholder="Your actual message..." style="flex: 1; min-height: 300px; resize: none;"></textarea>
                     </div>
                 </div>
                 <div class="editor-sidebar">
                     <div class="form-group">
-                        <label class="form-label">AI Summary (tool output)</label>
-                        <textarea class="editor-textarea" id="nodeSummary" placeholder="Tool summary..." style="height: 150px;"></textarea>
+                        <label class="form-label" for="nodeSummary">AI Summary / Tool Output:</label>
+                        <textarea class="editor-textarea editor-summary-input" id="nodeSummary" placeholder="Tool summary or brief description..." rows="2" style="min-height: 60px; max-height: 150px; resize: vertical; overflow-y: auto;" aria-label="AI summary or tool output"></textarea>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Type</label>
@@ -1486,38 +2327,41 @@
                         <label class="form-label">Tags (comma-separated)</label>
                         <input type="text" class="form-input" id="nodeTags" placeholder="tag1, tag2, tag3">
                     </div>
+                    <div class="editor-actions-vertical">
+                        <button class="icon-action-vertical" onclick="confirmDeleteNode()" aria-label="Delete message" title="Delete message (Del)">🗑️</button>
+                        <button class="icon-action-vertical" onclick="confirmSaveNode()" aria-label="Save message" title="Save message (Ctrl+S)">💾</button>
+                    </div>
                 </div>
             </div>
-            <div class="editor-actions">
-                <button class="btn primary" onclick="saveNode()">Save</button>
-                <button class="btn" onclick="deleteNode()">Delete</button>
+        </div>
             </div>
         </div>
     </div>
+        </div>
 
     <div class="modal" id="newFolderModal">
         <div class="modal-content">
             <div class="modal-header">
-                New Folder
-                <button class="close-btn" onclick="hideModal('newFolderModal')">&times;</button>
+                <h2>New Folder</h2>
+                <button class="close-btn" onclick="hideModal('newFolderModal')" aria-label="Close new folder dialog" title="Close (Escape)">&times;</button>
             </div>
             <div class="form-group">
-                <label class="form-label">Folder Name</label>
-                <input type="text" class="form-input" id="folderName" placeholder="My Folder">
+                <label class="form-label" for="folderName">Folder Name</label>
+                <input type="text" class="form-input" id="folderName" placeholder="My Folder" aria-label="Folder name">
             </div>
             <div class="form-group">
-                <label class="form-label">Color</label>
-                <div class="color-picker" id="folderColorPicker">
-                    <div class="color-option selected" style="background: #58a6ff;" data-color="#58a6ff"></div>
-                    <div class="color-option" style="background: #238636;" data-color="#238636"></div>
-                    <div class="color-option" style="background: #d29922;" data-color="#d29922"></div>
-                    <div class="color-option" style="background: #da3633;" data-color="#da3633"></div>
-                    <div class="color-option" style="background: #a371f7;" data-color="#a371f7"></div>
-                    <div class="color-option" style="background: #f0883e;" data-color="#f0883e"></div>
+                <label class="form-label">Folder Color</label>
+                <div class="color-picker" id="folderColorPicker" role="radiogroup" aria-label="Choose folder color">
+                    <div class="color-option selected" style="background: #58a6ff;" data-color="#58a6ff" role="radio" aria-checked="true" aria-label="Blue color"></div>
+                    <div class="color-option" style="background: #238636;" data-color="#238636" role="radio" aria-checked="false" aria-label="Green color"></div>
+                    <div class="color-option" style="background: #d29922;" data-color="#d29922" role="radio" aria-checked="false" aria-label="Yellow color"></div>
+                    <div class="color-option" style="background: #da3633;" data-color="#da3633" role="radio" aria-checked="false" aria-label="Red color"></div>
+                    <div class="color-option" style="background: #a371f7;" data-color="#a371f7" role="radio" aria-checked="false" aria-label="Purple color"></div>
+                    <div class="color-option" style="background: #f0883e;" data-color="#f0883e" role="radio" aria-checked="false" aria-label="Orange color"></div>
                 </div>
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="createFolder()">Create</button>
+                <button class="btn primary" onclick="createFolder()" aria-label="Create new folder" title="Create (Enter)">Create</button>
             </div>
         </div>
     </div>
@@ -1525,89 +2369,82 @@
     <div class="modal" id="newMessageModal">
         <div class="modal-content">
             <div class="modal-header">
-                New Message
-                <button class="close-btn" onclick="hideModal('newMessageModal')">&times;</button>
+                <h2>New Message</h2>
+                <button class="close-btn" onclick="hideModal('newMessageModal')" aria-label="Close new message dialog" title="Close (Escape)">&times;</button>
             </div>
             <div class="form-group">
-                <label class="form-label">Parent Message</label>
-                <select class="form-select" id="parentMessageSelect">
+                <label class="form-label" for="parentMessageSelect">Parent Message</label>
+                <select class="form-select" id="parentMessageSelect" aria-label="Select parent message">
                     <option value="">None (root message)</option>
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label">Content</label>
-                <textarea class="editor-textarea" id="newMessageContent" placeholder="Enter your content..." style="height: 150px;"></textarea>
+                <label class="form-label" for="newMessageContent">Content</label>
+                <textarea class="editor-textarea" id="newMessageContent" placeholder="Enter your content..." style="height: 150px;" aria-label="Message content"></textarea>
             </div>
             <div class="form-group">
-                <label class="form-label">Tags (comma-separated)</label>
-                <input type="text" class="form-input" id="newMessageTags" placeholder="tag1, tag2, tag3">
+                <label class="form-label" for="newMessageTags">Tags (comma-separated)</label>
+                <input type="text" class="form-input" id="newMessageTags" placeholder="tag1, tag2, tag3" aria-label="Message tags">
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="createMessage()">Create</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="notification" id="notification"></div>
-
-    <div class="modal" id="combineModal">
-        <div class="modal-content combine-modal-content">
-            <div class="modal-header">
-                Combine Messages
-                <button class="close-btn" onclick="hideModal('combineModal')">&times;</button>
-            </div>
-            <div class="combine-container">
-                <div class="combine-list-sidebar">
-                    <div class="sidebar-header">Order</div>
-                    <div class="combine-sort-controls">
-                        <button class="btn" onclick="sortCombineByTime()">Sort by Time</button>
-                        <button class="btn" onclick="sortCombineByType()">Sort by Type</button>
-                        <button class="btn" onclick="sortCombineByFolder()">Sort by Folder</button>
-                    </div>
-                    <div id="combineList" class="combine-list"></div>
-                    <div class="combine-actions">
-                        <button class="btn primary" onclick="copyCombined()">Copy Combined</button>
-                        <button class="btn" onclick="optimizeCombinedPrompts()">Optimize with AI</button>
-                    </div>
-                </div>
-                <div class="combine-preview-sidebar">
-                    <div class="sidebar-header">Preview</div>
-                    <div id="combinedPreview" class="combined-preview"></div>
-                </div>
+                <button class="btn primary" onclick="saveSettings()" aria-label="Save settings to .env file" title="Save (Ctrl+S)">Save to .env</button>
+                <button class="btn" onclick="testApiKey()" aria-label="Test API key connection" title="Test connection">Test Connection</button>
+                <button class="btn" onclick="loadAgentsContent()" aria-label="View AGENTS.md documentation" title="View documentation">View AGENTS.md</button>
             </div>
         </div>
     </div>
 
     <div class="modal" id="settingsModal">
-        <div class="modal-content" style="max-width: 650px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column;">
+        <div class="modal-content" style="max-width: 700px; max-height: 90vh; display: flex; flex-direction: column;">
             <div class="modal-header" style="flex-shrink: 0;">
-                Settings
-                <button class="close-btn" onclick="hideModal('settingsModal')">&times;</button>
+                <h2>Settings</h2>
+                <button class="close-btn" onclick="hideModal('settingsModal')" aria-label="Close settings dialog" title="Close (Escape)">&times;</button>
             </div>
-            <div class="form-group">
-                <label class="form-label">OpenAI API Key</label>
-                <input type="password" class="form-input" id="openaiApiKey" placeholder="sk-...">
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Your API key is stored locally only and in .env file</small>
-            </div>
-            <div class="form-group">
-                <label class="form-label">OpenAI Base URL (optional)</label>
-                <input type="text" class="form-input" id="openaiBaseUrl" placeholder="https://api.openai.com/v1">
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Custom OpenAI-compatible API endpoint (leave blank for default)</small>
-            </div>
-            <div class="form-group" id="modelSelectGroup" style="display: none;">
-                <label class="form-label">Model</label>
-                <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-                    <input type="text" class="form-input" id="openaiModelFilter" placeholder="Filter models..." style="flex: 1;">
-                    <button class="btn" onclick="clearModelFilter()" style="padding: 10px 12px;">✕</button>
+            <div class="modal-body" style="flex: 1; overflow-y: auto; padding-right: 8px;">
+                <div class="form-group">
+                    <label class="form-label" for="openaiApiKey">OpenAI API Key</label>
+                    <input type="password" class="form-input" id="openaiApiKey" placeholder="sk-..." aria-label="Enter your OpenAI API key">
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Your API key is stored locally only and in .env file</small>
                 </div>
-                <select class="form-select" id="openaiModel" style="max-height: 200px;">
-                    <option value="">Select a model</option>
-                </select>
-                <button class="btn" id="refreshModelsBtn" onclick="fetchModels()" style="margin-top: 8px;">Refresh Models</button>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Optimization Prompt</label>
-                <textarea class="editor-textarea" id="optimizationPrompt" style="height: 180px;" placeholder="Custom prompt for optimization...">First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices. 
+                <div class="form-group">
+                    <label class="form-label" for="openaiBaseUrl">OpenAI Base URL (optional)</label>
+                    <input type="text" class="form-input" id="openaiBaseUrl" placeholder="https://api.openai.com/v1" aria-label="Enter custom OpenAI base URL">
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Custom OpenAI-compatible API endpoint (leave blank for default)</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="anthropicApiKey">Anthropic API Key (optional)</label>
+                    <input type="password" class="form-input" id="anthropicApiKey" placeholder="sk-ant-..." aria-label="Enter your Anthropic API key">
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">For Claude models</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="aiProvider">AI Provider</label>
+                    <select class="form-select" id="aiProvider" aria-label="Select AI provider">
+                        <option value="auto">Auto-select</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                    </select>
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Auto-select will use OpenAI if available, otherwise Anthropic</small>
+                </div>
+                <div class="form-group" id="aiModelGroup" style="display: none;">
+                    <label class="form-label" for="aiModel">AI Model</label>
+                    <select class="form-select" id="aiModel" aria-label="Select AI model">
+                    </select>
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Select model for the chosen provider</small>
+                </div>
+                <div class="form-group" id="modelSelectGroup" style="display: none;">
+                    <label class="form-label" for="openaiModel">Model</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <input type="text" class="form-input" id="openaiModelFilter" placeholder="Filter models..." style="flex: 1;" aria-label="Filter model list">
+                        <button class="btn" onclick="clearModelFilter()" style="padding: 10px 12px;" aria-label="Clear model filter" title="Clear filter">✕</button>
+                    </div>
+                    <select class="form-select" id="openaiModel" style="max-height: 200px;" aria-label="Select OpenAI model">
+                        <option value="">Select a model</option>
+                    </select>
+                    <button class="btn" id="refreshModelsBtn" onclick="fetchModels()" style="margin-top: 8px;" aria-label="Refresh available models" title="Refresh model list (R)">Refresh Models</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="optimizationPrompt">Optimization Prompt</label>
+                    <textarea class="editor-textarea" id="optimizationPrompt" style="height: 180px;" placeholder="Custom prompt for optimization..." aria-label="Custom optimization prompt">First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
 
 Then, combine these prompts into a single, task-oriented prompt that will direct you to:
 
@@ -1621,28 +2458,29 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
 - Adherence to project conventions
 - Proper documentation and commenting
 - Type safety and error handling</textarea>
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
-                    This prompt is used to combine multiple selected prompts into a single task-oriented prompt for verification and recreation of project components.
-                </small>
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
+                        This prompt is used to combine multiple selected prompts into a single task-oriented prompt for verification and recreation of project components.
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="projectPath">Project Path</label>
+                    <input type="text" class="form-input" id="projectPath" placeholder="Path to project directory" aria-label="Enter project directory path">
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
+                        Absolute or relative path to the project directory. Used for reading AGENTS.md.
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="agentsPath">AGENTS.md Path</label>
+                    <input type="text" class="form-input" id="agentsPath" placeholder="Path to AGENTS.md" aria-label="Enter AGENTS.md file path">
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
+                        Path to AGENTS.md file. Can be relative to project path or absolute.
+                    </small>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Project Path</label>
-                <input type="text" class="form-input" id="projectPath" placeholder="Path to project directory">
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
-                    Absolute or relative path to the project directory. Used for reading AGENTS.md.
-                </small>
-            </div>
-            <div class="form-group">
-                <label class="form-label">AGENTS.md Path</label>
-                <input type="text" class="form-input" id="agentsPath" placeholder="Path to AGENTS.md">
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
-                    Path to AGENTS.md file. Can be relative to project path or absolute.
-                </small>
-            </div>
-            <div class="editor-actions">
-                <button class="btn primary" onclick="saveSettings()">Save to .env</button>
-                <button class="btn" onclick="testApiKey()">Test Connection</button>
-                <button class="btn" onclick="loadAgentsContent()">View AGENTS.md</button>
+            <div class="editor-actions" style="flex-shrink: 0; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                <button class="btn primary" onclick="saveSettings()" aria-label="Save settings to .env file" title="Save (Ctrl+S)">Save to .env</button>
+                <button class="btn" onclick="testApiKey()" aria-label="Test API key connection" title="Test connection">Test Connection</button>
+                <button class="btn" onclick="loadAgentsContent()" aria-label="View AGENTS.md documentation" title="View documentation">View AGENTS.md</button>
             </div>
         </div>
     </div>
@@ -1650,15 +2488,30 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
     <div class="modal" id="optimizeModal">
         <div class="modal-content optimize-modal" style="width: 900px; max-height: 95vh;">
             <div class="modal-header">
-                Optimize Prompts
-                <button class="close-btn" onclick="hideModal('optimizeModal')">&times;</button>
+                <h2>Optimize Prompts with AI</h2>
+                <button class="close-btn" onclick="hideModal('optimizeModal')" aria-label="Close optimize dialog" title="Close (Escape)">&times;</button>
             </div>
-            <div class="optimizer-section" style="flex: 0 0 auto; max-height: 200px;">
+            <div class="optimizer-section" style="flex: 0 0 auto;">
+                <label class="form-label">Template</label>
+                <select class="form-select" id="aiTemplate" onchange="updateTemplateDescription()">
+                    <option value="optimize">Optimize Prompts</option>
+                    <option value="summarize">Summarize Conversation</option>
+                    <option value="expand">Expand and Elaborate</option>
+                    <option value="refine">Refine and Polish</option>
+                    <option value="extract">Extract Key Points</option>
+                </select>
+                <div id="templateDescription" style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Optimize AI prompts for clarity and effectiveness</div>
+            </div>
+            <div class="form-group" style="flex: 0 0 auto; max-height: 200px;">
                 <label class="form-label">Combined Text</label>
                 <div class="optimizer-preview" id="optimizerPreview"></div>
             </div>
             <div class="form-group" style="flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; padding: 16px 0 0;">
                 <label class="form-label">Optimized Result</label>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <input type="checkbox" id="autoScrollCheckbox" checked aria-label="Auto-scroll to bottom during AI streaming">
+                    <label for="autoScrollCheckbox" style="font-size: 13px; color: var(--text-secondary); user-select: none; cursor: pointer;">Auto-scroll</label>
+                </div>
                 <div class="optimizer-preview" id="optimizerResult" style="height: 100%;">
                     <div style="color: var(--text-muted); text-align: center; padding: 40px;">
                         Click "Optimize" to combine your notes
@@ -1666,8 +2519,8 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
                 </div>
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="optimizePrompts()">Optimize</button>
-                <button class="btn" onclick="copyOptimizedResult()" id="copyOptimizedBtn" style="display: none;">Copy Result</button>
+                <button class="btn primary" onclick="optimizePrompts()" aria-label="Optimize prompts using AI" title="Optimize (Enter)">Optimize</button>
+                <button class="btn" onclick="copyOptimizedResult()" id="copyOptimizedBtn" style="display: none;" aria-label="Copy optimized result to clipboard" title="Copy result (Ctrl+C)">Copy Result</button>
             </div>
         </div>
     </div>
@@ -1675,19 +2528,52 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
     <div class="modal" id="agentsContentModal">
         <div class="modal-content agents-modal-content">
             <div class="modal-header">
-                AGENTS.md Content
-                <button class="close-btn" onclick="hideModal('agentsContentModal')">&times;</button>
+                <h2>AGENTS.md Content</h2>
+                <button class="close-btn" onclick="hideModal('agentsContentModal')" aria-label="Close AGENTS.md viewer" title="Close (Escape)">&times;</button>
             </div>
-            <div class="agents-preview" id="agentsPreview">
+            <div class="agents-preview" id="agentsPreview" role="region" aria-label="AGENTS.md documentation content">
                 <div style="color: var(--text-muted); text-align: center; padding: 40px;">Loading...</div>
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="copyAgentsContent()">Copy to Clipboard</button>
+                <button class="btn primary" onclick="copyAgentsContent()" aria-label="Copy AGENTS.md to clipboard" title="Copy to clipboard (Ctrl+C)">Copy to Clipboard</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="combineModal">
+        <div class="modal-content combine-modal-content" style="width: 900px; max-height: 95vh;">
+            <div class="modal-header">
+                <h2>Combine Messages</h2>
+                <button class="close-btn" onclick="hideModal('combineModal')" aria-label="Close combine dialog" title="Close (Escape)">&times;</button>
+            </div>
+            <div class="combine-container">
+                <div class="combine-list-sidebar">
+                    <div class="combine-sort-controls">
+                        <button class="btn" id="sortTimeBtn" onclick="toggleSortCombineTime()" aria-label="Toggle sort order" title="Toggle Sort Order (⬆️/⬇️)">
+                            <span id="sortTimeIcon">⬇️</span> Sort by Time
+                        </button>
+                    </div>
+                    <div class="combine-list" id="combineList" role="list" aria-label="Messages to combine"></div>
+                </div>
+                <div class="combined-preview" id="combinedPreview" role="region" aria-label="Combined message preview"></div>
+            </div>
+            <div class="combine-actions">
+                <button class="btn primary" onclick="optimizeCombinedPrompts()" aria-label="Combine with AI" title="Combine with AI (Summarize/Optimize)">⚡ AI Optimize</button>
+                <button class="btn" onclick="copyCombined()" aria-label="Copy combined text to clipboard" title="Copy combined text (Ctrl+C)">📋 Copy Combined</button>
+                <button class="btn" onclick="hideModal('combineModal')" aria-label="Close combine dialog" title="Close">Close</button>
             </div>
         </div>
     </div>
 
     <script src="/static/marked.min.js"></script>
+    <script src="/static/theme-engine.js"></script>
+    <script src="/static/command-palette.js"></script>
+    <script src="/static/optimistic-ui.js"></script>
+    <script src="/static/undo-redo.js"></script>
+    <script src="/static/ai-workflow.js"></script>
     <script src="/static/app.js"></script>
+
+    <div id="notification" class="notification" role="alert" aria-live="polite"></div>
+
 </body>
 </html>

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://opencode.gg/oc-message-explorer/theme-manifest.schema.json",
+  "name": "GitHub Dark",
+  "id": "github-dark",
+  "version": "1.0.0",
+  "author": "OpenCode Team",
+  "description": "GitHub dark mode-inspired theme with familiar colors",
+  "type": "dark",
+  "extends": "base",
+  "preview": "github-dark.png",
+  "cssVariables": {
+    "bg-primary": "#0d1117",
+    "bg-secondary": "#161b22",
+    "bg-tertiary": "#21262d",
+    "bg-hover": "#30363d",
+    "text-primary": "#e6edf3",
+    "text-secondary": "#8b949e",
+    "text-muted": "#6e7681",
+    "accent": "#58a6ff",
+    "accent-hover": "#79c0ff",
+    "border": "#30363d",
+    "success": "#238636",
+    "danger": "#da3633",
+    "warning": "#d29922"
+  },
+  "ui": {
+    "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif",
+    "borderRadius": "6px",
+    "transitionDuration": "0.15s"
+  }
+}

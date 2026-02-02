@@ -19,47 +19,166 @@ let displayModeRaw = true;
 let hideEmptyResponses = true;
 let viewportObserver = null;
 let loadingViewportNodes = new Set();
+const DELETED_FOLDERS_MAP = {};
+
 
 
 function init() {
+    console.log('[INIT] Starting initialization...');
+
+    if (window.themeEngine && typeof window.themeEngine.init === 'function') {
+        window.themeEngine.init();
+        console.log('[INIT] Theme engine initialized');
+    } else {
+        console.error('[ERROR] theme-engine.js not loaded or window.themeEngine not available');
+    }
+
+    initThemeSelector();
+    console.log('[INIT] Theme selector initialized');
     setupColorPicker();
+    console.log('[INIT] Color picker setup');
     setupDragAndDrop();
+    console.log('[INIT] Drag and drop setup');
     setupDateFilter();
+    console.log('[INIT] Date filter setup');
     setupCombineDragAndDrop();
+    console.log('[INIT] Combine drag and drop setup');
     loadSettings();
-    loadTodos();
+    console.log('[INIT] Settings loaded');
+    // loadTodos(); // Sidebar removed - todos no longer used
+    console.log('[INIT] Todos disabled (sidebar removed)');
     setupModelFilter();
+    console.log('[INIT] Model filter setup');
     setupEditorResize();
+    console.log('[INIT] Editor resize setup');
+    setupAIWorkflow();
+    console.log('[INIT] AI workflow setup');
+    setupMoreMenu();
+    console.log('[INIT] More menu setup');
+    setupSidebarState();
+    console.log('[INIT] Sidebar state setup');
+
+    syncFilterStates();
+    console.log('[INIT] Filter states synced');
+
     connectWebSocket();
+    console.log('[INIT] WebSocket initialized');
+
+    const searchBox = document.getElementById('searchBox');
+    if (searchBox) {
+        console.log('[INIT] Found searchBox, adding event listener');
+        searchBox.addEventListener('input', function() {
+            console.log('[SEARCH] Search box input event triggered');
+            filterMessages();
+        });
+    } else {
+        console.error('[ERROR] searchBox element not found during init');
+    }
+
+    console.log('[INIT] All initialization complete!');
 }
+
+function syncFilterStates() {
+    userOnlyFilter = document.getElementById('userOnlyFilter')?.checked || false;
+    sortAscending = document.getElementById('sortAscending')?.checked || false;
+    hideEmptyResponses = document.getElementById('hideEmptyResponses')?.checked || true;
+    searchModeRaw = document.getElementById('searchRawOnly')?.checked || false;
+    displayModeRaw = document.getElementById('displayRawMessages')?.checked || true;
+}
+
+function setupSidebarState() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    const header = document.querySelector('.app-header');
+    if (!header) return;
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'sidebarToggle';
+    toggleBtn.className = 'sidebar-toggle';
+    toggleBtn.onclick = toggleSidebar;
+    header.insertBefore(toggleBtn, header.firstChild);
+
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    if (isCollapsed) {
+        toggleBtn.textContent = '☰';
+        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
+    } else {
+        toggleBtn.textContent = '◀';
+        toggleBtn.setAttribute('aria-label', 'Hide sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    let toggleBtn = document.getElementById('sidebarToggle');
+
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+
+    if (!toggleBtn) {
+        const header = document.querySelector('.app-header');
+        if (!header) return;
+        toggleBtn = document.createElement('button');
+        toggleBtn.id = 'sidebarToggle';
+        toggleBtn.className = 'sidebar-toggle';
+        toggleBtn.onclick = toggleSidebar;
+        header.insertBefore(toggleBtn, header.firstChild);
+    }
+
+    if (isCollapsed) {
+        toggleBtn.textContent = '☰';
+        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
+    } else {
+        toggleBtn.textContent = '◀';
+        toggleBtn.setAttribute('aria-label', 'Hide sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
+    }
+
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+}
+
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+    }
+});
 
 function setupModelFilter() {
     const filterInput = document.getElementById('openaiModelFilter');
     filterInput.addEventListener('input', filterModelOptions);
 }
 
+function setupAIWorkflow() {
+    if (configManager && configManager.config) {
+        window.aiWorkflowManager.initialize(configManager.config);
+    }
+}
+
 function setupEditorResize() {
     const editorPanel = document.getElementById('editorPanel');
     if (!editorPanel) return;
 
-    const savedWidth = localStorage.getItem('editorPanelWidth');
-    if (savedWidth) {
-        editorPanel.style.width = savedWidth + 'px';
+    const savedHeight = localStorage.getItem('editorPanelHeight');
+    if (savedHeight) {
+        editorPanel.style.height = savedHeight + 'px';
     }
 
-    const resizeHandle = document.createElement('div');
-    resizeHandle.className = 'editor-resize-handle';
-    editorPanel.insertBefore(resizeHandle, editorPanel.firstChild);
+    const resizeHandle = document.getElementById('editorResizeHandle');
+    if (!resizeHandle) return;
 
     let isResizing = false;
-    let startX = 0;
-    let startWidth = 0;
+    let startY = 0;
+    let startHeight = 0;
 
     resizeHandle.addEventListener('mousedown', (e) => {
         isResizing = true;
-        startX = e.clientX;
-        startWidth = editorPanel.offsetWidth;
-        document.body.style.cursor = 'col-resize';
+        startY = e.clientY;
+        startHeight = editorPanel.offsetHeight;
+        document.body.style.cursor = 'row-resize';
         document.body.style.userSelect = 'none';
         e.preventDefault();
     });
@@ -67,10 +186,10 @@ function setupEditorResize() {
     document.addEventListener('mousemove', (e) => {
         if (!isResizing) return;
 
-        const delta = startX - e.clientX;
-        const newWidth = Math.max(300, Math.min(1200, startWidth + delta));
-        editorPanel.style.width = newWidth + 'px';
-        localStorage.setItem('editorPanelWidth', newWidth);
+        const delta = startY - e.clientY;
+        const newHeight = Math.max(300, Math.min(window.innerHeight * 0.8, startHeight + delta));
+        editorPanel.style.height = newHeight + 'px';
+        localStorage.setItem('editorPanelHeight', newHeight);
     });
 
     document.addEventListener('mouseup', () => {
@@ -88,8 +207,6 @@ function connectWebSocket() {
 
     ws.onopen = () => {
         console.log('WebSocket connected');
-        document.getElementById('loadingScreen').classList.add('hidden');
-        document.getElementById('mainContainer').style.display = 'flex';
     };
 
     ws.onmessage = (event) => {
@@ -97,10 +214,14 @@ function connectWebSocket() {
         if (message.type === 'init' || message.type === 'update') {
             folders = message.data;
             updateAllMessages();
-            renderFolders();
+            // renderFolders(); // Sidebar removed - folders no longer displayed
             renderTree();
             updateGraph();
             updateTagCloud();
+
+            if (message.type === 'init') {
+                hideLoadingScreen();
+            }
         } else if (message.type === 'progress') {
             handleProgress(message.data);
         }
@@ -130,6 +251,10 @@ function updateAllMessages() {
 
 function renderFolders() {
     const list = document.getElementById('folderList');
+    if (!list) {
+        console.log('[FOLDERS] folderList not found (sidebar removed)');
+        return;
+    }
     list.innerHTML = `
         <li class="folder-item ${currentFolderId === 'all' ? 'active' : ''}" data-folder="all" onclick="selectFolder('all')">
             <div class="folder-name">All Messages</div>
@@ -157,7 +282,7 @@ function renderFolders() {
 
 function selectFolder(id) {
     currentFolderId = id;
-    renderFolders();
+    // renderFolders(); // Sidebar removed - folders no longer displayed
     renderTree();
     updateGraph();
     updateTagCloud();
@@ -182,15 +307,15 @@ function updateTagCloud() {
 
     const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
 
-    let html = `<div class="tag-cloud-item ${selectedTags.length === 0 ? 'active' : ''}" onclick="clearTagFilter()">Clear All</div>`;
+    let html = `<button class="tag-cloud-item ${selectedTags.length === 0 ? 'active' : ''}" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>`;
 
     sortedTags.forEach(([tag, count]) => {
         const isActive = selectedTags.includes(tag);
         html += `
-            <div class="tag-cloud-item ${isActive ? 'active' : ''}" onclick="toggleTagFilter('${escapeHtml(tag)}')">
+            <button class="tag-cloud-item ${isActive ? 'active' : ''}" onclick="toggleTagFilter('${escapeHtml(tag)}')" role="menuitem" aria-label="Filter by tag: ${escapeHtml(tag)}" aria-pressed="${isActive}">
                 ${escapeHtml(tag)}
                 <span class="tag-count">${count}</span>
-            </div>
+            </button>
         `;
     });
 
@@ -322,32 +447,47 @@ function getMessagesToDisplay() {
 }
 
 function filterMessages() {
-    const query = document.getElementById('searchBox').value.trim();
+    console.log('[SEARCH] filterMessages called');
+    const searchBox = document.getElementById('searchBox');
+    if (!searchBox) {
+        console.error('[ERROR] searchBox element not found!');
+        return;
+    }
+    const query = searchBox.value.trim();
+    console.log('[SEARCH] Query:', query);
 
     clearTimeout(searchTimeout);
 
     searchTimeout = setTimeout(() => {
         searchQuery = query;
+        console.log('[SEARCH] Searching for:', query);
 
         if (query.length < 2) {
+            console.log('[SEARCH] Query too short, clearing results');
             searchResults = {};
             renderTree();
             return;
         }
 
+        console.log('[SEARCH] Sending search request to server');
         fetch('/api/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query, searchRaw: searchModeRaw })
+            body: JSON.stringify({ query })
         })
         .then(res => res.json())
         .then(results => {
-            searchResults = results || {};
-            expandSearchResults(results);
+            console.log('[SEARCH] Got results:', Object.keys(results || {}).length);
+            if (results) {
+                searchResults = results;
+                expandSearchResults(results);
+            } else {
+                searchResults = {};
+            }
             renderTree();
         })
         .catch(err => {
-            console.error('Search error:', err);
+            console.error('[SEARCH] Search error:', err);
             renderTree();
         });
     }, 300);
@@ -387,7 +527,12 @@ function expandSearchResults(results) {
 }
 
 function renderTree() {
+    console.log('[RENDER] renderTree called, searchQuery:', searchQuery, 'length:', searchQuery?.length);
     const container = document.getElementById('treeContainer');
+    if (!container) {
+        console.error('[RENDER] treeContainer not found!');
+        return;
+    }
     let messages;
 
     if (searchQuery && searchQuery.length >= 2) {
@@ -503,26 +648,36 @@ function createNodeElement(node, messages, isRoot = false) {
     const folderInfo = getFolderInfo(node.id);
 
     div.innerHTML = `
-        <div class="node-content ${node.type}-node ${node.selected ? 'selected' : ''}" data-node-id="${node.id}">
-            <span class="expand-icon">${expandIcon}</span>
+        <div class="node-content ${node.type}-node ${node.selected ? 'selected' : ''}"
+             role="treeitem"
+             aria-expanded="${node.expanded}"
+             aria-selected="${node.selected}"
+             aria-level="${node.parentId ? 2 : 1}"
+             data-node-id="${node.id}"
+             ondblclick="toggleEditNode('${node.id}')">
+            ${hasVisibleChildren ? `<button class="expand-icon" aria-label="${node.expanded ? 'Collapse' : 'Expand'}" aria-expanded="${node.expanded}">${expandIcon}</button>` : '<span class="expand-spacer"></span>'}
             <span class="checkbox-wrapper">
-                <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''}>
+                <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''} aria-label="Select message for combination">
             </span>
-            <div class="edit-area edit-btn-${node.id}" title="Edit message">✏️</div>
-            <span class="node-type ${node.type}">${node.type}</span>
-            <span class="lock-icon ${node.locked ? 'locked' : 'unlocked'}" title="${node.locked ? 'Click to unlock' : 'Click to lock'}">${node.locked ? '🔒' : '🔓'}</span>
+            <span class="node-type ${node.type}" role="presentation">${node.type}</span>
             <div class="node-content-wrapper">
                 <div class="node-header">
                     <span class="node-text">${escapeHtml(displayContent)}</span>
                 </div>
                 <div class="node-meta">
                     ${folderInfo ? `<div class="node-folder"><span class="folder-color" style="background: ${folderInfo.color}"></span>${escapeHtml(folderInfo.name)}</div>` : ''}
-                    <span class="node-timestamp">${timestamp}</span>
-                    ${hasChildren ? `<span style="color: var(--text-muted); font-size: 12px; margin-left: 8px;">${node.children.length} child(ren)</span>` : ''}
+                    <span class="node-timestamp" aria-label="Timestamp: ${timestamp}">${timestamp}</span>
+                    ${hasChildren ? `<span style="color: var(--text-secondary); font-size: 12px; margin-left: 8px;" aria-label="${node.children.length} child message${node.children.length > 1 ? 's' : ''}">${node.children.length} child(ren)</span>` : ''}
+                </div>
+            </div>
+            <div class="node-actions">
+                <div class="node-action-group">
+                    <button class="node-action-btn edit-action-btn-${node.id}" title="Edit message" aria-label="Edit message">✏️</button>
+                    <button class="node-action-btn lock-icon-${node.locked ? 'locked' : 'unlocked'}" title="${node.locked ? 'Click to unlock' : 'Click to lock'}" aria-pressed="${node.locked}" aria-label="${node.locked ? 'Unlock message' : 'Lock message'}">${node.locked ? '🔒' : '🔓'}</button>
                 </div>
             </div>
         </div>
-        <div class="children-container" style="display: ${hasVisibleChildren && node.expanded ? 'block' : 'none'};"></div>
+        <div class="children-container" role="group" aria-label="Child messages" style="display: ${hasVisibleChildren && node.expanded ? 'block' : 'none'};"></div>
     `;
 
 
@@ -530,58 +685,119 @@ function createNodeElement(node, messages, isRoot = false) {
     const expandIconEl = div.querySelector('.expand-icon');
     const checkbox = div.querySelector('.node-checkbox');
     const checkboxWrapper = div.querySelector('.checkbox-wrapper');
-    const editIcon = div.querySelector('.edit-area');
+    const editIcon = div.querySelector(`.edit-${node.id}`);
     const lockIcon = div.querySelector('.lock-icon');
     const childrenContainer = div.querySelector('.children-container');
     const contentWrapper = div.querySelector('.node-content-wrapper');
+    const nodeActions = div.querySelector('.node-actions');
+    const groupedActions = div.querySelector('.node-action-group');
 
     contentDiv.onclick = (e) => {
-        if (e.target !== checkbox && e.target !== checkboxWrapper && e.target !== expandIconEl && e.target !== editIcon && e.target !== lockIcon) {
-            const editorPanel = document.getElementById('editorPanel');
-            if (editorPanel && editorPanel.style.display === 'flex') {
-                openEditor(node.id);
-            }
+        console.log('[CLICK] Node content clicked for node:', node.id, 'target:', e.target.tagName, 'target.className:', e.target.className);
+        if (e.target === checkbox ||
+            e.target === checkboxWrapper ||
+            e.target === expandIconEl ||
+            groupedActions?.contains(e.target) ||
+            contentDiv.contains(e.target) && nodeActions?.contains(e.target)) {
+            console.log('[CLICK] Node click ignored - click on child element');
+            return;
+        }
+        const editorPanel = document.getElementById('editorPanel');
+        if (editorPanel && editorPanel.style.display === 'flex') {
+            console.log('[CLICK] Opening editor for node:', node.id);
+            openEditor(node.id);
         }
     };
 
-    editIcon.onclick = (e) => {
-        e.stopPropagation();
-        openEditor(node.id);
-    };
+    const editBtn = div.querySelector(`.edit-action-btn-${node.id}`);
+    if (editBtn) {
+        editBtn.onclick = (e) => {
+            console.log('[CLICK] Edit button clicked for node:', node.id);
+            e.stopPropagation();
+            openEditor(node.id);
+        };
+    }
 
-    lockIcon.onclick = (e) => {
-        e.stopPropagation();
-        toggleLock(node.id);
-    };
+    const lockBtn = div.querySelector(`.lock-icon-${node.locked ? 'locked' : 'unlocked'}`);
+    if (lockBtn) {
+        lockBtn.onclick = (e) => {
+            console.log('[CLICK] Lock button clicked for node:', node.id);
+            e.stopPropagation();
+            toggleLock(node.id);
+        };
+    }
 
-    expandIconEl.onclick = (e) => {
-        e.stopPropagation();
-        toggleExpand(node.id);
-        renderTree();
-    };
+    if (expandIconEl) {
+        expandIconEl.onclick = (e) => {
+            console.log('[CLICK] Expand icon clicked for node:', node.id);
+            e.stopPropagation();
+            toggleExpand(node.id);
+            renderTree();
+        };
+    }
 
     checkbox.onclick = (e) => {
+        console.log('[CLICK] Checkbox clicked for node:', node.id, 'checked:', checkbox.checked);
         e.stopPropagation();
-        e.preventDefault();
+
         const isChecked = checkbox.checked;
-        node.selected = isChecked;
-        contentDiv.classList.toggle('selected', isChecked);
-        
-        for (const folderId in folders) {
-            if (folders[folderId].nodes[node.id]) {
-                folders[folderId].nodes[node.id] = node;
-                break;
+        const originalSelected = node.selected;
+
+        const action = {
+            description: isChecked ? 'Select message' : 'Deselect message',
+            execute: async () => {
+                console.log('[CHECKBOX] Executing selection:', isChecked, 'for node:', node.id);
+                node.selected = isChecked;
+
+                for (const folderId in folders) {
+                    if (folders[folderId].nodes[node.id]) {
+                        folders[folderId].nodes[node.id] = node;
+                        break;
+                    }
+                }
+                allMessages[node.id] = node;
+                updateGraph();
+
+                const response = await fetch(`/api/messages/${node.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(node)
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to update selection');
+                }
+                console.log('[CHECKBOX] Selection saved to server');
+            },
+            undo: async () => {
+                console.log('[CHECKBOX] Undoing selection for node:', node.id);
+                node.selected = originalSelected;
+
+                for (const folderId in folders) {
+                    if (folders[folderId].nodes[node.id]) {
+                        folders[folderId].nodes[node.id] = node;
+                        break;
+                    }
+                }
+                allMessages[node.id] = node;
+                updateGraph();
+
+                await fetch(`/api/messages/${node.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(node)
+                });
             }
-        }
-        allMessages[node.id] = node;
-        
-        fetch(`/api/messages/${node.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(node)
-        }).catch(err => console.error('Failed to save selection:', err));
-        
+        };
+
+        undoRedoManager.pushAction(action);
+
+        action.execute().catch(err => {
+            console.error('[CHECKBOX] Failed to execute:', err);
+            showNotification('Failed to update selection');
+        });
+
         updateGraph();
+        console.log('[CHECKBOX] Handler complete for node:', node.id);
     };
 
     if (hasVisibleChildren && node.expanded) {
@@ -664,15 +880,23 @@ function setupViewportObserver() {
 
     const options = {
         root: document.getElementById('treeContainer'),
-        rootMargin: '300px 0px 300px 0px',
+        rootMargin: '500px 0px 500px 0px',
         threshold: 0.01
     };
 
     viewportObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             const nodeId = entry.target.dataset.nodeId;
-            if (entry.isIntersecting && !loadingViewportNodes.has(nodeId)) {
-                loadNodeContentForViewport(nodeId);
+            const node = allMessages[nodeId];
+            
+            if (entry.isIntersecting) {
+                if (node && !node.hasLoaded && !loadingViewportNodes.has(nodeId)) {
+                    loadNodeContentForViewport(nodeId);
+                }
+            } else {
+                if (node && node.hasLoaded && shouldUnloadNode(node)) {
+                    unloadNodeContentForViewport(nodeId);
+                }
             }
         });
     }, options);
@@ -688,18 +912,80 @@ function observeVisibleNodes() {
     });
 }
 
+function shouldUnloadNode(node) {
+    if (!node || !node.content) return false;
+    
+    const contentLength = node.content.length;
+    const isLargeContent = contentLength > 5000;
+    
+    return isLargeContent && !node.locked && !node.selected;
+}
+
+function unloadNodeContentForViewport(nodeId) {
+    const node = allMessages[nodeId];
+    if (!node || !node.content) return;
+    
+    const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
+    if (!nodeEl) return;
+    
+    const originalContent = node.content;
+    
+    if (displayModeRaw) {
+        const textEl = nodeEl.querySelector('.node-text');
+        if (textEl) {
+            textEl.innerHTML = createSkeletonLoader();
+            textEl.classList.add('loading');
+        }
+    }
+}
+
+function createSkeletonLoader() {
+    return `
+        <div class="skeleton skeleton-text long"></div>
+        <div class="skeleton skeleton-text medium"></div>
+        <div class="skeleton skeleton-text short"></div>
+    `;
+}
+
 function loadNodeContentForViewport(nodeId) {
+    const node = allMessages[nodeId];
+    if (!node || node.hasLoaded) return;
+
     loadingViewportNodes.add(nodeId);
-    loadNodeContent(nodeId).then(() => {
+
+    const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
+    if (nodeEl && displayModeRaw && (!node.content || node.content.length > 2000)) {
+        const textEl = nodeEl.querySelector('.node-text');
+        if (textEl) {
+            textEl.innerHTML = createSkeletonLoader();
+            textEl.classList.add('loading');
+        }
+    }
+
+    loadNodeContent(nodeId).then((updatedNode) => {
         loadingViewportNodes.delete(nodeId);
+        if (!updatedNode) {
+            console.warn('[LOADING] Content load returned null for node:', nodeId);
+            return;
+        }
         const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
-        if (nodeEl && displayModeRaw) {
-            const node = allMessages[nodeId];
-            if (node && node.content && node.content.trim() !== '') {
-                const textEl = nodeEl.querySelector('.node-text');
-                if (textEl) {
-                    textEl.textContent = truncateContent(node.content, node.summary);
+        if (nodeEl) {
+            const textEl = nodeEl.querySelector('.node-text');
+            if (textEl) {
+                textEl.classList.remove('loading');
+                if (displayModeRaw && nodeEl) {
+                    textEl.textContent = truncateContent(updatedNode.content, updatedNode.summary);
                 }
+            }
+        }
+    }).catch(err => {
+        loadingViewportNodes.delete(nodeId);
+        console.error('[LOADING] Failed to load node content:', nodeId, err);
+        const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
+        if (nodeEl) {
+            const textEl = nodeEl.querySelector('.node-text');
+            if (textEl) {
+                textEl.classList.remove('loading');
             }
         }
     });
@@ -865,10 +1151,44 @@ function openEditor(nodeId) {
     });
 }
 
+function toggleEditNode(nodeId) {
+    if (currentEditingNodeId === nodeId) {
+        closeEditor();
+    } else {
+        openEditor(nodeId);
+    }
+}
+
 function closeEditor() {
     currentEditingNodeId = null;
     document.getElementById('editorPanel').style.display = 'none';
     document.querySelectorAll('.edit-area').forEach(btn => btn.classList.remove('active'));
+}
+
+function confirmSaveNode() {
+    if (!currentEditingNodeId) return;
+
+    const confirmed = confirm('Are you sure you want to save the changes to this message?\n\nYes - Save changes\nNo - Cancel');
+
+    if (confirmed) {
+        console.log('[EDITOR] Save confirmed by user');
+        saveNode();
+    } else {
+        console.log('[EDITOR] Save cancelled by user');
+    }
+}
+
+function confirmDeleteNode() {
+    if (!currentEditingNodeId) return;
+
+    const confirmed = confirm('Are you sure you want to DELETE this message?\n\nYes - Delete message\nNo - Cancel');
+
+    if (confirmed) {
+        console.log('[EDITOR] Delete confirmed by user');
+        deleteNode();
+    } else {
+        console.log('[EDITOR] Delete cancelled by user');
+    }
 }
 
 function saveNode() {
@@ -877,6 +1197,7 @@ function saveNode() {
     const node = allMessages[currentEditingNodeId];
     if (!node) return;
 
+    const originalNode = { ...node };
     const updatedNode = {
         ...node,
         type: document.getElementById('nodeType').value,
@@ -885,18 +1206,51 @@ function saveNode() {
         tags: document.getElementById('nodeTags').value.split(',').map(t => t.trim()).filter(t => t)
     };
 
-    fetch(`/api/messages/${currentEditingNodeId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedNode)
-    })
-    .then(res => res.json())
-    .then(() => {
-        showNotification('Message saved');
-        closeEditor();
-    })
-    .catch(err => {
-        console.error('Failed to save node:', err);
+    const action = {
+        description: 'Edit message',
+        execute: async () => {
+            console.log('[EDIT] Saving message:', currentEditingNodeId);
+            for (const folderId in folders) {
+                if (folders[folderId].nodes[currentEditingNodeId]) {
+                    folders[folderId].nodes[currentEditingNodeId] = { ...updatedNode };
+                    break;
+                }
+            }
+            allMessages[currentEditingNodeId] = { ...updatedNode };
+
+            await fetch(`/api/messages/${currentEditingNodeId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedNode)
+            });
+
+            showNotification('Message saved');
+            closeEditor();
+            console.log('[EDIT] Message saved successfully');
+        },
+        undo: async () => {
+            console.log('[EDIT] Undoing edit for:', currentEditingNodeId);
+            for (const folderId in folders) {
+                if (folders[folderId].nodes[currentEditingNodeId]) {
+                    folders[folderId].nodes[currentEditingNodeId] = { ...originalNode };
+                    break;
+                }
+            }
+            allMessages[currentEditingNodeId] = { ...originalNode };
+
+            await fetch(`/api/messages/${currentEditingNodeId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(originalNode)
+            });
+
+            renderTree();
+        }
+    };
+
+    undoRedoManager.pushAction(action);
+    action.execute().catch(err => {
+        console.error('[EDIT] Failed to save message:', err);
         showNotification('Failed to save message');
     });
 }
@@ -904,43 +1258,178 @@ function saveNode() {
 function deleteNode() {
     if (!currentEditingNodeId) return;
 
-    if (!confirm('Delete this message?')) return;
+    const nodeId = currentEditingNodeId;
+    const deletedNode = { ...allMessages[nodeId] };
+    const targetFolderId = Object.keys(folders).find(folderId => folders[folderId].nodes[nodeId]);
 
-    fetch(`/api/messages/${currentEditingNodeId}`, {
-        method: 'DELETE'
-    })
-    .then(() => {
-        showNotification('Message deleted');
-        closeEditor();
-    })
-    .catch(err => {
-        console.error('Failed to delete node:', err);
+    const action = {
+        description: 'Delete message',
+        execute: async () => {
+            console.log('[DELETE] Deleting message:', nodeId);
+            await fetch(`/api/messages/${nodeId}`, {
+                method: 'DELETE'
+            });
+
+            for (const folderId in folders) {
+                if (folders[folderId].nodes[nodeId]) {
+                    delete folders[folderId].nodes[nodeId];
+                    break;
+                }
+            }
+            delete allMessages[nodeId];
+
+            renderTree();
+            showNotification('Message deleted');
+            closeEditor();
+            console.log('[DELETE] Message deleted successfully');
+        },
+        undo: async () => {
+            console.log('[DELETE] Restoring message:', nodeId);
+            if (nodeFolderId) {
+                folders[nodeFolderId].nodes[nodeId] = deletedNode;
+            }
+            allMessages[nodeId] = deletedNode;
+
+            await fetch('/api/messages/restore', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folderId: targetFolderId, node: deletedNode })
+            }).catch(err => console.error('Failed to restore message:', err));
+
+            renderTree();
+            showNotification('Message restored');
+        }
+    };
+
+    undoRedoManager.pushAction(action);
+    action.execute().catch(err => {
+        console.error('[DELETE] Failed to delete message:', err);
         showNotification('Failed to delete message');
     });
 }
 
 function expandAll() {
-    Object.values(allMessages).forEach(node => {
+    console.log('[CLICK] Expand All clicked');
+    const originalStates = Object.entries(allMessages).reduce((acc, [id, node]) => {
         if (node.children && node.children.length > 0) {
-            node.expanded = true;
+            acc[id] = node.expanded;
         }
+        return acc;
+    }, {});
+
+    const action = {
+        description: 'Expand all messages',
+        execute: async () => {
+            console.log('[EXPAND] Expanding all messages');
+            Object.values(allMessages).forEach(node => {
+                if (node.children && node.children.length > 0) {
+                    node.expanded = true;
+                }
+            });
+            renderTree();
+            showNotification('All messages expanded');
+        },
+        undo: async () => {
+            console.log('[EXPAND] Undoing expand all');
+            Object.entries(originalStates).forEach(([id, wasExpanded]) => {
+                if (allMessages[id]) {
+                    allMessages[id].expanded = wasExpanded;
+                }
+            });
+            renderTree();
+            showNotification('Expand all undone');
+        }
+    };
+
+    undoRedoManager.pushAction(action);
+    action.execute().catch(err => {
+        console.error('[EXPAND] Failed to expand all:', err);
+        showNotification('Failed to expand all');
     });
-    renderTree();
 }
 
 function collapseAll() {
-    Object.values(allMessages).forEach(node => {
-        node.expanded = false;
+    console.log('[CLICK] Collapse All clicked');
+    const originalStates = Object.entries(allMessages).reduce((acc, [id, node]) => {
+        if (node.children && node.children.length > 0) {
+            acc[id] = node.expanded;
+        }
+        return acc;
+    }, {});
+
+    const action = {
+        description: 'Collapse all messages',
+        execute: async () => {
+            console.log('[COLLAPSE] Collapsing all messages');
+            Object.values(allMessages).forEach(node => {
+                node.expanded = false;
+            });
+            renderTree();
+            showNotification('All messages collapsed');
+        },
+        undo: async () => {
+            console.log('[COLLAPSE] Undoing collapse all');
+            Object.entries(originalStates).forEach(([id, wasExpanded]) => {
+                if (allMessages[id]) {
+                    allMessages[id].expanded = wasExpanded;
+                }
+            });
+            renderTree();
+            showNotification('Collapse all undone');
+        }
+    };
+
+    undoRedoManager.pushAction(action);
+    action.execute().catch(err => {
+        console.error('[COLLAPSE] Failed to collapse all:', err);
+        showNotification('Failed to collapse all');
     });
-    renderTree();
 }
 
 function unselectAll() {
-    Object.values(allMessages).forEach(node => {
-        node.selected = false;
+    console.log('[CLICK] Unselect All clicked');
+    const originalSelected = Object.entries(allMessages).reduce((acc, [id, node]) => {
+        if (node.selected) {
+            acc[id] = true;
+        }
+        return acc;
+    }, {});
+
+    const action = {
+        description: 'Unselect all messages',
+        execute: async () => {
+            console.log('[UNSELECT] Unselecting all messages');
+            Object.values(allMessages).forEach(node => {
+                node.selected = false;
+                const folderId = Object.keys(folders).find(fid => folders[fid].nodes[node.id]);
+                if (folderId) {
+                    folders[folderId].nodes[node.id].selected = false;
+                }
+            });
+            renderTree();
+            showNotification('All messages unchecked');
+        },
+        undo: async () => {
+            console.log('[UNSELECT] Undoing unselect all');
+            Object.entries(originalSelected).forEach(([id]) => {
+                if (allMessages[id]) {
+                    allMessages[id].selected = true;
+                    const folderId = Object.keys(folders).find(fid => folders[fid].nodes[id]);
+                    if (folderId) {
+                        folders[folderId].nodes[id].selected = true;
+                    }
+                }
+            });
+            renderTree();
+            showNotification('Unselect all undone');
+        }
+    };
+
+    undoRedoManager.pushAction(action);
+    action.execute().catch(err => {
+        console.error('[UNSELECT] Failed to unselect all:', err);
+        showNotification('Failed to unselect all');
     });
-    renderTree();
-    showNotification('All messages unchecked');
 }
 
 function showNewFolderModal() {
@@ -1046,28 +1535,36 @@ function createMessage() {
 }
 
 function copySelected() {
+    console.log('[CLICK] Copy button clicked');
     const messages = getMessagesToDisplay();
     const selectedIds = Object.values(messages).filter(m => m.selected).map(m => m.id);
+    console.log('[COPY] Selected IDs:', selectedIds);
 
     if (selectedIds.length === 0) {
+        console.log('[COPY] No messages selected');
         showNotification('No messages selected');
         return;
     }
 
     const combined = selectedIds.map(id => messages[id].content).join('\n\n');
+    console.log('[COPY] Copying', selectedIds.length, 'messages');
 
     navigator.clipboard.writeText(combined).then(() => {
+        console.log('[COPY] Successfully copied to clipboard');
         showNotification(`Copied ${selectedIds.length} message(s)`);
     }).catch(err => {
-        console.error('Failed to copy:', err);
+        console.error('[COPY] Failed to copy:', err);
         showNotification('Failed to copy messages');
     });
 }
 
 function showCombineModal() {
+    console.log('[CLICK] Combine button clicked');
     const selected = Object.values(allMessages).filter(m => m.selected);
+    console.log('[COMBINE] Selected messages:', selected.length);
 
     if (selected.length === 0) {
+        console.log('[COMBINE] No messages selected');
         showNotification('No messages selected');
         return;
     }
@@ -1076,25 +1573,49 @@ function showCombineModal() {
     renderCombineList();
     updateCombinedPreview();
     document.getElementById('combineModal').classList.add('active');
+    console.log('[COMBINE] Combine modal shown');
 }
+
+
 
 function renderCombineList() {
     const container = document.getElementById('combineList');
+    if (!container) {
+        console.error('[ERROR] combineList element not found');
+        return;
+    }
     container.innerHTML = '';
 
     combineOrder.forEach((node, index) => {
         const div = document.createElement('div');
         div.className = 'combine-item';
         div.dataset.index = index;
+        div.dataset.nodeId = node.id;
         div.draggable = true;
+
+        const textToShow = node.content || node.summary || '(No content)';
+        const previewText = textToShow ? escapeHtml(textToShow.substring(0, 150)) : '(No content)';
+        const showTimestamp = node.timestamp ? new Date(node.timestamp).toLocaleString() : '';
+
         div.innerHTML = `
             <div class="combine-item-drag">⋮⋮</div>
             <div class="combine-item-content">
-                <span class="combine-item-type ${node.type}">${node.type}</span>
-                <span class="combine-item-text">${escapeHtml(node.content.substring(0, 100))}${node.content.length > 100 ? '...' : ''}</span>
+                <div class="combine-item-header">
+                    <span class="combine-item-type ${node.type}">${node.type}</span>
+                    ${showTimestamp ? `<span class="combine-item-timestamp">📅 ${showTimestamp}</span>` : ''}
+                </div>
+                <div class="combine-item-text">${previewText}${textToShow.length > 150 ? '...' : ''}</div>
             </div>
-            <button class="combine-item-remove" onclick="removeFromCombine(${index})">×</button>
+            <button class="combine-item-remove" onclick="removeFromCombine(${index})" aria-label="Remove this message from combine">×</button>
         `;
+
+        div.onclick = (e) => {
+            if (e.target.closest('.combine-item-drag') || e.target.closest('.combine-item-remove')) {
+                return;
+            }
+            console.log('[COMBINE] Clicked combine item index:', index, 'nodeId:', node.id);
+            scrollToCombineItem(index);
+        };
 
         div.ondragstart = (e) => {
             combineDraggedIndex = index;
@@ -1139,59 +1660,76 @@ function removeFromCombine(index) {
     updateCombinedPreview();
 }
 
-function sortCombineByTime() {
+let combineSortAscending = false;
+
+function toggleSortCombineTime() {
+    console.log('[COMBINE] Toggle sort by time, current ascending:', combineSortAscending);
+    combineSortAscending = !combineSortAscending;
+
     combineOrder.sort((a, b) => {
         const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-        return dateA - dateB;
+        return combineSortAscending ? dateA - dateB : dateB - dateA;
     });
+
+    const icon = document.getElementById('sortTimeIcon');
+    if (icon) {
+        icon.textContent = combineSortAscending ? '⬆️' : '⬇️';
+    }
+
     renderCombineList();
     updateCombinedPreview();
+    console.log('[COMBINE] Sort complete, order:', combineSortAscending ? 'ascending' : 'descending');
 }
 
-function sortCombineByType() {
-    const typeOrder = { user: 1, prompt: 2, auto: 3, response: 4 };
-    combineOrder.sort((a, b) => {
-        const orderA = typeOrder[a.type] || 99;
-        const orderB = typeOrder[b.type] || 99;
-        return orderA - orderB;
-    });
-    renderCombineList();
-    updateCombinedPreview();
-}
+function scrollToCombineItem(index) {
+    const preview = document.getElementById('combinedPreview');
+    if (!preview) {
+        console.error('[ERROR] combinedPreview not found');
+        return;
+    }
 
-function sortCombineByFolder() {
-    combineOrder.sort((a, b) => {
-        const folderA = getFolderInfo(a.id);
-        const folderB = getFolderInfo(b.id);
-        const nameA = folderA ? folderA.name.toLowerCase() : '';
-        const nameB = folderB ? folderB.name.toLowerCase() : '';
-        return nameA.localeCompare(nameB);
-    });
-    renderCombineList();
-    updateCombinedPreview();
-}
+    const items = preview.querySelectorAll('h1, h2, h3, h4, h5, h6, p, div, span');
+    let found = false;
+    let scrollTarget = null;
 
-function sortCombineByType() {
-    const typeOrder = { user: 1, prompt: 2, response: 3 };
-    combineOrder.sort((a, b) => {
-        const orderA = typeOrder[a.type] || 99;
-        const orderB = typeOrder[b.type] || 99;
-        return orderA - orderB;
-    });
-    renderCombineList();
-    updateCombinedPreview();
+    for (let i = 0; i < items.length; i++) {
+        if (i === index * 2 + 1) {
+            scrollTarget = items[i];
+            break;
+        }
+    }
+
+    if (scrollTarget) {
+        scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        console.log('[COMBINE] Scrolled to item index:', index);
+    } else {
+        console.warn('[COMBINE] Could not find scroll target for index:', index);
+    }
 }
 
 function updateCombinedPreview() {
     const preview = document.getElementById('combinedPreview');
-    const combined = combineOrder.map(node => node.content).join('\n\n---\n\n');
+    if (!preview) {
+        console.error('[ERROR] combinedPreview not found');
+        return;
+    }
+
+    const combined = combineOrder.map((node, index) => {
+        const timestamp = node.timestamp ? `**Timestamp:** ${new Date(node.timestamp).toLocaleString()}\n\n` : '';
+        const type = `**Type:** ${node.type}\n\n`;
+        const content = node.content || node.summary || '(No content)';
+        const separator = index < combineOrder.length - 1 ? '\n\n---\n\n' : '';
+        return `<div class="combined-message-section" data-index="${index}">
+${timestamp}${type}${content}</div>${separator}`;
+    }).join('');
 
     if (window.marked) {
-        preview.innerHTML = window.marked.parse(combined);
+        preview.innerHTML = marked.parse(combined);
     } else {
-        preview.textContent = combined;
+        preview.innerHTML = combined;
     }
+    console.log('[COMBINE] Updated preview with', combineOrder.length, 'messages');
 }
 
 function copyCombined() {
@@ -1222,20 +1760,8 @@ function optimizeCombinedPrompts() {
 }
 
 function optimizePrompts() {
-    const apiKey = configManager.config.openAIAPIKey;
-    const baseUrl = configManager.config.openaiBaseUrl || 'https://api.openai.com/v1';
-    const model = document.getElementById('openaiModel').value || configManager.config.openaiModel;
+    const templateId = document.getElementById('aiTemplate')?.value || 'optimize';
     const combinedText = combineOrder.map(node => node.content).join('\n\n---\n\n');
-
-    if (!apiKey) {
-        showNotification('Please set OpenAI API key in settings');
-        return;
-    }
-
-    if (!model) {
-        showNotification('Please select a model');
-        return;
-    }
 
     if (combineOrder.length === 0) {
         showNotification('No messages to combine');
@@ -1250,84 +1776,145 @@ function optimizePrompts() {
         optimizeBtn.textContent = 'Optimizing...';
     }
 
+    let accumulatedContent = '';
+    let hasScrolledManually = false;
+    const autoScrollCheckbox = document.getElementById('autoScrollCheckbox');
+
+    // Auto-scroll state tracking
+    function shouldAutoScroll() {
+        return autoScrollCheckbox.checked && !hasScrolledManually;
+    }
+
+    function scrollToBottom() {
+        if (resultDiv && shouldAutoScroll()) {
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+        }
+    }
+
+    // Add scroll listener to detect manual scrolling
+    const handleScroll = () => {
+        const checkbox = document.getElementById('autoScrollCheckbox');
+        if (checkbox.checked) {
+            // Check if user is scrolled away from bottom
+            const isScrolledUp = resultDiv.scrollTop < resultDiv.scrollHeight - resultDiv.clientHeight - 50;
+            if (isScrolledUp && autoScrollCheckbox.checked) {
+                hasScrolledManually = true;
+            }
+        }
+    };
+
+    // Remove old listener and add new one
+    resultDiv.removeEventListener('scroll', handleScroll);
+    resultDiv.addEventListener('scroll', handleScroll);
+
+    // Handle auto-scroll checkbox change
+    autoScrollCheckbox.removeEventListener('change', null);
+
+    const checkboxContainer = autoScrollCheckbox.parentNode;
+    const handleCheckboxChange = (e) => {
+        if (e.target === autoScrollCheckbox && autoScrollCheckbox.checked) {
+            hasScrolledManually = false;
+            // Scroll to bottom immediately if checkbox is checked
+            setTimeout(scrollToBottom, 0);
+        }
+    };
+    checkboxContainer.removeEventListener('click', handleCheckboxChange);
+    checkboxContainer.addEventListener('click', handleCheckboxChange);
+
+    // Reset scroll state when optimization starts
+    hasScrolledManually = false;
+
     resultDiv.innerHTML = `
         <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;">
             <div style="font-size: 32px; margin-bottom: 16px; animation: spin 1s linear infinite;">🤖</div>
-            <div style="color: var(--text-secondary);">AI is combining your notes...</div>
-            <div style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">${combineOrder.length} message(s) to combine</div>
+            <div style="color: var(--text-secondary);">AI is processing...</div>
+            <div style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">${combineOrder.length} message(s)</div>
         </div>
     `;
 
     showNotification('Starting optimization...');
 
-    const apiUrl = baseUrl.endsWith('/') ? baseUrl + 'chat/completions' : baseUrl + '/chat/completions';
-
-    console.log('Calling optimization API with model:', model);
-    console.log('Combining', combineOrder.length, 'messages');
-
-    fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [
-                { role: 'system', content: 'You are a helpful assistant that combines and summarizes multiple notes into a clear, organized, and cohesive summary. Focus on extracting the key information and creating a unified document that flows well. Do not explain your process - just provide the combined summary.' },
-                { role: 'user', content: `Combine and summarize these notes:\n\n${combinedText}` }
-            ],
-            temperature: 0.7
-        })
-    })
-    .then(res => {
-        if (!res.ok) {
-            return res.text().then(text => {
-                console.error('API error response:', text);
-                if (res.status === 401) {
-                    throw new Error('Invalid API key');
-                } else if (res.status === 404) {
-                    throw new Error('Model not found - check model name and base URL');
-                } else if (res.status === 429) {
-                    throw new Error('Rate limit exceeded - try again later');
-                } else {
-                    throw new Error(`API error: ${res.status} - ${text}`);
-                }
-            });
-        }
-        return res.json();
-    })
-    .then(data => {
-        console.log('Optimization response:', data);
-
-        if (data.choices && data.choices[0]) {
-            const optimized = data.choices[0].message.content;
-
-            if (window.marked) {
-                resultDiv.innerHTML = `<div style="padding: 12px;">${window.marked.parse(optimized)}</div>`;
-            } else {
-                resultDiv.innerHTML = `<div style="padding: 12px;">${optimized}</div>`;
-            }
-
-            showNotification('✓ Notes combined successfully!');
-            document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
-        } else if (data.error) {
-            throw new Error(data.error.message || JSON.stringify(data.error));
+    window.aiWorkflowManager.stream(templateId, { prompt: combinedText }, {}, (chunk) => {
+        if (accumulatedContent === '') {
+            resultDiv.innerHTML = `<div style="padding: 12px; white-space: pre-wrap;">`;
+            accumulatedContent = chunk;
         } else {
-            throw new Error('No choices in API response');
+            accumulatedContent += chunk;
         }
+        
+        const contentEl = resultDiv.querySelector('div');
+        if (contentEl) {
+            contentEl.textContent = accumulatedContent;
+            scrollToBottom();
+        }
+    })
+    .then((result) => {
+        const { model, provider } = result;
+        const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+        const contentEl = resultDiv.querySelector('div') || resultDiv;
+        if (window.marked && accumulatedContent.includes('\n')) {
+            contentEl.innerHTML = `
+                <div style="padding: 12px;">
+                    ${window.marked.parse(accumulatedContent)}
+                </div>
+                <div style="padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted);">
+                    Generated by ${providerName} (${model})
+                </div>
+            `;
+        } else {
+            contentEl.innerHTML = `
+                <div style="padding: 12px;">
+                    ${accumulatedContent}
+                </div>
+                <div style="padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted);">
+                    Generated by ${providerName} (${model})
+                </div>
+            `;
+        }
+
+        showNotification(`✓ Optimization complete!`);
+        document.getElementById('copyOptimizedBtn').style.display = 'inline-block';
+
+        // Scroll to bottom after completion
+        setTimeout(scrollToBottom, 0);
     })
     .catch(err => {
         console.error('Optimization error:', err);
+
+        const errorText = err?.message || err?.toString() || 'Unknown error';
+
+        const errorHelp = errorText.includes('No AI provider configured') ||
+                          errorText.includes('No API key configured') ||
+                          errorText.includes('AI provider error')
+            ? '<div style="margin-top: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px; border-left: 3px solid var(--accent);">' +
+            '<div style="font-size: 13px; color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">How to fix:</div>' +
+            '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">' +
+            '1. Click the ⋮ <strong>Actions</strong> button in the toolbar<br>' +
+            '2. Click <strong>🤖 AI Configuration</strong> from the dropdown menu<br>' +
+            '3. Enter your OpenAI API key in the API Key field<br>' +
+            '4. Click <strong>Save to .env</strong><br>' +
+            '5. Try optimizing again' +
+            '</div></div>' : '';
+
         resultDiv.innerHTML = `
             <div style="color: var(--danger); text-align: center; padding: 40px;">
                 <div style="font-size: 32px; margin-bottom: 16px;">❌</div>
                 <div style="font-weight: 600; margin-bottom: 8px;">Optimization Failed</div>
-                <div style="color: var(--text-secondary); font-size: 14px;">${escapeHtml(err.message || err.toString())}</div>
-                <div style="color: var(--text-muted); font-size: 13px; margin-top: 16px;">Check your settings and try again</div>
+                <div style="color: var(--text-secondary); font-size: 14px; max-width: 400px; margin: 0 auto;">${escapeHtml(errorText)}</div>
+                ${errorHelp}
             </div>
         `;
-        showNotification(`✗ Optimization failed: ${err.message}`);
+        showNotification(`✗ Optimization failed: ${err.message || 'Unknown error'}`);
+
+        if (errorText.includes('No AI provider configured') || errorText.includes('No API key')) {
+            setTimeout(() => {
+                const moreBtn = document.getElementById('moreBtn');
+                if (moreBtn) {
+                    moreBtn.style.animation = 'pulse 2s ease-in-out 3';
+                }
+            }, 500);
+        }
     })
     .finally(() => {
         if (optimizeBtn) {
@@ -1335,6 +1922,16 @@ function optimizePrompts() {
             optimizeBtn.textContent = 'Optimize';
         }
     });
+}
+
+function updateTemplateDescription() {
+    const templateId = document.getElementById('aiTemplate').value;
+    const template = window.aiWorkflowManager.getTemplate(templateId);
+    const descEl = document.getElementById('templateDescription');
+    
+    if (template && descEl) {
+        descEl.textContent = template.description;
+    }
 }
 
 function copyOptimizedResult() {
@@ -1349,6 +1946,9 @@ function copyOptimizedResult() {
 
 function setupCombineDragAndDrop() {
     const container = document.getElementById('combineList');
+    if (!container) {
+        return;
+    }
 
     container.ondragover = (e) => {
         e.preventDefault();
@@ -1461,6 +2061,8 @@ function saveSettings() {
     const optimizationPrompt = document.getElementById('optimizationPrompt').value.trim();
     const projectPath = document.getElementById('projectPath').value.trim();
     const agentsPath = document.getElementById('agentsPath').value.trim();
+    const anthropicApiKey = document.getElementById('anthropicApiKey').value.trim();
+    const aiProvider = document.getElementById('aiProvider').value;
 
     const updates = {
         openAIAPIKey: apiKey,
@@ -1468,7 +2070,9 @@ function saveSettings() {
         openaiModel: model,
         optimizationPrompt: optimizationPrompt,
         projectPath: projectPath,
-        agentsPath: agentsPath
+        agentsPath: agentsPath,
+        anthropicAPIKey: anthropicApiKey,
+        aiProvider: aiProvider
     };
 
     const saveBtn = event?.target;
@@ -1477,11 +2081,7 @@ function saveSettings() {
         saveBtn.textContent = 'Saving...';
     }
 
-    if (apiKey) {
-        showNotification('Testing and saving...');
-    } else {
-        showNotification('Saving settings...');
-    }
+    showNotification('Saving settings...');
 
     fetch('/api/config', {
         method: 'PUT',
@@ -1491,12 +2091,8 @@ function saveSettings() {
     .then(res => res.json())
     .then(config => {
         configManager.config = config;
-        showNotification('✓ Settings saved to .env');
-
-        if (config.openAIAPIKey) {
-            document.getElementById('modelSelectGroup').style.display = 'block';
-            fetchModels(false);
-        }
+        window.aiWorkflowManager.initialize(config);
+        showNotification('✓ Settings saved');
 
         setTimeout(() => hideModal('settingsModal'), 500);
     })
@@ -1523,7 +2119,7 @@ function loadSettings() {
             document.getElementById('openaiModel').value = config.openaiModel || '';
             document.getElementById('optimizationPrompt').value = config.optimizationPrompt ||
                 `First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
-
+ 
 Then, combine these prompts into a single, task-oriented prompt that will direct you to:
 
 1. Verify the existence of the components described in the prompts within the project codebase
@@ -1538,6 +2134,8 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
 - Type safety and error handling`;
             document.getElementById('projectPath').value = config.projectPath || '';
             document.getElementById('agentsPath').value = config.agentsPath || '';
+            document.getElementById('anthropicApiKey').value = config.anthropicAPIKey || '';
+            document.getElementById('aiProvider').value = config.aiProvider || 'auto';
 
             if (config.openAIAPIKey) {
                 document.getElementById('modelSelectGroup').style.display = 'block';
@@ -1730,10 +2328,22 @@ function clearModelFilter() {
     filterModelOptions();
 }
 
-function showNotification(message) {
+function showNotification(message, type = 'default') {
     const notification = document.getElementById('notification');
+    if (!notification) {
+        console.error('[ERROR] notification element not found');
+        return;
+    }
     notification.textContent = message;
+    notification.className = ''; // Clear all classes
     notification.classList.add('show');
+
+    // Add type-specific styling
+    if (type === 'error') {
+        notification.classList.add('notification-error');
+    } else if (type === 'info') {
+        notification.classList.add('notification-info');
+    }
 
     setTimeout(() => {
         notification.classList.remove('show');
@@ -1877,7 +2487,11 @@ function loadTodos() {
 
 function renderTodos() {
     const container = document.getElementById('todoList');
-    
+    if (!container) {
+        console.log('[TODOS] todoList not found (sidebar removed)');
+        return;
+    }
+
     if (!configManager.todos || configManager.todos.length === 0) {
         container.innerHTML = `
             <div style="color: var(--text-muted); text-align: center; padding: 20px; font-size: 13px;">
@@ -1898,16 +2512,18 @@ function renderTodos() {
     let html = '';
     sorted.forEach(todo => {
         html += `
-            <div class="todo-item ${todo.completed ? 'completed' : ''}">
+             <div class="todo-item ${todo.completed ? 'completed' : ''}" role="listitem">
                 <input type="checkbox" class="todo-checkbox" 
-                    ${todo.completed ? 'checked' : ''} 
-                    onchange="toggleTodo('${todo.id}')">
+                    ${todo.completed ? 'checked' : ''}
+                    onchange="toggleTodo('${todo.id}')"
+                    aria-label="Complete todo: ${escapeHtml(todo.text)}"
+                    aria-checked="${todo.completed}">
                 <div class="todo-content">
                     <div class="todo-text" title="${escapeHtml(todo.text)}">${escapeHtml(todo.text)}</div>
-                    <span class="todo-priority ${todo.priority}">${todo.priority}</span>
+                    <span class="todo-priority ${todo.priority}" aria-label="Priority: ${todo.priority}">${todo.priority}</span>
                 </div>
                 <div class="todo-actions">
-                    <button class="todo-delete" onclick="deleteTodo('${todo.id}')" title="Delete">×</button>
+                    <button class="todo-delete" onclick="deleteTodo('${todo.id}')" aria-label="Delete todo" title="Delete">×</button>
                 </div>
             </div>
         `;
@@ -2015,11 +2631,64 @@ function copyAgentsContent() {
 }
 
 function toggleOptionsPanel() {
+    console.log('[CLICK] Filters button clicked');
     const panel = document.getElementById('optionsPanel');
+    if (!panel) {
+        console.error('[ERROR] optionsPanel element not found');
+        return;
+    }
+    const optionsToggleBtn = document.getElementById('optionsToggleBtn');
     if (panel.style.display === 'none') {
         panel.style.display = 'flex';
+        if (optionsToggleBtn) {
+            optionsToggleBtn.setAttribute('aria-expanded', 'true');
+            optionsToggleBtn.classList.add('active');
+        }
+        document.getElementById('tagsPanel').style.display = 'none';
+        const tagsToggleBtn = document.getElementById('tagsToggleBtn');
+        if (tagsToggleBtn) {
+            tagsToggleBtn.setAttribute('aria-expanded', 'false');
+            tagsToggleBtn.classList.remove('active');
+        }
+        console.log('[FILTERS] Panel shown');
     } else {
         panel.style.display = 'none';
+        if (optionsToggleBtn) {
+            optionsToggleBtn.setAttribute('aria-expanded', 'false');
+            optionsToggleBtn.classList.remove('active');
+        }
+        console.log('[FILTERS] Panel hidden');
+    }
+}
+
+function toggleTagsPanel() {
+    console.log('[CLICK] Tags button clicked');
+    const panel = document.getElementById('tagsPanel');
+    if (!panel) {
+        console.error('[ERROR] tagsPanel element not found');
+        return;
+    }
+    const tagsToggleBtn = document.getElementById('tagsToggleBtn');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'flex';
+        if (tagsToggleBtn) {
+            tagsToggleBtn.setAttribute('aria-expanded', 'true');
+            tagsToggleBtn.classList.add('active');
+        }
+        document.getElementById('optionsPanel').style.display = 'none';
+        const optionsToggleBtn = document.getElementById('optionsToggleBtn');
+        if (optionsToggleBtn) {
+            optionsToggleBtn.setAttribute('aria-expanded', 'false');
+            optionsToggleBtn.classList.remove('active');
+        }
+        console.log('[TAGS] Panel shown');
+    } else {
+        panel.style.display = 'none';
+        if (tagsToggleBtn) {
+            tagsToggleBtn.setAttribute('aria-expanded', 'false');
+            tagsToggleBtn.classList.remove('active');
+        }
+        console.log('[TAGS] Panel hidden');
     }
 }
 
@@ -2060,20 +2729,22 @@ function cancelSync() {
 }
 
 function toggleLock(nodeId) {
+    console.log('[CLICK] Toggle lock for node:', nodeId);
     const node = allMessages[nodeId];
-    if (!node) return;
+    if (!node) {
+        console.error('[ERROR] Node not found:', nodeId);
+        return;
+    }
 
-    const newLockState = !node.locked;
+    const originalLockState = node.locked;
+    const newLockState = !originalLockState;
+    console.log('[LOCK] Changing from', originalLockState, 'to', newLockState);
 
-    fetch(`/api/messages/${nodeId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locked: newLockState })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.locked !== undefined) {
-            node.locked = data.locked;
+    const action = {
+        description: newLockState ? 'Lock message' : 'Unlock message',
+        execute: async () => {
+            console.log('[LOCK] Executing lock change:', newLockState, 'for node:', nodeId);
+            node.locked = newLockState;
 
             for (const folderId in folders) {
                 if (folders[folderId].nodes[nodeId]) {
@@ -2084,15 +2755,218 @@ function toggleLock(nodeId) {
             allMessages[nodeId] = node;
 
             renderTree();
+
+            const response = await fetch(`/api/messages/${nodeId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ locked: newLockState })
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update lock');
+            }
+            const data = await response.json();
             showNotification(data.locked ? 'Message locked' : 'Message unlocked');
+            console.log('[LOCK] Lock state saved to server');
+        },
+        undo: async () => {
+            console.log('[LOCK] Undoing lock change for node:', nodeId);
+            node.locked = originalLockState;
+
+            for (const folderId in folders) {
+                if (folders[folderId].nodes[nodeId]) {
+                    folders[folderId].nodes[nodeId] = node;
+                    break;
+                }
+            }
+            allMessages[nodeId] = node;
+
+            renderTree();
+
+            await fetch(`/api/messages/${nodeId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ locked: originalLockState })
+            });
         }
-    })
-    .catch(err => {
-        console.error('Failed to toggle lock:', err);
-        showNotification('Failed to update lock status');
+    };
+
+    undoRedoManager.pushAction(action);
+
+    action.execute().catch(err => {
+        console.error('[LOCK] Failed to execute:', err);
+        showNotification('Failed to update lock');
     });
 }
 
+function toggleThemePanel() {
+    const panel = document.getElementById('themePanel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+async function initThemeSelector() {
+    const themeList = document.getElementById('themeList');
+    
+    try {
+        const response = await fetch('/static/themes/themes.json');
+        const data = await response.json();
+        
+        themeList.innerHTML = '';
+        
+        data.themes.forEach(theme => {
+            const div = document.createElement('div');
+            div.className = 'theme-item';
+            div.dataset.themeId = theme.id;
+            div.onclick = () => selectTheme(theme.id);
+            
+            div.innerHTML = `
+                <div class="theme-info">
+                    <div class="theme-name">${escapeHtml(theme.name)}</div>
+                    <div class="theme-type">${theme.type}</div>
+                </div>
+            `;
+            
+            themeList.appendChild(div);
+        });
+        
+        window.themeEngine.addEventListener('themeChanged', (data) => {
+            updateThemeActiveState(data.themeId);
+        });
+    } catch (error) {
+        console.error('Failed to load themes:', error);
+        themeList.innerHTML = '<div style="padding: 12px; color: var(--danger);">Failed to load themes</div>';
+    }
+}
+
+function setupMoreMenu() {
+    // Removed duplicate addEventListener - moreBtn already has inline onclick="toggleMoreMenu()"
+    // Having both handlers caused toggleMoreMenu() to be called twice (show then hide)
+    // Inline onclick is sufficient, document click handler below handles closing
+
+    document.addEventListener('click', (e) => {
+        const moreMenu = document.getElementById('moreMenu');
+        const moreBtn = document.getElementById('moreBtn');
+        const optionsPanel = document.getElementById('optionsPanel');
+        const optionsToggle = document.getElementById('optionsToggleBtn');
+        const tagsPanel = document.getElementById('tagsPanel');
+        const tagsToggle = document.getElementById('tagsToggleBtn');
+        const themePanel = document.getElementById('themePanel');
+        const themeToggle = document.getElementById('themeToggleBtn');
+
+        if (moreMenu && moreMenu.classList.contains('show') &&
+            !moreMenu.contains(e.target) && e.target !== moreBtn) {
+            toggleMoreMenu();
+        }
+
+        if (optionsPanel && optionsPanel.style.display !== 'none' &&
+            !optionsPanel.contains(e.target) && e.target !== optionsToggle) {
+            optionsPanel.style.display = 'none';
+            document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
+        }
+
+        if (tagsPanel && tagsPanel.style.display !== 'none' &&
+            !tagsPanel.contains(e.target) && e.target !== tagsToggle) {
+            tagsPanel.style.display = 'none';
+            document.getElementById('tagsToggleBtn').setAttribute('aria-expanded', 'false');
+        }
+
+        if (themePanel && themePanel.style.display !== 'none' &&
+            !themePanel.contains(e.target) && e.target !== themeToggle) {
+            themePanel.style.display = 'none';
+            if (themeToggle) {
+                themeToggle.setAttribute('aria-expanded', 'false');
+            }
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const moreMenu = document.getElementById('moreMenu');
+            const optionsPanel = document.getElementById('optionsPanel');
+            const tagsPanel = document.getElementById('tagsPanel');
+            const themePanel = document.getElementById('themePanel');
+
+            if (moreMenu && moreMenu.classList.contains('show')) {
+                toggleMoreMenu();
+            }
+            if (optionsPanel && optionsPanel.style.display !== 'none') {
+                optionsPanel.style.display = 'none';
+                document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
+            }
+            if (tagsPanel && tagsPanel.style.display !== 'none') {
+                tagsPanel.style.display = 'none';
+                document.getElementById('tagsToggleBtn').setAttribute('aria-expanded', 'false');
+            }
+            if (themePanel && themePanel.style.display !== 'none') {
+                themePanel.style.display = 'none';
+                const themeToggle = document.getElementById('themeToggleBtn');
+                if (themeToggle) {
+                    themeToggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+        }
+    });
+    console.log('[INIT] setupMoreMenu() initialized');
+}
+
+function toggleMoreMenu() {
+    console.log('[CLICK] Toggle More Menu called');
+    const menu = document.getElementById('moreMenu');
+    const btn = document.getElementById('moreBtn');
+
+    if (!menu) {
+        console.error('[ERROR] moreMenu element not found');
+        return;
+    }
+    if (!btn) {
+        console.error('[ERROR] moreBtn element not found');
+        return;
+    }
+
+    const isShown = menu.classList.toggle('show');
+    btn.setAttribute('aria-expanded', isShown);
+    console.log('[MORE] Menu is now:', isShown ? 'shown' : 'hidden');
+}
+
+async function selectTheme(themeId) {
+    try {
+        const startTime = performance.now();
+        await window.themeEngine.switchTheme(themeId);
+        const elapsed = performance.now() - startTime;
+        console.log(`Theme switched in ${elapsed.toFixed(2)}ms`);
+        updateThemeActiveState(themeId);
+    } catch (error) {
+        console.error('Failed to switch theme:', error);
+        showNotification('Failed to switch theme');
+    }
+}
+
+function updateThemeActiveState(themeId) {
+    const items = document.querySelectorAll('.theme-item');
+    items.forEach(item => {
+        item.classList.toggle('active', item.dataset.themeId === themeId);
+    });
+}
+
+document.addEventListener('click', (e) => {
+    const panel = document.getElementById('themePanel');
+    const toggleBtn = document.getElementById('themeToggleBtn');
+    if (panel && panel.style.display !== 'none' && 
+        !panel.contains(e.target) && e.target !== toggleBtn) {
+        panel.style.display = 'none';
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+        if (e.key === 't') {
+            e.preventDefault();
+            const panel = document.getElementById('themePanel');
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+    }
+});
 
 let configManager = {
     config: {},
@@ -2100,4 +2974,6 @@ let configManager = {
 };
 
 document.addEventListener('DOMContentLoaded', init);
+
+
 

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -115,6 +117,9 @@ type EnvConfig struct {
 	OptimizationPrompt string `json:"optimizationPrompt"`
 	ProjectPath        string `json:"projectPath"`
 	AgentsPath         string `json:"agentsPath"`
+	AnthropicAPIKey    string `json:"anthropicAPIKey"`
+	AIProvider         string `json:"aiProvider"`
+	ThemeID            string `json:"themeId"`
 }
 
 type ConfigManager struct {
@@ -128,11 +133,16 @@ type ConfigManager struct {
 var configManager *ConfigManager
 
 func NewConfigManager() *ConfigManager {
+	exeDir := getExecutableDir()
 	cm := &ConfigManager{
 		todos:     make([]TodoItem, 0),
-		envPath:   ".env",
-		storePath: "config.json",
+		envPath:   filepath.Join(exeDir, ".env"),
+		storePath: filepath.Join(exeDir, "config.json"),
 	}
+
+	log.Printf("[CONFIG] Executable directory: %s", exeDir)
+	log.Printf("[CONFIG] .env path: %s", cm.envPath)
+	log.Printf("[CONFIG] config.json path: %s", cm.storePath)
 
 	cm.loadEnv()
 
@@ -144,8 +154,10 @@ func NewConfigManager() *ConfigManager {
 }
 
 func (cm *ConfigManager) loadEnv() {
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: No .env file found, using defaults")
+	if err := godotenv.Load(cm.envPath); err != nil {
+		log.Printf("[CONFIG] Warning: No .env file found at %s, using defaults", cm.envPath)
+	} else {
+		log.Printf("[CONFIG] Loaded .env file from %s", cm.envPath)
 	}
 
 	cm.mu.Lock()
@@ -155,7 +167,16 @@ func (cm *ConfigManager) loadEnv() {
 	cm.config.OptimizationPrompt = getEnvWithDefault("OPTIMIZATION_PROMPT", "")
 	cm.config.ProjectPath = getEnvWithDefault("PROJECT_PATH", "")
 	cm.config.AgentsPath = getEnvWithDefault("AGENTS_PATH", "")
+	cm.config.AnthropicAPIKey = getEnvWithDefault("ANTHROPIC_API_KEY", "")
+	cm.config.AIProvider = getEnvWithDefault("AI_PROVIDER", "auto")
+	cm.config.ThemeID = getEnvWithDefault("THEME_ID", "github-dark")
 	cm.mu.Unlock()
+
+	log.Printf("[CONFIG] Loaded: OpenAI key=%t, Anthropic key=%t, Provider=%s, Model=%s",
+		cm.config.OpenAIAPIKey != "",
+		cm.config.AnthropicAPIKey != "",
+		cm.config.AIProvider,
+		cm.config.OpenAIModel)
 }
 
 func (cm *ConfigManager) getEnv(key string) string {
@@ -187,23 +208,25 @@ func (cm *ConfigManager) setEnv(key, value string) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	if key == "OPENAI_API_KEY" || key == "openAIAPIKey" {
+	switch key {
+	case "OPENAI_API_KEY", "openAIAPIKey":
 		cm.config.OpenAIAPIKey = value
-	}
-	if key == "OPENAI_BASE_URL" || key == "openaiBaseUrl" {
+	case "OPENAI_BASE_URL", "openaiBaseUrl":
 		cm.config.OpenAIBaseURL = value
-	}
-	if key == "OPENAI_MODEL" || key == "openaiModel" {
+	case "OPENAI_MODEL", "openaiModel":
 		cm.config.OpenAIModel = value
-	}
-	if key == "OPTIMIZATION_PROMPT" || key == "optimizationPrompt" {
+	case "OPTIMIZATION_PROMPT", "optimizationPrompt":
 		cm.config.OptimizationPrompt = value
-	}
-	if key == "PROJECT_PATH" || key == "projectPath" {
+	case "PROJECT_PATH", "projectPath":
 		cm.config.ProjectPath = value
-	}
-	if key == "AGENTS_PATH" || key == "agentsPath" {
+	case "AGENTS_PATH", "agentsPath":
 		cm.config.AgentsPath = value
+	case "ANTHROPIC_API_KEY", "anthropicAPIKey":
+		cm.config.AnthropicAPIKey = value
+	case "AI_PROVIDER", "aiProvider":
+		cm.config.AIProvider = value
+	case "THEME_ID", "themeId":
+		cm.config.ThemeID = value
 	}
 
 	if err := cm.saveEnvFile(); err != nil {
@@ -237,6 +260,15 @@ func (cm *ConfigManager) saveEnvFile() error {
 	}
 	if cm.config.AgentsPath != "" {
 		lines = append(lines, fmt.Sprintf(`AGENTS_PATH="%s"`, cm.config.AgentsPath))
+	}
+	if cm.config.AnthropicAPIKey != "" {
+		lines = append(lines, fmt.Sprintf(`ANTHROPIC_API_KEY="%s"`, cm.config.AnthropicAPIKey))
+	}
+	if cm.config.AIProvider != "" && cm.config.AIProvider != "auto" {
+		lines = append(lines, fmt.Sprintf(`AI_PROVIDER=%s`, cm.config.AIProvider))
+	}
+	if cm.config.ThemeID != "" && cm.config.ThemeID != "github-dark" {
+		lines = append(lines, fmt.Sprintf(`THEME_ID=%s`, cm.config.ThemeID))
 	}
 
 	return os.WriteFile(cm.envPath, []byte(strings.Join(lines, "\n")), 0644)
@@ -1043,6 +1075,243 @@ func formatTimestamp(ms int64) string {
 	return time.Unix(0, ms*int64(time.Millisecond)).Format(time.RFC3339)
 }
 
+type ChatMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type AIRequestInput struct {
+	TemplateID string                 `json:"templateId"`
+	Variables  map[string]interface{} `json:"variables"`
+	Options    map[string]interface{} `json:"options,omitempty"`
+}
+
+func handleAIStream(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		respondError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	var input AIRequestInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	config := configManager.config
+
+	var apiKey, baseURL string
+	var provider string
+
+	if config.AIProvider == "auto" || config.AIProvider == "" {
+		if config.OpenAIAPIKey != "" {
+			provider = "openai"
+			apiKey = config.OpenAIAPIKey
+			baseURL = config.OpenAIBaseURL
+		} else if config.AnthropicAPIKey != "" {
+			provider = "anthropic"
+			apiKey = config.AnthropicAPIKey
+			baseURL = "https://api.anthropic.com"
+		} else {
+			respondError(w, http.StatusBadRequest, "No AI provider configured. Please add an API key in Actions → AI Configuration")
+			return
+		}
+	} else {
+		provider = config.AIProvider
+		if provider == "openai" {
+			apiKey = config.OpenAIAPIKey
+			baseURL = config.OpenAIBaseURL
+		} else if provider == "anthropic" {
+			apiKey = config.AnthropicAPIKey
+			baseURL = "https://api.anthropic.com"
+		}
+	}
+
+	if apiKey == "" {
+		respondError(w, http.StatusBadRequest, fmt.Sprintf("No API key configured for %s provider", provider))
+		return
+	}
+
+	if baseURL == "" {
+		baseURL = "https://api.openai.com"
+	}
+
+	prompt := ""
+	if userPrompt, ok := input.Variables["prompt"].(string); ok {
+		prompt = userPrompt
+	}
+
+	if prompt == "" {
+		respondError(w, http.StatusBadRequest, "No prompt provided")
+		return
+	}
+
+	var messages []ChatMessage
+	var systemPrompt string
+
+	if provider == "anthropic" {
+		systemPrompt = "You are an expert at optimizing AI prompts. Make prompts clearer, more specific, and more effective."
+		messages = []ChatMessage{
+			{Role: "user", Content: prompt},
+		}
+	} else {
+		messages = []ChatMessage{
+			{Role: "system", Content: "You are an expert at optimizing AI prompts. Make prompts clearer, more specific, and more effective."},
+			{Role: "user", Content: prompt},
+		}
+	}
+
+	temperature := 0.7
+	if temp, ok := input.Options["temperature"].(float64); ok {
+		temperature = temp
+	}
+	maxTokens := 2000
+	if mt, ok := input.Options["maxTokens"].(float64); ok {
+		maxTokens = int(mt)
+	}
+
+	model := config.OpenAIModel
+	if model == "" {
+		if provider == "anthropic" {
+			model = "claude-3-sonnet-20240229"
+		} else {
+			model = "gpt-4o"
+		}
+	}
+	if m, ok := input.Options["model"].(string); ok && m != "" {
+		model = m
+	}
+
+	apiURL := fmt.Sprintf("%s/chat/completions", baseURL)
+
+	var requestBody interface{}
+	var reqHeaders map[string]string
+
+	if provider == "openai" {
+		requestBody = map[string]interface{}{
+			"model":       model,
+			"messages":    messages,
+			"temperature": temperature,
+			"max_tokens":  maxTokens,
+			"stream":      true,
+		}
+		reqHeaders = map[string]string{
+			"Authorization": "Bearer " + apiKey,
+			"Content-Type":  "application/json",
+		}
+	} else {
+		requestBody = map[string]interface{}{
+			"model":       model,
+			"system":      systemPrompt,
+			"messages":    messages,
+			"temperature": temperature,
+			"max_tokens":  maxTokens,
+			"stream":      true,
+		}
+		reqHeaders = map[string]string{
+			"x-api-key":         apiKey,
+			"anthropic-version": "2023-06-01",
+			"Content-Type":      "application/json",
+		}
+	}
+
+	reqBody, _ := json.Marshal(requestBody)
+	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	for k, v := range reqHeaders {
+		req.Header.Set(k, v)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		respondError(w, resp.StatusCode, fmt.Sprintf("AI provider error: %s", string(body)))
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		respondError(w, http.StatusInternalServerError, "Streaming not supported")
+		return
+	}
+
+	reader := resp.Body
+	buffer := make([]byte, 1024)
+
+	for {
+		n, err := reader.Read(buffer)
+		if err != nil {
+			if err != io.EOF {
+				fmt.Fprintf(w, "data: [ERROR] %s\n\n", err.Error())
+				flusher.Flush()
+			}
+			break
+		}
+
+		data := string(buffer[:n])
+		lines := strings.Split(data, "\n")
+
+		for _, line := range lines {
+			if strings.HasPrefix(line, "data: ") || strings.HasPrefix(line, "data:") {
+				dataContent := strings.TrimPrefix(line, "data:")
+				dataContent = strings.TrimSpace(dataContent)
+
+				if dataContent == "[DONE]" {
+					fmt.Fprintf(w, "data: [DONE]\n\n")
+					flusher.Flush()
+					return
+				}
+
+				var streamData map[string]interface{}
+				if err := json.Unmarshal([]byte(dataContent), &streamData); err == nil {
+					var content string
+
+					if provider == "openai" {
+						if choices, ok := streamData["choices"].([]interface{}); ok && len(choices) > 0 {
+							if choice, ok := choices[0].(map[string]interface{}); ok {
+								if delta, ok := choice["delta"].(map[string]interface{}); ok {
+									if c, ok := delta["content"].(string); ok {
+										content = c
+									}
+								}
+							}
+						}
+					} else {
+						if t, ok := streamData["type"].(string); ok && t == "content_block_delta" {
+							if delta, ok := streamData["delta"].(map[string]interface{}); ok {
+								if c, ok := delta["text"].(string); ok {
+									content = c
+								}
+							}
+						}
+					}
+
+					if content != "" {
+						data, _ := json.Marshal(map[string]string{"content": content})
+						fmt.Fprintf(w, "data: %s\n\n", string(data))
+						flusher.Flush()
+					}
+				}
+			}
+		}
+	}
+}
+
 func main() {
 	var noBrowser bool
 	flag.BoolVar(&noBrowser, "no-browser", false, "Disable automatic browser opening")
@@ -1446,6 +1715,34 @@ func main() {
 			respondJSON(w, map[string]string{"content": configManager.readAgentsContent()})
 		}
 	})
+	router.HandleFunc("/api/settings/theme", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			themeId := os.Getenv("THEME_ID")
+			if themeId == "" {
+				themeId = "github-dark"
+			}
+			respondJSON(w, map[string]string{"themeId": themeId})
+		} else if r.Method == "POST" {
+			var data map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+				respondError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+
+			if themeId, ok := data["themeId"]; ok && themeId != "" {
+				if err := configManager.setEnv("THEME_ID", themeId); err != nil {
+					respondError(w, http.StatusInternalServerError, err.Error())
+					return
+				}
+				respondJSON(w, map[string]string{"themeId": themeId})
+			} else {
+				respondError(w, http.StatusBadRequest, "themeId is required")
+			}
+		}
+	})
+
+	// AI streaming endpoint
+	router.HandleFunc("/api/ai/stream", handleAIStream)
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		indexPath := filepath.Join(exeDir, "static", "index.html")

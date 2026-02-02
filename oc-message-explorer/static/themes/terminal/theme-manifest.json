@@ -1,0 +1,31 @@
+{
+  "$schema": "https://opencode.gg/oc-message-explorer/theme-manifest.schema.json",
+  "name": "Terminal",
+  "id": "terminal",
+  "version": "1.0.0",
+  "author": "OpenCode Team",
+  "description": "Retro terminal theme with monospace fonts and classic green phosphor colors",
+  "type": "dark",
+  "extends": "base",
+  "preview": "terminal.png",
+  "cssVariables": {
+    "bg-primary": "#0a0a0a",
+    "bg-secondary": "#121212",
+    "bg-tertiary": "#1a1a1a",
+    "bg-hover": "#222222",
+    "text-primary": "#00ff00",
+    "text-secondary": "#00cc00",
+    "text-muted": "#009900",
+    "accent": "#00ff00",
+    "accent-hover": "#33ff33",
+    "border": "#00cc00",
+    "success": "#00ff00",
+    "danger": "#ff4444",
+    "warning": "#ffff00"
+  },
+  "ui": {
+    "fontFamily": "'Courier New', 'Fira Code', 'Consolas', 'Monaco', monospace",
+    "borderRadius": "2px",
+    "transitionDuration": "0s"
+  }
+}

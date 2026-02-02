@@ -1,0 +1,47 @@
+{
+  "version": "1.0.0",
+  "themes": [
+    {
+      "id": "github-dark",
+      "name": "GitHub Dark",
+      "type": "dark",
+      "manifest": "/static/themes/github-dark/theme-manifest.json",
+      "css": "/static/themes/github-dark/theme.css"
+    },
+    {
+      "id": "notion",
+      "name": "Notion",
+      "type": "light",
+      "manifest": "/static/themes/notion/theme-manifest.json",
+      "css": "/static/themes/base/base.css"
+    },
+    {
+      "id": "terminal",
+      "name": "Terminal",
+      "type": "dark",
+      "manifest": "/static/themes/terminal/theme-manifest.json",
+      "css": "/static/themes/base/base.css"
+    },
+    {
+      "id": "bento",
+      "name": "Bento",
+      "type": "light",
+      "manifest": "/static/themes/bento/theme-manifest.json",
+      "css": "/static/themes/base/base.css"
+    },
+    {
+      "id": "paper",
+      "name": "Paper",
+      "type": "light",
+      "manifest": "/static/themes/paper/theme-manifest.json",
+      "css": "/static/themes/base/base.css"
+    },
+    {
+      "id": "cyberpunk",
+      "name": "Cyberpunk",
+      "type": "dark",
+      "manifest": "/static/themes/cyberpunk/theme-manifest.json",
+      "css": "/static/themes/base/base.css"
+    }
+  ]
+}
