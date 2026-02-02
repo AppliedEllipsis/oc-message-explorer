@@ -89,46 +89,64 @@
             border-right: 1px solid var(--border-light);
             flex-shrink: 0;
             overflow-y: auto;
-            transition: width 0.25s ease, opacity 0.25s ease, margin-right 0.25s ease;
+            transition: width 0.25s ease, opacity 0.25s ease, margin-left 0.25s ease;
         }
 
         .sidebar.collapsed {
             width: 0;
-            margin-right: -240px;
+            margin-left: -240px;
             opacity: 0;
             padding: 0;
             overflow: hidden;
         }
 
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: margin-left 0.25s ease;
+        }
+
+        .sidebar.collapsed ~ .main-content {
+            margin-left: 40px;
+        }
+
+        .app-header {
+            background: var(--bg-secondary);
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
         .sidebar-toggle {
-            position: fixed;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 32px;
-            height: 48px;
+            width: 36px;
+            height: 36px;
             background: var(--bg-tertiary);
             border: 1px solid var(--border);
-            border-left: none;
-            border-radius: 0 8px 8px 0;
+            border-radius: var(--radius-sm);
             color: var(--text-secondary);
             cursor: pointer;
-            z-index: 100;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 16px;
             transition: all 0.15s ease;
+            flex-shrink: 0;
         }
 
         .sidebar-toggle:hover {
             background: var(--bg-hover);
             color: var(--text-primary);
-            width: 36px;
         }
 
-        .sidebar-toggle.expanded {
-            left: 240px;
+        .app-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
         .sidebar-section-title {
@@ -155,8 +173,8 @@
 
         .tag-cloud-item {
             padding: 8px 14px;
-            background: var(--bg-tertiary);
-            border: 2px solid var(--border);
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25);
             border-radius: 18px;
             font-size: 14px;
             font-weight: 500;
@@ -165,19 +183,28 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            color: var(--text-primary);
         }
 
         .tag-cloud-item:hover {
-            background: var(--bg-hover);
-            border-color: var(--text-secondary);
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.4);
             transform: translateY(-1px);
+            color: #ffffff;
         }
 
         .tag-cloud-item.active {
             background: var(--accent);
             border-color: var(--accent-hover);
             color: #ffffff;
-            box-shadow: 0 2px 8px rgba(79, 156, 255, 0.3);
+            box-shadow: 0 2px 8px rgba(79, 156, 255, 0.4);
+        }
+
+        .tag-cloud-item .tag-count {
+            font-size: 11px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 10px;
         }
 
         .tag-cloud-item .tag-count {
@@ -371,32 +398,7 @@
             border-color: var(--accent-hover);
         }
 
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
 
-        .header {
-            background: var(--bg-secondary);
-            padding: 14px 20px;
-            border-bottom: 1px solid var(--border-light);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header h1 {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .header-subtitle {
-            font-size: 13px;
-            color: var(--text-muted);
-        }
 
         .toolbar {
             background: var(--bg-secondary);
@@ -1974,11 +1976,11 @@
         </div>
 
     <div class="main-content">
-            <div class="header">
-                <div>
-                    <h1>OC Message Explorer</h1>
-                    <div class="header-subtitle">View and manage your OpenChat history</div>
-                </div>
+            <div class="app-header">
+                <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Toggle sidebar" title="Toggle sidebar (Ctrl+B)">
+                    ☰
+                </button>
+                <h1 class="app-title">OC Message Explorer</h1>
             </div>
 
             <div class="sync-status" id="syncStatus">
@@ -1990,6 +1992,7 @@
                     <button class="btn" onclick="cancelSync()" id="cancelSyncBtn" aria-label="Cancel background sync" title="Cancel sync (Esc)">Cancel</button>
                 </div>
             </div>
+
 
 
 

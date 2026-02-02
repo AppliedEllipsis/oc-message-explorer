@@ -2417,13 +2417,12 @@ async function initThemeSelector() {
 
 function setupSidebarState() {
     const sidebarCollapsed = localStorage.getItem('sidebarCollapsed');
-    if (sidebarCollapsed === 'false' || sidebarCollapsed === null) {
+    if (sidebarCollapsed === 'true') {
         const sidebar = document.getElementById('sidebar');
         const toggleBtn = document.getElementById('sidebarToggle');
-        sidebar.classList.remove('collapsed');
-        toggleBtn.classList.add('expanded');
-        toggleBtn.textContent = '×';
-        toggleBtn.setAttribute('aria-label', 'Hide sidebar (Ctrl+B)');
+        sidebar.classList.add('collapsed');
+        toggleBtn.textContent = '☰';
+        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
     }
 }
 
@@ -2544,7 +2543,6 @@ function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('sidebarToggle');
     sidebar.classList.toggle('collapsed');
-    toggleBtn.classList.toggle('expanded');
 
     const isCollapsed = sidebar.classList.contains('collapsed');
     toggleBtn.textContent = isCollapsed ? '☰' : '×';
