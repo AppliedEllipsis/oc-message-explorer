@@ -2713,17 +2713,9 @@ async function initThemeSelector() {
 }
 
 function setupMoreMenu() {
-    const moreBtn = document.getElementById('moreBtn');
-    if (!moreBtn) {
-        console.error('[ERROR] moreBtn element not found in setupMoreMenu()');
-        return;
-    }
-
-    moreBtn.addEventListener('click', (e) => {
-        console.log('[CLICK] More button clicked (addEventListener)');
-        e.stopPropagation();
-        toggleMoreMenu();
-    });
+    // Removed duplicate addEventListener - moreBtn already has inline onclick="toggleMoreMenu()"
+    // Having both handlers caused toggleMoreMenu() to be called twice (show then hide)
+    // Inline onclick is sufficient, document click handler below handles closing
 
     document.addEventListener('click', (e) => {
         const moreMenu = document.getElementById('moreMenu');

@@ -115,6 +115,9 @@ type EnvConfig struct {
 	OptimizationPrompt string `json:"optimizationPrompt"`
 	ProjectPath        string `json:"projectPath"`
 	AgentsPath         string `json:"agentsPath"`
+	AnthropicAPIKey    string `json:"anthropicAPIKey"`
+	AIProvider         string `json:"aiProvider"`
+	ThemeID            string `json:"themeId"`
 }
 
 type ConfigManager struct {
@@ -155,6 +158,9 @@ func (cm *ConfigManager) loadEnv() {
 	cm.config.OptimizationPrompt = getEnvWithDefault("OPTIMIZATION_PROMPT", "")
 	cm.config.ProjectPath = getEnvWithDefault("PROJECT_PATH", "")
 	cm.config.AgentsPath = getEnvWithDefault("AGENTS_PATH", "")
+	cm.config.AnthropicAPIKey = getEnvWithDefault("ANTHROPIC_API_KEY", "")
+	cm.config.AIProvider = getEnvWithDefault("AI_PROVIDER", "auto")
+	cm.config.ThemeID = getEnvWithDefault("THEME_ID", "github-dark")
 	cm.mu.Unlock()
 }
 
@@ -187,23 +193,25 @@ func (cm *ConfigManager) setEnv(key, value string) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	if key == "OPENAI_API_KEY" || key == "openAIAPIKey" {
+	switch key {
+	case "OPENAI_API_KEY", "openAIAPIKey":
 		cm.config.OpenAIAPIKey = value
-	}
-	if key == "OPENAI_BASE_URL" || key == "openaiBaseUrl" {
+	case "OPENAI_BASE_URL", "openaiBaseUrl":
 		cm.config.OpenAIBaseURL = value
-	}
-	if key == "OPENAI_MODEL" || key == "openaiModel" {
+	case "OPENAI_MODEL", "openaiModel":
 		cm.config.OpenAIModel = value
-	}
-	if key == "OPTIMIZATION_PROMPT" || key == "optimizationPrompt" {
+	case "OPTIMIZATION_PROMPT", "optimizationPrompt":
 		cm.config.OptimizationPrompt = value
-	}
-	if key == "PROJECT_PATH" || key == "projectPath" {
+	case "PROJECT_PATH", "projectPath":
 		cm.config.ProjectPath = value
-	}
-	if key == "AGENTS_PATH" || key == "agentsPath" {
+	case "AGENTS_PATH", "agentsPath":
 		cm.config.AgentsPath = value
+	case "ANTHROPIC_API_KEY", "anthropicAPIKey":
+		cm.config.AnthropicAPIKey = value
+	case "AI_PROVIDER", "aiProvider":
+		cm.config.AIProvider = value
+	case "THEME_ID", "themeId":
+		cm.config.ThemeID = value
 	}
 
 	if err := cm.saveEnvFile(); err != nil {
@@ -237,6 +245,15 @@ func (cm *ConfigManager) saveEnvFile() error {
 	}
 	if cm.config.AgentsPath != "" {
 		lines = append(lines, fmt.Sprintf(`AGENTS_PATH="%s"`, cm.config.AgentsPath))
+	}
+	if cm.config.AnthropicAPIKey != "" {
+		lines = append(lines, fmt.Sprintf(`ANTHROPIC_API_KEY="%s"`, cm.config.AnthropicAPIKey))
+	}
+	if cm.config.AIProvider != "" && cm.config.AIProvider != "auto" {
+		lines = append(lines, fmt.Sprintf(`AI_PROVIDER=%s`, cm.config.AIProvider))
+	}
+	if cm.config.ThemeID != "" && cm.config.ThemeID != "github-dark" {
+		lines = append(lines, fmt.Sprintf(`THEME_ID=%s`, cm.config.ThemeID))
 	}
 
 	return os.WriteFile(cm.envPath, []byte(strings.Join(lines, "\n")), 0644)

@@ -72,5 +72,7 @@ type EnvConfig struct {
 	OptimizationPrompt string `json:"optimizationPrompt"`
 	ProjectPath        string `json:"projectPath"`
 	AgentsPath         string `json:"agentsPath"`
+	AnthropicAPIKey    string `json:"anthropicAPIKey"`
+	AIProvider         string `json:"aiProvider"`
 	ThemeID            string `json:"themeId"`
 }
