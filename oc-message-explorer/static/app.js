@@ -62,10 +62,40 @@ function setupSidebarState() {
         toggleBtn.textContent = '☰';
         toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
         toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
+toggleBtn.onclick = toggleSidebar;
+    header.insertBefore(toggleBtn, header.firstChild);
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const existingToggle = document.getElementById('sidebarToggle');
+
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+
+    if (existingToggle) {
+        existingToggle.remove();
+    } else {
+        const header = document.querySelector('.app-header');
+        const toggleBtn = document.createElement('button');
+        toggleBtn.id = 'sidebarToggle';
+        toggleBtn.className = 'sidebar-toggle';
+        toggleBtn.textContent = '☰';
+        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
         toggleBtn.onclick = toggleSidebar;
         header.insertBefore(toggleBtn, header.firstChild);
     }
+
+    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
 }
+
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+    }
+});
 
 function setupModelFilter() {
     const filterInput = document.getElementById('openaiModelFilter');
