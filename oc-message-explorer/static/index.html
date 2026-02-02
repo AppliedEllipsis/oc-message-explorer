@@ -89,12 +89,12 @@
             border-right: 1px solid var(--border-light);
             flex-shrink: 0;
             overflow-y: auto;
-            transition: width 0.25s ease, opacity 0.25s ease, margin-left 0.25s ease;
+            transition: width 0.25s ease, opacity 0.25s ease, padding 0.25s ease;
         }
 
         .sidebar.collapsed {
             width: 0;
-            margin-left: -240px;
+            border-right-width: 0;
             opacity: 0;
             padding: 0;
             overflow: hidden;
@@ -105,11 +105,20 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            transition: margin-left 0.25s ease;
+            position: relative;
+            min-width: 0;
         }
 
-        .sidebar.collapsed ~ .main-content {
-            margin-left: 40px;
+        .main-content-inner {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+            transition: padding-left 0.25s ease;
+        }
+
+        .sidebar.collapsed ~ .main-content .main-content-inner {
+            padding-left: 48px;
         }
 
         .app-header {
@@ -135,6 +144,14 @@
             font-size: 16px;
             transition: all 0.15s ease;
             flex-shrink: 0;
+            position: absolute;
+            left: 20px;
+            top: 14px;
+            z-index: 10;
+        }
+
+        .sidebar.collapsed ~ .main-content .sidebar-toggle {
+            left: 12px;
         }
 
         .sidebar-toggle:hover {
@@ -625,11 +642,12 @@
         .tree-container {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            overflow-x: hidden;
+            padding: 20px 20px 20px 0;
         }
 
         .tree-node {
-            margin-left: 16px;
+            margin-left: 0;
             padding: 4px 0;
         }
 
@@ -1976,22 +1994,23 @@
         </div>
 
     <div class="main-content">
-            <div class="app-header">
-                <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Toggle sidebar" title="Toggle sidebar (Ctrl+B)">
+            <div class="main-content-inner">
+                <div class="app-header">
+                    <h1 class="app-title">OC Message Explorer</h1>
+                <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Show sidebar" title="Show sidebar (Ctrl+B)">
                     ☰
                 </button>
-                <h1 class="app-title">OC Message Explorer</h1>
-            </div>
+                </div>
 
-            <div class="sync-status" id="syncStatus">
-                <div class="sync-status-left">
-                    <span id="syncStatusMessage" class="sync-status-message">Ready</span>
-                    <span id="syncStatusProgress" style="color: var(--text-muted);"></span>
+                <div class="sync-status" id="syncStatus">
+                    <div class="sync-status-left">
+                        <span id="syncStatusMessage" class="sync-status-message">Ready</span>
+                        <span id="syncStatusProgress" style="color: var(--text-muted);"></span>
+                    </div>
+                    <div class="sync-status-actions" id="syncStatusActions" style="display: none;">
+                        <button class="btn" onclick="cancelSync()" id="cancelSyncBtn" aria-label="Cancel background sync" title="Cancel sync (Esc)">Cancel</button>
+                    </div>
                 </div>
-                <div class="sync-status-actions" id="syncStatusActions" style="display: none;">
-                    <button class="btn" onclick="cancelSync()" id="cancelSyncBtn" aria-label="Cancel background sync" title="Cancel sync (Esc)">Cancel</button>
-                </div>
-            </div>
 
 
 
@@ -2142,7 +2161,10 @@
                 <button class="btn" onclick="deleteNode()" aria-label="Delete this message" title="Delete (Del)">Delete</button>
             </div>
         </div>
+            </div>
+        </div>
     </div>
+        </div>
 
     <div class="modal" id="newFolderModal">
         <div class="modal-content">

@@ -51,6 +51,35 @@ function syncFilterStates() {
     displayModeRaw = document.getElementById('displayRawMessages')?.checked || true;
 }
 
+function setupSidebarState() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    if (sidebar && toggleBtn) {
+        sidebar.classList.add('collapsed');
+        toggleBtn.textContent = '☰';
+        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    sidebar.classList.toggle('collapsed');
+
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    toggleBtn.textContent = '☰';
+    toggleBtn.setAttribute('aria-label', isCollapsed ? 'Show sidebar (Ctrl+B)' : 'Hide sidebar (Ctrl+B)');
+
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+}
+
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+    }
+});
+
 function setupModelFilter() {
     const filterInput = document.getElementById('openaiModelFilter');
     filterInput.addEventListener('input', filterModelOptions);
