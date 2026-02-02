@@ -1148,6 +1148,32 @@ function closeEditor() {
     document.querySelectorAll('.edit-area').forEach(btn => btn.classList.remove('active'));
 }
 
+function confirmSaveNode() {
+    if (!currentEditingNodeId) return;
+
+    const confirmed = confirm('Are you sure you want to save the changes to this message?\n\nYes - Save changes\nNo - Cancel');
+
+    if (confirmed) {
+        console.log('[EDITOR] Save confirmed by user');
+        saveNode();
+    } else {
+        console.log('[EDITOR] Save cancelled by user');
+    }
+}
+
+function confirmDeleteNode() {
+    if (!currentEditingNodeId) return;
+
+    const confirmed = confirm('Are you sure you want to DELETE this message?\n\nYes - Delete message\nNo - Cancel');
+
+    if (confirmed) {
+        console.log('[EDITOR] Delete confirmed by user');
+        deleteNode();
+    } else {
+        console.log('[EDITOR] Delete cancelled by user');
+    }
+}
+
 function saveNode() {
     if (!currentEditingNodeId) return;
 
@@ -1215,16 +1241,9 @@ function saveNode() {
 function deleteNode() {
     if (!currentEditingNodeId) return;
 
-    if (!confirm('Delete this message?')) return;
-
     const nodeId = currentEditingNodeId;
     const deletedNode = { ...allMessages[nodeId] };
-    const deletedChildren = [];
-    const nodeFolderId = Object.keys(folders).find(folderId => folders[folderId].nodes[nodeId]);
-    
-    if (nodeFolderId) {
-        DELETED_FOLDERS_MAP[nodeId] = nodeFolderId;
-    }
+    const targetFolderId = Object.keys(folders).find(folderId => folders[folderId].nodes[nodeId]);
 
     const action = {
         description: 'Delete message',
@@ -1554,15 +1573,31 @@ function renderCombineList() {
         const div = document.createElement('div');
         div.className = 'combine-item';
         div.dataset.index = index;
+        div.dataset.nodeId = node.id;
         div.draggable = true;
+
+        const previewText = node.content ? escapeHtml(node.content.substring(0, 150)) : '';
+        const showTimestamp = node.timestamp ? new Date(node.timestamp).toLocaleString() : '';
+
         div.innerHTML = `
             <div class="combine-item-drag">⋮⋮</div>
             <div class="combine-item-content">
-                <span class="combine-item-type ${node.type}">${node.type}</span>
-                <span class="combine-item-text">${escapeHtml(node.content.substring(0, 100))}${node.content.length > 100 ? '...' : ''}</span>
+                <div class="combine-item-header">
+                    <span class="combine-item-type ${node.type}">${node.type}</span>
+                    ${showTimestamp ? `<span class="combine-item-timestamp">📅 ${showTimestamp}</span>` : ''}
+                </div>
+                <div class="combine-item-text">${previewText}${node.content && node.content.length > 150 ? '...' : ''}</div>
             </div>
-            <button class="combine-item-remove" onclick="removeFromCombine(${index})">×</button>
+            <button class="combine-item-remove" onclick="removeFromCombine(${index})" aria-label="Remove this message from combine">×</button>
         `;
+
+        div.onclick = (e) => {
+            if (e.target.closest('.combine-item-drag') || e.target.closest('.combine-item-remove')) {
+                return;
+            }
+            console.log('[COMBINE] Clicked combine item index:', index, 'nodeId:', node.id);
+            scrollToCombineItem(index);
+        };
 
         div.ondragstart = (e) => {
             combineDraggedIndex = index;
@@ -1607,59 +1642,76 @@ function removeFromCombine(index) {
     updateCombinedPreview();
 }
 
-function sortCombineByTime() {
+let combineSortAscending = false;
+
+function toggleSortCombineTime() {
+    console.log('[COMBINE] Toggle sort by time, current ascending:', combineSortAscending);
+    combineSortAscending = !combineSortAscending;
+
     combineOrder.sort((a, b) => {
         const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-        return dateA - dateB;
+        return combineSortAscending ? dateA - dateB : dateB - dateA;
     });
+
+    const icon = document.getElementById('sortTimeIcon');
+    if (icon) {
+        icon.textContent = combineSortAscending ? '⬆️' : '⬇️';
+    }
+
     renderCombineList();
     updateCombinedPreview();
+    console.log('[COMBINE] Sort complete, order:', combineSortAscending ? 'ascending' : 'descending');
 }
 
-function sortCombineByType() {
-    const typeOrder = { user: 1, prompt: 2, auto: 3, response: 4 };
-    combineOrder.sort((a, b) => {
-        const orderA = typeOrder[a.type] || 99;
-        const orderB = typeOrder[b.type] || 99;
-        return orderA - orderB;
-    });
-    renderCombineList();
-    updateCombinedPreview();
-}
+function scrollToCombineItem(index) {
+    const preview = document.getElementById('combinedPreview');
+    if (!preview) {
+        console.error('[ERROR] combinedPreview not found');
+        return;
+    }
 
-function sortCombineByFolder() {
-    combineOrder.sort((a, b) => {
-        const folderA = getFolderInfo(a.id);
-        const folderB = getFolderInfo(b.id);
-        const nameA = folderA ? folderA.name.toLowerCase() : '';
-        const nameB = folderB ? folderB.name.toLowerCase() : '';
-        return nameA.localeCompare(nameB);
-    });
-    renderCombineList();
-    updateCombinedPreview();
-}
+    const items = preview.querySelectorAll('h1, h2, h3, h4, h5, h6, p, div, span');
+    let found = false;
+    let scrollTarget = null;
 
-function sortCombineByType() {
-    const typeOrder = { user: 1, prompt: 2, response: 3 };
-    combineOrder.sort((a, b) => {
-        const orderA = typeOrder[a.type] || 99;
-        const orderB = typeOrder[b.type] || 99;
-        return orderA - orderB;
-    });
-    renderCombineList();
-    updateCombinedPreview();
+    for (let i = 0; i < items.length; i++) {
+        if (i === index * 2 + 1) {
+            scrollTarget = items[i];
+            break;
+        }
+    }
+
+    if (scrollTarget) {
+        scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        console.log('[COMBINE] Scrolled to item index:', index);
+    } else {
+        console.warn('[COMBINE] Could not find scroll target for index:', index);
+    }
 }
 
 function updateCombinedPreview() {
     const preview = document.getElementById('combinedPreview');
-    const combined = combineOrder.map(node => node.content).join('\n\n---\n\n');
+    if (!preview) {
+        console.error('[ERROR] combinedPreview not found');
+        return;
+    }
+
+    const combined = combineOrder.map((node, index) => {
+        const timestamp = node.timestamp ? `**Timestamp:** ${new Date(node.timestamp).toLocaleString()}\n\n` : '';
+        const type = `**Type:** ${node.type}\n\n`;
+        const content = node.content || '(No content)';
+        const separator = index < combineOrder.length - 1 ? '\n\n---\n\n' : '';
+        return `<div class="combined-message-section" data-index="${index}">
+${timestamp}${type}${content}</div>${separator}`;
+    }).join('');
 
     if (window.marked) {
-        preview.innerHTML = window.marked.parse(combined);
+        preview.innerHTML = marked.parse(combined);
     } else {
-        preview.textContent = combined;
+        preview.innerHTML = combined;
     }
+    console.log('[COMBINE] Updated preview with', combineOrder.length, 'messages');
 }
 
 function copyCombined() {
@@ -2481,10 +2533,30 @@ function toggleOptionsPanel() {
     }
     if (panel.style.display === 'none') {
         panel.style.display = 'flex';
+        document.getElementById('tagsPanel').style.display = 'none';
+        document.getElementById('tagsToggleBtn').setAttribute('aria-expanded', 'false');
         console.log('[FILTERS] Panel shown');
     } else {
         panel.style.display = 'none';
         console.log('[FILTERS] Panel hidden');
+    }
+}
+
+function toggleTagsPanel() {
+    console.log('[CLICK] Tags button clicked');
+    const panel = document.getElementById('tagsPanel');
+    if (!panel) {
+        console.error('[ERROR] tagsPanel element not found');
+        return;
+    }
+    if (panel.style.display === 'none') {
+        panel.style.display = 'flex';
+        document.getElementById('optionsPanel').style.display = 'none';
+        document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
+        console.log('[TAGS] Panel shown');
+    } else {
+        panel.style.display = 'none';
+        console.log('[TAGS] Panel hidden');
     }
 }
 
@@ -2651,6 +2723,8 @@ function setupMoreMenu() {
         const moreBtn = document.getElementById('moreBtn');
         const optionsPanel = document.getElementById('optionsPanel');
         const optionsToggle = document.getElementById('optionsToggleBtn');
+        const tagsPanel = document.getElementById('tagsPanel');
+        const tagsToggle = document.getElementById('tagsToggleBtn');
         const themePanel = document.getElementById('themePanel');
         const themeToggle = document.getElementById('themeToggleBtn');
 
@@ -2663,6 +2737,12 @@ function setupMoreMenu() {
             !optionsPanel.contains(e.target) && e.target !== optionsToggle) {
             optionsPanel.style.display = 'none';
             document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
+        }
+
+        if (tagsPanel && tagsPanel.style.display !== 'none' &&
+            !tagsPanel.contains(e.target) && e.target !== tagsToggle) {
+            tagsPanel.style.display = 'none';
+            document.getElementById('tagsToggleBtn').setAttribute('aria-expanded', 'false');
         }
 
         if (themePanel && themePanel.style.display !== 'none' &&
@@ -2678,6 +2758,7 @@ function setupMoreMenu() {
         if (e.key === 'Escape') {
             const moreMenu = document.getElementById('moreMenu');
             const optionsPanel = document.getElementById('optionsPanel');
+            const tagsPanel = document.getElementById('tagsPanel');
             const themePanel = document.getElementById('themePanel');
 
             if (moreMenu && moreMenu.classList.contains('show')) {
@@ -2686,6 +2767,10 @@ function setupMoreMenu() {
             if (optionsPanel && optionsPanel.style.display !== 'none') {
                 optionsPanel.style.display = 'none';
                 document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
+            }
+            if (tagsPanel && tagsPanel.style.display !== 'none') {
+                tagsPanel.style.display = 'none';
+                document.getElementById('tagsToggleBtn').setAttribute('aria-expanded', 'false');
             }
             if (themePanel && themePanel.style.display !== 'none') {
                 themePanel.style.display = 'none';

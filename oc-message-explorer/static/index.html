@@ -945,6 +945,68 @@
             font-weight: 600;
         }
 
+        .editor-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-tertiary);
+        }
+
+        .editor-topbar-left {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .editor-topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .editor-summary-input {
+            font-size: 13px;
+            padding: 6px 10px;
+        }
+
+        .icon-action-btn {
+            width: 32px;
+            min-width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .icon-action-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--text-muted);
+        }
+
+        .icon-action-btn.btn-save:hover {
+            background: var(--success);
+            color: #0d1117;
+            border-color: var(--success);
+        }
+
+        .icon-action-btn.btn-delete:hover {
+            background: var(--danger);
+            color: #ffffff;
+            border-color: var(--danger);
+        }
+
         .editor-content {
             flex: 1;
             padding: 16px;
@@ -1281,24 +1343,27 @@
 
         .combine-item {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 8px;
-            padding: 10px 12px;
+            padding: 12px;
             background: var(--bg-primary);
             border: 1px solid var(--border);
             border-radius: 6px;
             margin-bottom: 6px;
-            cursor: move;
+            cursor: pointer;
             transition: all 0.15s ease;
         }
 
         .combine-item:hover {
             border-color: var(--accent);
             background: var(--bg-tertiary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
         }
 
         .combine-item.combine-dragging {
             opacity: 0.5;
+            cursor: move;
         }
 
         .combine-item.combine-dragover {
@@ -1308,15 +1373,24 @@
 
         .combine-item-drag {
             color: var(--text-muted);
-            cursor: move;
+            cursor: grab;
             font-size: 14px;
-            padding: 4px;
+            padding: 4px 0;
             user-select: none;
+            flex-shrink: 0;
         }
 
         .combine-item-content {
             flex: 1;
             min-width: 0;
+            overflow: hidden;
+        }
+
+        .combine-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
         }
 
         .combine-item-type {
@@ -1325,7 +1399,7 @@
             border-radius: 3px;
             text-transform: uppercase;
             font-weight: 600;
-            margin-right: 8px;
+            flex-shrink: 0;
         }
 
         .combine-item-type.prompt {
@@ -1338,12 +1412,33 @@
             color: #0d1117;
         }
 
+        .combine-item-type.user {
+            background: var(--success);
+            color: #0d1117;
+        }
+
+        .combine-item-type.auto {
+            background: var(--accent);
+            color: #ffffff;
+            border: 1px dashed var(--accent);
+        }
+
+        .combine-item-timestamp {
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .combine-item-text {
             font-size: 12px;
             color: var(--text-secondary);
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            line-height: 1.4;
         }
 
         .combine-item-remove {
@@ -1962,30 +2057,6 @@
     </div>
 
     <div class="container" id="mainContainer" style="display: none;">
-        <div class="sidebar collapsed" id="sidebar">
-            <div class="sidebar-header" aria-label="Folders section">Folders</div>
-            <div class="controls">
-                <button class="btn primary" onclick="reloadData()" aria-label="Reload data" title="Reload (R)">Reload</button>
-                <button class="btn" onclick="showNewFolderModal()" aria-label="Create new folder" title="New folder (N)">New</button>
-            </div>
-            <ul class="folder-list" id="folderList" role="list" aria-label="Folder list">
-                <li class="folder-item active" data-folder="all">
-                    <div class="folder-name">All Messages</div>
-                </li>
-            </ul>
-            <div class="sidebar-header" style="margin-top: 24px;" aria-label="Tags section">Tags</div>
-            <div class="tag-cloud" id="tagCloud" role="group" aria-label="Filter by tags">
-                <button class="tag-cloud-item" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>
-            </div>
-
-            <div class="sidebar-header" style="margin-top: 24px;" aria-label="Todos section">Todos</div>
-            <div class="todo-list" id="todoList" role="list" aria-label="Todo items"></div>
-            <div class="controls" style="padding: 0 16px 16px;">
-                <input type="text" class="form-input" id="newTodoText" placeholder="Add todo..." style="width: 100%;" aria-label="New todo text">
-                <button class="btn primary" onclick="addTodo()" style="width: 100%; margin-top: 8px;" aria-label="Add new todo item" title="Add todo (A)">Add</button>
-            </div>
-        </div>
-
     <div class="main-content">
         <div class="main-content-inner">
             <div class="app-header">
@@ -2012,6 +2083,11 @@
                     <span>Filters</span>
                 </button>
 
+                <button class="toolbar-btn" onclick="toggleTagsPanel()" id="tagsToggleBtn" aria-expanded="false" aria-controls="tagsPanel" aria-label="Tag filters" title="Tags">
+                    <span class="icon">🏷️</span>
+                    <span>Tags</span>
+                </button>
+
                 <div id="optionsPanel" style="display: none; flex-direction: column; gap: 8px; padding: 12px; position: absolute; top: 100%; left: 0; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 1000; min-width: 280px;" role="group" aria-label="Filter options">
                     <div class="dropdown-menu-header">Quick Filters</div>
                     <label class="filter-toggle" id="filterToggle">
@@ -2031,6 +2107,13 @@
                     <div style="display: flex; gap: 8px;">
                         <input type="date" class="form-input" id="startDate" style="flex: 1;" title="Start date" aria-label="Start date">
                         <input type="date" class="form-input" id="endDate" style="flex: 1;" title="End date" aria-label="End date">
+                    </div>
+                </div>
+
+                <div id="tagsPanel" style="display: none; flex-direction: column; gap: 8px; padding: 12px; position: absolute; top: 100%; left: 80px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 1000; min-width: 200px; max-width: 300px; max-height: 400px; overflow-y: auto;" role="group" aria-label="Tag filters">
+                    <div class="dropdown-menu-header">Filter by Tags</div>
+                    <div id="tagCloud" class="tag-cloud" role="group" aria-label="Filter by tags">
+                        <button class="tag-cloud-item" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>
                     </div>
                 </div>
 
@@ -2115,21 +2198,25 @@
         </div>
 
         <div class="editor-panel" id="editorPanel" style="display: none;">
-            <div class="editor-header">
-                <button class="close-btn" onclick="closeEditor()" aria-label="Close editor" title="Close (Escape)">✕</button>
+            <div class="editor-topbar">
+                <div class="editor-topbar-left">
+                    <label class="form-label" for="nodeSummary">AI Summary / Tool Output:</label>
+                    <input type="text" class="form-input editor-summary-input" id="nodeSummary" placeholder="Tool summary or brief description...">
+                </div>
+                <div class="editor-topbar-right">
+                    <button class="icon-action-btn" onclick="confirmDeleteNode()" aria-label="Delete message" title="Delete message (Del)">🗑️</button>
+                    <button class="icon-action-btn" onclick="confirmSaveNode()" aria-label="Save message" title="Save message (Ctrl+S)">💾</button>
+                    <button class="close-btn" onclick="closeEditor()" aria-label="Close editor" title="Close (Escape)">✕</button>
+                </div>
             </div>
-            <div class="editor-content">
+            <div class="editor-content" id="editorContent">
                 <div class="editor-main">
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
                         <label class="form-label">Raw Message (what you typed)</label>
-                        <textarea class="editor-textarea" id="nodeContent" placeholder="Your actual message..." style="height: 100%; min-height: 400px;"></textarea>
+                        <textarea class="editor-textarea" id="nodeContent" placeholder="Your actual message..." style="flex: 1; min-height: 200px; resize: none;"></textarea>
                     </div>
                 </div>
                 <div class="editor-sidebar">
-                    <div class="form-group">
-                        <label class="form-label">AI Summary (tool output)</label>
-                        <textarea class="editor-textarea" id="nodeSummary" placeholder="Tool summary..." style="height: 150px;"></textarea>
-                    </div>
                     <div class="form-group">
                         <label class="form-label">Type</label>
                         <select class="form-select" id="nodeType">
@@ -2145,10 +2232,6 @@
                         <input type="text" class="form-input" id="nodeTags" placeholder="tag1, tag2, tag3">
                     </div>
                 </div>
-            </div>
-            <div class="editor-actions">
-                <button class="btn primary" onclick="saveNode()" aria-label="Save message changes" title="Save (Ctrl+S)">Save</button>
-                <button class="btn" onclick="deleteNode()" aria-label="Delete this message" title="Delete (Del)">Delete</button>
             </div>
         </div>
             </div>
@@ -2360,15 +2443,17 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
             <div class="combine-container">
                 <div class="combine-list-sidebar">
                     <div class="combine-sort-controls">
-                        <button class="btn" onclick="sortCombineByTime()">Sort by Time</button>
-                        <button class="btn" onclick="sortCombineByType()">Sort by Type</button>
+                        <button class="btn" id="sortTimeBtn" onclick="toggleSortCombineTime()" aria-label="Toggle sort order" title="Toggle Sort Order (⬆️/⬇️)">
+                            <span id="sortTimeIcon">⬇️</span> Sort by Time
+                        </button>
                     </div>
                     <div class="combine-list" id="combineList" role="list" aria-label="Messages to combine"></div>
                 </div>
                 <div class="combined-preview" id="combinedPreview" role="region" aria-label="Combined message preview"></div>
             </div>
             <div class="combine-actions">
-                <button class="btn primary" onclick="copyCombined()" aria-label="Copy combined text to clipboard" title="Copy combined text (Ctrl+C)">Copy Combined</button>
+                <button class="btn primary" onclick="optimizeCombinedPrompts()" aria-label="Combine with AI" title="Combine with AI (Summarize/Optimize)">⚡ AI Optimize</button>
+                <button class="btn" onclick="copyCombined()" aria-label="Copy combined text to clipboard" title="Copy combined text (Ctrl+C)">📋 Copy Combined</button>
                 <button class="btn" onclick="hideModal('combineModal')" aria-label="Close combine dialog" title="Close">Close</button>
             </div>
         </div>
