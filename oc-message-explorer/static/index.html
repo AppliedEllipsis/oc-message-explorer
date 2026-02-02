@@ -43,26 +43,50 @@
         }
 
         :root {
-            --bg-primary: #1a1f26;
-            --bg-secondary: #222730;
-            --bg-tertiary: #2a2f3a;
-            --bg-hover: #353b48;
-            --text-primary: #f0f2f5;
-            --text-secondary: #a0a5ac;
-            --text-muted: #6b7178;
-            --accent: #4f9cff;
-            --accent-hover: #7ab3ff;
-            --accent-soft: rgba(79, 156, 255, 0.12);
-            --border: #3a404d;
-            --border-light: #2f3542;
-            --success: #3ab583;
-            --danger: #e55858;
-            --warning: #dcb16c;
-            --radius-sm: 4px;
-            --radius-md: 8px;
-            --radius-lg: 12px;
-            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
-            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2);
+            /* Refined palette - sophisticated, not "AI slop" */
+            --bg-primary: #0f1115;
+            --bg-secondary: #16181d;
+            --bg-tertiary: #1c1f26;
+            --bg-hover: #22262f;
+            --bg-elevated: #282c36;
+            
+            /* Text with better contrast */
+            --text-primary: #e8ebf0;
+            --text-secondary: #8b919a;
+            --text-muted: #5c626d;
+            
+            /* Subtle, professional accent */
+            --accent: #6b8afd;
+            --accent-hover: #8ba4ff;
+            --accent-soft: rgba(107, 138, 253, 0.12);
+            --accent-muted: rgba(107, 138, 253, 0.08);
+            
+            /* Semantic colors - softer */
+            --success: #4ade80;
+            --danger: #f87171;
+            --warning: #fbbf24;
+            
+            /* Borders - subtle */
+            --border: rgba(255, 255, 255, 0.08);
+            --border-light: rgba(255, 255, 255, 0.04);
+            
+            /* Spacing scale */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+            
+            /* Border radii */
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.32);
+            
             --sidebar-width: 240px;
         }
 
@@ -73,9 +97,10 @@
             overflow: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            font-size: 15px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.5;
+            font-size: 14px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            letter-spacing: -0.011em;
         }
 
         .container {
@@ -125,7 +150,7 @@
 
         .app-header {
             background: var(--bg-secondary);
-            padding: 14px 20px;
+            padding: 12px 20px;
             border-bottom: 1px solid var(--border-light);
             display: flex;
             align-items: center;
@@ -162,14 +187,12 @@
         }
 
         .sidebar-section-title {
-            padding: 12px 16px 8px;
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--text-secondary);
+            padding: 16px 16px 10px;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.8px;
-            background: linear-gradient(to right, var(--border-light), transparent);
-            border-bottom: 1px solid var(--border-light);
+            letter-spacing: 0.5px;
         }
 
         .folder-list {
@@ -184,11 +207,11 @@
         }
 
         .tag-cloud-item {
-            padding: 8px 14px;
-            background: rgba(59, 130, 246, 0.12);
-            border: 1px solid rgba(59, 130, 246, 0.25);
-            border-radius: 18px;
-            font-size: 14px;
+            padding: 6px 12px;
+            background: var(--accent-muted);
+            border: 1px solid rgba(107, 138, 253, 0.15);
+            border-radius: 999px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.15s ease;
@@ -199,17 +222,14 @@
         }
 
         .tag-cloud-item:hover {
-            background: rgba(59, 130, 246, 0.2);
-            border-color: rgba(59, 130, 246, 0.4);
-            transform: translateY(-1px);
-            color: #ffffff;
+            background: var(--accent-soft);
+            border-color: rgba(107, 138, 253, 0.3);
         }
 
         .tag-cloud-item.active {
             background: var(--accent);
-            border-color: var(--accent-hover);
+            border-color: var(--accent);
             color: #ffffff;
-            box-shadow: 0 2px 8px rgba(79, 156, 255, 0.4);
         }
 
         .tag-cloud-item .tag-count {
@@ -445,83 +465,109 @@
             position: relative;
         }
 
-        .dropdown-menu {
+        .dropdown-menu,
+        .toolbar-panel {
             display: none;
             position: absolute;
-            top: calc(100% + 4px);
-            right: 0;
+            top: calc(100% + 8px);
             background: var(--bg-secondary);
-            border: 1px solid var(--accent);
+            border: 1px solid var(--border);
             border-radius: var(--radius-md);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2);
-            min-width: 220px;
+            box-shadow: var(--shadow-lg);
             z-index: 1000;
             overflow: hidden;
-            min-height: 100px;
+            animation: dropdownFade 0.2s cubic-bezier(0, 0, 0.2, 1);
         }
 
-        .dropdown-menu.show {
-            display: block;
+        .dropdown-menu {
+            right: 0;
+            min-width: 240px;
+            padding: 6px 0;
+        }
+
+        .toolbar-panel {
+            padding: 12px;
+            min-width: 280px;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        @keyframes dropdownFade {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .dropdown-menu.show,
+        .toolbar-panel.show {
+            display: flex;
         }
 
         .dropdown-menu-item {
-            padding: 10px 14px;
+            width: 100%;
+            padding: 10px 16px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 10px;
-            transition: background 0.1s ease;
+            gap: 12px;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: inherit;
+            text-align: left;
+            transition: all 0.15s ease;
             position: relative;
-            z-index: 1;
         }
 
-        .dropdown-menu-item:hover {
+        .dropdown-menu-item:hover:not(:disabled) {
             background: var(--bg-hover);
+            padding-left: 20px;
         }
 
-        .dropdown-menu-item i,
-        .dropdown-menu-item span.icon {
+        .dropdown-menu-item:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .dropdown-menu-item .icon {
             font-size: 16px;
-            color: var(--text-primary);
             width: 20px;
-            text-align: center;
-            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
 
-        .dropdown-menu-item span.text {
+        .dropdown-menu-item .text {
             flex: 1;
-            font-size: 14px;
-            color: var(--text-primary);
             font-weight: 500;
-            pointer-events: none;
         }
 
         .dropdown-menu-item .shortcut {
-            font-size: 12px;
-            color: var(--text-secondary);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
-            background: var(--bg-primary);
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'SF Mono', SFMono-Regular, Consolas, monospace;
+            background: var(--bg-tertiary);
             padding: 2px 6px;
             border-radius: 4px;
-            border: 1px solid var(--border);
-            pointer-events: none;
+            margin-left: 12px;
+            font-weight: 400;
         }
 
         .dropdown-menu-divider {
             height: 1px;
             background: var(--border-light);
-            margin: 6px 0;
+            margin: var(--space-sm) 0;
         }
 
         .dropdown-menu-header {
-            padding: 10px 14px;
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--accent);
+            padding: var(--space-sm) 16px;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.8px;
-            background: var(--bg-primary);
-            border-bottom: 1px solid var(--border);
+            letter-spacing: 0.5px;
         }
 
         .toolbar-btn {
@@ -643,7 +689,7 @@
         .search-box:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+            box-shadow: 0 0 0 3px var(--accent-soft);
         }
 
         .filter-toggle {
@@ -670,7 +716,7 @@
 
         .filter-toggle.active {
             border-color: var(--accent);
-            background: rgba(88, 166, 255, 0.1);
+            background: var(--accent-soft);
         }
 
         .tree-container {
@@ -692,14 +738,15 @@
         .node-content {
             display: flex;
             align-items: center;
-            padding: 12px 12px 12px 8px;
+            padding: 14px 16px 14px 12px;
             background: var(--bg-secondary);
-            border: 2px solid var(--border-light);
+            border: 1px solid var(--border-light);
             border-radius: var(--radius-md);
             cursor: pointer;
             transition: all 0.15s ease;
-            margin-bottom: 6px;
-            gap: 8px;
+            margin-bottom: 8px;
+            gap: 12px;
+            position: relative;
         }
 
         .node-content:hover {
@@ -718,6 +765,16 @@
             gap: 2px;
             margin-left: auto;
             position: relative;
+            opacity: 0;
+            transform: translateX(4px);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .node-content:hover .node-actions {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: all;
         }
 
         .node-action-btn {
@@ -753,32 +810,32 @@
         }
 
         .node-action-group .node-action-btn:not(:first-child) {
-            margin-left: -8px;
+            margin-left: 0;
         }
 
         .node-action-group .node-action-btn:hover {
             z-index: 10;
         }
 
+        /* Subtle type indicators - thin left border */
         .node-content.prompt-node {
-            border-left: 3px solid var(--accent);
+            border-left: 3px solid rgba(107, 138, 253, 0.6);
         }
 
         .node-content.response-node {
-            border-left: 3px solid var(--warning);
+            border-left: 3px solid rgba(251, 191, 36, 0.6);
         }
 
         .node-content.user-node {
-            border-left: 3px solid var(--success);
+            border-left: 3px solid rgba(74, 222, 128, 0.6);
         }
 
         .node-content.system-node {
-            border-left: 3px solid var(--text-muted);
+            border-left: 3px solid rgba(92, 98, 109, 0.6);
         }
 
         .node-content.auto-node {
-            border-left: 3px solid var(--accent);
-            border-left-style: dashed;
+            border-left: 3px dashed rgba(107, 138, 253, 0.4);
         }
 
         .expand-icon {
@@ -786,6 +843,7 @@
             text-align: center;
             margin-right: 8px;
             cursor: pointer;
+            -webkit-user-select: none;
             user-select: none;
             font-size: 14px;
             color: var(--text-secondary);
@@ -813,12 +871,13 @@
         }
 
         .node-type {
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: var(--radius-sm);
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 999px;
             text-transform: uppercase;
             font-weight: 600;
             letter-spacing: 0.5px;
+            flex-shrink: 0;
         }
 
         .edit-area {
@@ -961,12 +1020,12 @@
             min-height: 300px;
             max-height: 80vh;
             background: var(--bg-secondary);
-            border-top: 1px solid var(--accent);
+            border-top: 2px solid var(--accent);
             display: flex;
             flex-direction: column;
             overflow: hidden;
             z-index: 5000;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            box-shadow: var(--shadow-lg);
         }
 
         .editor-resize-handle {
@@ -1091,7 +1150,7 @@
         .editor-textarea:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+            box-shadow: 0 0 0 3px var(--accent-soft);
         }
 
         .form-group {
@@ -1134,7 +1193,7 @@
         .form-select:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+            box-shadow: 0 0 0 3px var(--accent-soft);
         }
 
         .editor-actions {
@@ -1152,6 +1211,7 @@
             width: 100%;
             height: 100%;
             background: rgba(13, 17, 23, 0.85);
+            -webkit-backdrop-filter: blur(4px);
             backdrop-filter: blur(4px);
             justify-content: center;
             align-items: center;
@@ -1454,6 +1514,7 @@
             cursor: grab;
             font-size: 14px;
             padding: 4px 0;
+            -webkit-user-select: none;
             user-select: none;
             flex-shrink: 0;
         }
@@ -1854,6 +1915,7 @@
             font-size: 16px;
             margin-left: 8px;
             cursor: pointer;
+            -webkit-user-select: none;
             user-select: none;
             transition: all 0.15s ease;
         }
@@ -2186,7 +2248,7 @@
                     <span>Tags</span>
                 </button>
 
-                <div id="optionsPanel" style="display: none; flex-direction: column; gap: 8px; padding: 12px; position: absolute; top: calc(100% + 4px); left: 0; background: var(--bg-secondary); border: 1px solid var(--accent); border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2); z-index: 1000; min-width: 280px; min-height: 100px; visibility: visible !important;" role="group" aria-label="Filter options">
+                <div id="optionsPanel" class="toolbar-panel" style="left: 0;" role="group" aria-label="Filter options">
                     <div class="dropdown-menu-header">Quick Filters</div>
                     <label class="filter-toggle" id="filterToggle">
                         <input type="checkbox" id="userOnlyFilter" onchange="toggleUserFilter()">
@@ -2208,7 +2270,7 @@
                     </div>
                 </div>
 
-                <div id="tagsPanel" style="display: none; flex-direction: column; gap: 8px; padding: 12px; position: absolute; top: calc(100% + 4px); left: 80px; background: var(--bg-secondary); border: 1px solid var(--accent); border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2); z-index: 999; min-width: 220px; max-width: 300px; max-height: 400px; overflow-y: auto;" role="group" aria-label="Tag filters">
+                <div id="tagsPanel" class="toolbar-panel" style="left: 80px; max-width: 300px; max-height: 400px; overflow-y: auto;" role="group" aria-label="Tag filters">
                     <div class="dropdown-menu-header">Filter by Tags</div>
                     <div id="tagCloud" class="tag-cloud" role="group" aria-label="Filter by tags">
                         <button class="tag-cloud-item" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>
@@ -2278,7 +2340,7 @@
                             <span class="text">Change Theme</span>
                         </button>
                     </div>
-                    <div id="themePanel" style="display: none; position: absolute; top: calc(100% + 4px); right: 0; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; z-index: 1001; min-width: 220px; box-shadow: var(--shadow-md);" role="dialog" aria-label="Select theme">
+                    <div id="themePanel" class="toolbar-panel" role="dialog" aria-label="Select theme">
                         <div class="dropdown-menu-header">Theme</div>
                         <div id="themeList" class="theme-list" role="listbox"></div>
                     </div>
