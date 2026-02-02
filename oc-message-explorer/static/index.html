@@ -908,7 +908,7 @@
 
         .editor-panel {
             position: fixed;
-            top: 0;
+            bottom: 0;
             left: 0;
             right: 0;
             width: 100vw;
@@ -2037,6 +2037,24 @@
             font-weight: 500;
         }
 
+        .editor-summary-input::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .editor-summary-input::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .editor-summary-input::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 4px;
+        }
+
+        .editor-summary-input::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
     </style>
 
 </head>
@@ -2193,6 +2211,10 @@
         </div>
 
         <div class="editor-panel" id="editorPanel" style="display: none;">
+            <div class="editor-header">
+                <span class="editor-title">Edit Message</span>
+                <button class="close-btn" onclick="closeEditor()" aria-label="Close editor panel" title="Close (Escape)">&times;</button>
+            </div>
             <div class="editor-resize-handle" id="editorResizeHandle"></div>
             <div class="editor-content" id="editorContent">
                 <div class="editor-main">
@@ -2204,7 +2226,7 @@
                 <div class="editor-sidebar">
                     <div class="form-group">
                         <label class="form-label" for="nodeSummary">AI Summary / Tool Output:</label>
-                        <input type="text" class="form-input editor-summary-input" id="nodeSummary" placeholder="Tool summary or brief description...">
+                        <textarea class="editor-textarea editor-summary-input" id="nodeSummary" placeholder="Tool summary or brief description..." rows="2" style="min-height: 60px; max-height: 150px; resize: vertical; overflow-y: auto;" aria-label="AI summary or tool output"></textarea>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Type</label>
@@ -2223,7 +2245,6 @@
                     <div class="editor-actions-vertical">
                         <button class="icon-action-vertical" onclick="confirmDeleteNode()" aria-label="Delete message" title="Delete message (Del)">🗑️</button>
                         <button class="icon-action-vertical" onclick="confirmSaveNode()" aria-label="Save message" title="Save message (Ctrl+S)">💾</button>
-                        <button class="icon-action-vertical" onclick="closeEditor()" aria-label="Close editor" title="Close (Escape)">✕</button>
                     </div>
                 </div>
             </div>

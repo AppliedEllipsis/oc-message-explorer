@@ -654,7 +654,7 @@ function createNodeElement(node, messages, isRoot = false) {
              aria-selected="${node.selected}"
              aria-level="${node.parentId ? 2 : 1}"
              data-node-id="${node.id}"
-             ondblclick="openEditor('${node.id}')">
+             ondblclick="toggleEditNode('${node.id}')">
             <button class="expand-icon" aria-label="${node.expanded ? 'Collapse' : 'Expand'}" aria-expanded="${node.expanded}">${expandIcon}</button>
             <span class="checkbox-wrapper">
                 <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''} aria-label="Select message for combination">
@@ -1145,6 +1145,14 @@ function openEditor(nodeId) {
     });
 }
 
+function toggleEditNode(nodeId) {
+    if (currentEditingNodeId === nodeId) {
+        closeEditor();
+    } else {
+        openEditor(nodeId);
+    }
+}
+
 function closeEditor() {
     currentEditingNodeId = null;
     document.getElementById('editorPanel').style.display = 'none';
@@ -1579,7 +1587,8 @@ function renderCombineList() {
         div.dataset.nodeId = node.id;
         div.draggable = true;
 
-        const previewText = node.content ? escapeHtml(node.content.substring(0, 150)) : '';
+        const textToShow = node.content || node.summary || '(No content)';
+        const previewText = textToShow ? escapeHtml(textToShow.substring(0, 150)) : '(No content)';
         const showTimestamp = node.timestamp ? new Date(node.timestamp).toLocaleString() : '';
 
         div.innerHTML = `
@@ -1589,7 +1598,7 @@ function renderCombineList() {
                     <span class="combine-item-type ${node.type}">${node.type}</span>
                     ${showTimestamp ? `<span class="combine-item-timestamp">📅 ${showTimestamp}</span>` : ''}
                 </div>
-                <div class="combine-item-text">${previewText}${node.content && node.content.length > 150 ? '...' : ''}</div>
+                <div class="combine-item-text">${previewText}${textToShow.length > 150 ? '...' : ''}</div>
             </div>
             <button class="combine-item-remove" onclick="removeFromCombine(${index})" aria-label="Remove this message from combine">×</button>
         `;
@@ -1703,7 +1712,7 @@ function updateCombinedPreview() {
     const combined = combineOrder.map((node, index) => {
         const timestamp = node.timestamp ? `**Timestamp:** ${new Date(node.timestamp).toLocaleString()}\n\n` : '';
         const type = `**Type:** ${node.type}\n\n`;
-        const content = node.content || '(No content)';
+        const content = node.content || node.summary || '(No content)';
         const separator = index < combineOrder.length - 1 ? '\n\n---\n\n' : '';
         return `<div class="combined-message-section" data-index="${index}">
 ${timestamp}${type}${content}</div>${separator}`;
