@@ -907,32 +907,38 @@
         }
 
         .editor-panel {
-            width: 700px;
-            min-width: 300px;
-            max-width: 1200px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100vw;
+            height: 500px;
+            min-height: 300px;
+            max-height: 80vh;
             background: var(--bg-secondary);
-            border-left: 1px solid var(--border);
+            border-top: 1px solid var(--accent);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            position: relative;
+            z-index: 5000;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
         .editor-resize-handle {
-            width: 6px;
+            height: 8px;
             background: var(--border);
-            cursor: col-resize;
+            cursor: row-resize;
             position: absolute;
             left: 0;
+            right: 0;
             top: 0;
-            bottom: 0;
             z-index: 10;
             transition: background 0.15s ease;
         }
 
         .editor-resize-handle:hover {
             background: var(--accent);
-            width: 8px;
+            height: 10px;
         }
 
         .editor-header {
@@ -945,71 +951,9 @@
             font-weight: 600;
         }
 
-        .editor-topbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border);
-            background: var(--bg-tertiary);
-        }
-
-        .editor-topbar-left {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .editor-topbar-right {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-
-        .editor-summary-input {
-            font-size: 13px;
-            padding: 6px 10px;
-        }
-
-        .icon-action-btn {
-            width: 32px;
-            min-width: 32px;
-            height: 32px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            background: var(--bg-primary);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-
-        .icon-action-btn:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border-color: var(--text-muted);
-        }
-
-        .icon-action-btn.btn-save:hover {
-            background: var(--success);
-            color: #0d1117;
-            border-color: var(--success);
-        }
-
-        .icon-action-btn.btn-delete:hover {
-            background: var(--danger);
-            color: #ffffff;
-            border-color: var(--danger);
-        }
-
         .editor-content {
             flex: 1;
-            padding: 16px;
+            padding: 16px 16px 16px 0;
             overflow-y: auto;
             display: flex;
             flex-direction: row;
@@ -1023,10 +967,61 @@
         }
 
         .editor-sidebar {
-            width: 280px;
+            width: 220px;
+            min-width: 220px;
             display: flex;
             flex-direction: column;
             gap: 12px;
+            border-left: 1px solid var(--border-light);
+            padding-left: 16px;
+        }
+
+        .editor-summary-input {
+            font-size: 13px;
+            padding: 6px 10px;
+            margin-bottom: 12px;
+        }
+
+        .editor-actions-vertical {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .icon-action-vertical {
+            width: 100%;
+            height: 40px;
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            font-size: 14px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .icon-action-vertical:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--text-muted);
+        }
+
+        .icon-action-vertical.btn-save:hover {
+            background: var(--success);
+            color: #0d1117;
+            border-color: var(--success);
+        }
+
+        .icon-action-vertical.btn-delete:hover {
+            background: var(--danger);
+            color: #ffffff;
+            border-color: var(--danger);
         }
 
         .editor-textarea {
@@ -2198,25 +2193,19 @@
         </div>
 
         <div class="editor-panel" id="editorPanel" style="display: none;">
-            <div class="editor-topbar">
-                <div class="editor-topbar-left">
-                    <label class="form-label" for="nodeSummary">AI Summary / Tool Output:</label>
-                    <input type="text" class="form-input editor-summary-input" id="nodeSummary" placeholder="Tool summary or brief description...">
-                </div>
-                <div class="editor-topbar-right">
-                    <button class="icon-action-btn" onclick="confirmDeleteNode()" aria-label="Delete message" title="Delete message (Del)">🗑️</button>
-                    <button class="icon-action-btn" onclick="confirmSaveNode()" aria-label="Save message" title="Save message (Ctrl+S)">💾</button>
-                    <button class="close-btn" onclick="closeEditor()" aria-label="Close editor" title="Close (Escape)">✕</button>
-                </div>
-            </div>
+            <div class="editor-resize-handle" id="editorResizeHandle"></div>
             <div class="editor-content" id="editorContent">
                 <div class="editor-main">
                     <div class="form-group" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
                         <label class="form-label">Raw Message (what you typed)</label>
-                        <textarea class="editor-textarea" id="nodeContent" placeholder="Your actual message..." style="flex: 1; min-height: 200px; resize: none;"></textarea>
+                        <textarea class="editor-textarea" id="nodeContent" placeholder="Your actual message..." style="flex: 1; min-height: 300px; resize: none;"></textarea>
                     </div>
                 </div>
                 <div class="editor-sidebar">
+                    <div class="form-group">
+                        <label class="form-label" for="nodeSummary">AI Summary / Tool Output:</label>
+                        <input type="text" class="form-input editor-summary-input" id="nodeSummary" placeholder="Tool summary or brief description...">
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Type</label>
                         <select class="form-select" id="nodeType">
@@ -2230,6 +2219,11 @@
                     <div class="form-group">
                         <label class="form-label">Tags (comma-separated)</label>
                         <input type="text" class="form-input" id="nodeTags" placeholder="tag1, tag2, tag3">
+                    </div>
+                    <div class="editor-actions-vertical">
+                        <button class="icon-action-vertical" onclick="confirmDeleteNode()" aria-label="Delete message" title="Delete message (Del)">🗑️</button>
+                        <button class="icon-action-vertical" onclick="confirmSaveNode()" aria-label="Save message" title="Save message (Ctrl+S)">💾</button>
+                        <button class="icon-action-vertical" onclick="closeEditor()" aria-label="Close editor" title="Close (Escape)">✕</button>
                     </div>
                 </div>
             </div>

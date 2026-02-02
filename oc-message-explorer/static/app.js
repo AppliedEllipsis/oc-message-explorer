@@ -162,24 +162,23 @@ function setupEditorResize() {
     const editorPanel = document.getElementById('editorPanel');
     if (!editorPanel) return;
 
-    const savedWidth = localStorage.getItem('editorPanelWidth');
-    if (savedWidth) {
-        editorPanel.style.width = savedWidth + 'px';
+    const savedHeight = localStorage.getItem('editorPanelHeight');
+    if (savedHeight) {
+        editorPanel.style.height = savedHeight + 'px';
     }
 
-    const resizeHandle = document.createElement('div');
-    resizeHandle.className = 'editor-resize-handle';
-    editorPanel.insertBefore(resizeHandle, editorPanel.firstChild);
+    const resizeHandle = document.getElementById('editorResizeHandle');
+    if (!resizeHandle) return;
 
     let isResizing = false;
-    let startX = 0;
-    let startWidth = 0;
+    let startY = 0;
+    let startHeight = 0;
 
     resizeHandle.addEventListener('mousedown', (e) => {
         isResizing = true;
-        startX = e.clientX;
-        startWidth = editorPanel.offsetWidth;
-        document.body.style.cursor = 'col-resize';
+        startY = e.clientY;
+        startHeight = editorPanel.offsetHeight;
+        document.body.style.cursor = 'row-resize';
         document.body.style.userSelect = 'none';
         e.preventDefault();
     });
@@ -187,10 +186,10 @@ function setupEditorResize() {
     document.addEventListener('mousemove', (e) => {
         if (!isResizing) return;
 
-        const delta = startX - e.clientX;
-        const newWidth = Math.max(300, Math.min(1200, startWidth + delta));
-        editorPanel.style.width = newWidth + 'px';
-        localStorage.setItem('editorPanelWidth', newWidth);
+        const delta = startY - e.clientY;
+        const newHeight = Math.max(300, Math.min(window.innerHeight * 0.8, startHeight + delta));
+        editorPanel.style.height = newHeight + 'px';
+        localStorage.setItem('editorPanelHeight', newHeight);
     });
 
     document.addEventListener('mouseup', () => {
