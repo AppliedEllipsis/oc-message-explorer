@@ -57,31 +57,26 @@ function setupSidebarState() {
 
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
-    const header = document.querySelector('.app-header');
     const existingToggle = document.getElementById('sidebarToggle');
-
-    if (existingToggle) {
-        existingToggle.remove();
-        return;
-    }
 
     const isCollapsed = sidebar.classList.contains('collapsed');
     sidebar.classList.toggle('collapsed');
 
-    if (!isCollapsed) {
-        return;
+    if (existingToggle) {
+        existingToggle.remove();
+    } else {
+        const header = document.querySelector('.app-header');
+        const toggleBtn = document.createElement('button');
+        toggleBtn.id = 'sidebarToggle';
+        toggleBtn.className = 'sidebar-toggle';
+        toggleBtn.textContent = '☰';
+        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
+        toggleBtn.onclick = toggleSidebar;
+        header.insertBefore(toggleBtn, header.firstChild);
     }
 
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'sidebarToggle';
-    toggleBtn.className = 'sidebar-toggle';
-    toggleBtn.textContent = '☰';
-    toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
-    toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
-    toggleBtn.onclick = toggleSidebar;
-    header.insertBefore(toggleBtn, header.firstChild);
-
-    localStorage.setItem('sidebarCollapsed', true);
+    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
 }
 
 document.addEventListener('keydown', (e) => {
