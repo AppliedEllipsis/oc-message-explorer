@@ -2569,13 +2569,20 @@ function toggleTagsPanel() {
         console.error('[ERROR] tagsPanel element not found');
         return;
     }
+    const tagsToggleBtn = document.getElementById('tagsToggleBtn');
     if (panel.style.display === 'none') {
         panel.style.display = 'flex';
+        if (tagsToggleBtn) {
+            tagsToggleBtn.setAttribute('aria-expanded', 'true');
+        }
         document.getElementById('optionsPanel').style.display = 'none';
         document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
         console.log('[TAGS] Panel shown');
     } else {
         panel.style.display = 'none';
+        if (tagsToggleBtn) {
+            tagsToggleBtn.setAttribute('aria-expanded', 'false');
+        }
         console.log('[TAGS] Panel hidden');
     }
 }
