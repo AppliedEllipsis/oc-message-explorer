@@ -343,18 +343,41 @@ func getProjectRoot() string {
 	return "."
 }
 
-func getDatabasePath() string {
+func getExecutableDir() string {
 	exe, err := os.Executable()
 	if err != nil {
 		log.Printf("Failed to get executable path: %v", err)
-		return "oc-message-explorer.db"
+		return "."
+	}
+	return filepath.Dir(exe)
+}
+
+func getDataDir() string {
+	exeDir := getExecutableDir()
+	dataDir := filepath.Join(exeDir, "data")
+
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		log.Printf("Failed to create data directory: %v", err)
+		return exeDir
+	}
+
+	return dataDir
+}
+
+func getDatabasePath() string {
+	dataDir := getDataDir()
+
+	exe, err := os.Executable()
+	if err != nil {
+		log.Printf("Failed to get executable path: %v", err)
+		return filepath.Join(dataDir, "oc-message-explorer.db")
 	}
 
 	exeName := filepath.Base(exe)
 	ext := filepath.Ext(exeName)
 	dbName := exeName[:len(exeName)-len(ext)] + ".db"
 
-	dbPath := filepath.Join(filepath.Dir(exe), dbName)
+	dbPath := filepath.Join(dataDir, dbName)
 	return dbPath
 }
 
@@ -1028,9 +1051,12 @@ func main() {
 	configManager = NewConfigManager()
 	store := NewStore()
 
+	exeDir := getExecutableDir()
+	staticDir := filepath.Join(exeDir, "static")
+
 	router := mux.NewRouter()
 
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 
 	router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -1422,7 +1448,8 @@ func main() {
 	})
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "static/index.html")
+		indexPath := filepath.Join(exeDir, "static", "index.html")
+		http.ServeFile(w, r, indexPath)
 	})
 
 	router.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
