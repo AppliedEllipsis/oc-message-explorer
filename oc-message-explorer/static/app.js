@@ -35,6 +35,7 @@ function init() {
     setupModelFilter();
     setupEditorResize();
     setupAIWorkflow();
+    setupMoreMenu();
 
     syncFilterStates();
 
@@ -2393,6 +2394,71 @@ async function initThemeSelector() {
         console.error('Failed to load themes:', error);
         themeList.innerHTML = '<div style="padding: 12px; color: var(--danger);">Failed to load themes</div>';
     }
+}
+
+function setupMoreMenu() {
+    document.getElementById('moreBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMoreMenu();
+    });
+
+    document.addEventListener('click', (e) => {
+        const moreMenu = document.getElementById('moreMenu');
+        const moreBtn = document.getElementById('moreBtn');
+        const optionsPanel = document.getElementById('optionsPanel');
+        const optionsToggle = document.getElementById('optionsToggleBtn');
+        const themePanel = document.getElementById('themePanel');
+        const themeToggle = document.getElementById('themeToggleBtn');
+
+        if (moreMenu && moreMenu.classList.contains('show') &&
+            !moreMenu.contains(e.target) && e.target !== moreBtn) {
+            toggleMoreMenu();
+        }
+
+        if (optionsPanel && optionsPanel.style.display !== 'none' &&
+            !optionsPanel.contains(e.target) && e.target !== optionsToggle) {
+            optionsPanel.style.display = 'none';
+            document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
+        }
+
+        if (themePanel && themePanel.style.display !== 'none' &&
+            !themePanel.contains(e.target) && e.target !== themeToggle) {
+            themePanel.style.display = 'none';
+            if (themeToggle) {
+                themeToggle.setAttribute('aria-expanded', 'false');
+            }
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const moreMenu = document.getElementById('moreMenu');
+            const optionsPanel = document.getElementById('optionsPanel');
+            const themePanel = document.getElementById('themePanel');
+
+            if (moreMenu && moreMenu.classList.contains('show')) {
+                toggleMoreMenu();
+            }
+            if (optionsPanel && optionsPanel.style.display !== 'none') {
+                optionsPanel.style.display = 'none';
+                document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
+            }
+            if (themePanel && themePanel.style.display !== 'none') {
+                themePanel.style.display = 'none';
+                const themeToggle = document.getElementById('themeToggleBtn');
+                if (themeToggle) {
+                    themeToggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+        }
+    });
+}
+
+function toggleMoreMenu() {
+    const menu = document.getElementById('moreMenu');
+    const btn = document.getElementById('moreBtn');
+    const isShown = menu.classList.toggle('show');
+    btn.setAttribute('aria-expanded', isShown);
 }
 
 async function selectTheme(themeId) {
