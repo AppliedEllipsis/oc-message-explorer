@@ -193,15 +193,15 @@ function updateTagCloud() {
 
     const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
 
-    let html = `<div class="tag-cloud-item ${selectedTags.length === 0 ? 'active' : ''}" onclick="clearTagFilter()">Clear All</div>`;
+    let html = `<button class="tag-cloud-item ${selectedTags.length === 0 ? 'active' : ''}" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>`;
 
     sortedTags.forEach(([tag, count]) => {
         const isActive = selectedTags.includes(tag);
         html += `
-            <div class="tag-cloud-item ${isActive ? 'active' : ''}" onclick="toggleTagFilter('${escapeHtml(tag)}')">
+            <button class="tag-cloud-item ${isActive ? 'active' : ''}" onclick="toggleTagFilter('${escapeHtml(tag)}')" role="menuitem" aria-label="Filter by tag: ${escapeHtml(tag)}" aria-pressed="${isActive}">
                 ${escapeHtml(tag)}
                 <span class="tag-count">${count}</span>
-            </div>
+            </button>
         `;
     });
 
@@ -2122,16 +2122,18 @@ function renderTodos() {
     let html = '';
     sorted.forEach(todo => {
         html += `
-            <div class="todo-item ${todo.completed ? 'completed' : ''}">
+             <div class="todo-item ${todo.completed ? 'completed' : ''}" role="listitem">
                 <input type="checkbox" class="todo-checkbox" 
-                    ${todo.completed ? 'checked' : ''} 
-                    onchange="toggleTodo('${todo.id}')">
+                    ${todo.completed ? 'checked' : ''}
+                    onchange="toggleTodo('${todo.id}')"
+                    aria-label="Complete todo: ${escapeHtml(todo.text)}"
+                    aria-checked="${todo.completed}">
                 <div class="todo-content">
                     <div class="todo-text" title="${escapeHtml(todo.text)}">${escapeHtml(todo.text)}</div>
-                    <span class="todo-priority ${todo.priority}">${todo.priority}</span>
+                    <span class="todo-priority ${todo.priority}" aria-label="Priority: ${todo.priority}">${todo.priority}</span>
                 </div>
                 <div class="todo-actions">
-                    <button class="todo-delete" onclick="deleteTodo('${todo.id}')" title="Delete">×</button>
+                    <button class="todo-delete" onclick="deleteTodo('${todo.id}')" aria-label="Delete todo" title="Delete">×</button>
                 </div>
             </div>
         `;

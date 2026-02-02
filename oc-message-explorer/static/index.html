@@ -1696,27 +1696,21 @@
 
     <div class="container" id="mainContainer" style="display: none;">
         <div class="sidebar">
-            <div class="sidebar-header">Folders</div>
+            <div class="sidebar-header" aria-label="Folders section">Folders</div>
             <div class="controls">
-                <button class="btn primary" onclick="reloadData()">Reload</button>
-                <button class="btn" onclick="showNewFolderModal()">New</button>
+                <button class="btn primary" onclick="reloadData()" aria-label="Reload data" title="Reload (R)">Reload</button>
+                <button class="btn" onclick="showNewFolderModal()" aria-label="Create new folder" title="New folder (N)">New</button>
             </div>
-            <ul class="folder-list" id="folderList">
-                <li class="folder-item active" data-folder="all">
-                    <div class="folder-name">All Messages</div>
-                </li>
-            </ul>
-
-            <div class="sidebar-header" style="margin-top: 24px;">Tags</div>
-            <div class="tag-cloud" id="tagCloud">
-                <div class="tag-cloud-item" onclick="clearTagFilter()">Clear All</div>
+            <div class="sidebar-header" style="margin-top: 24px;" aria-label="Tags section">Tags</div>
+            <div class="tag-cloud" id="tagCloud" role="group" aria-label="Filter by tags">
+                <button class="tag-cloud-item" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>
             </div>
 
-            <div class="sidebar-header" style="margin-top: 24px;">Todos</div>
-            <div class="todo-list" id="todoList"></div>
+            <div class="sidebar-header" style="margin-top: 24px;" aria-label="Todos section">Todos</div>
+            <div class="todo-list" id="todoList" role="list" aria-label="Todo items"></div>
             <div class="controls" style="padding: 0 16px 16px;">
-                <input type="text" class="form-input" id="newTodoText" placeholder="Add todo..." style="width: 100%;">
-                <button class="btn primary" onclick="addTodo()" style="width: 100%; margin-top: 8px;">Add</button>
+                <input type="text" class="form-input" id="newTodoText" placeholder="Add todo..." style="width: 100%;" aria-label="New todo text">
+                <button class="btn primary" onclick="addTodo()" style="width: 100%; margin-top: 8px;" aria-label="Add new todo item" title="Add todo (A)">Add</button>
             </div>
         </div>
 
@@ -1734,7 +1728,7 @@
                     <span id="syncStatusProgress" style="color: var(--text-muted);"></span>
                 </div>
                 <div class="sync-status-actions" id="syncStatusActions" style="display: none;">
-                    <button class="btn" onclick="cancelSync()" id="cancelSyncBtn">Cancel</button>
+                    <button class="btn" onclick="cancelSync()" id="cancelSyncBtn" aria-label="Cancel background sync" title="Cancel sync (Esc)">Cancel</button>
                 </div>
             </div>
 
@@ -1800,8 +1794,7 @@
 
         <div class="editor-panel" id="editorPanel" style="display: none;">
             <div class="editor-header">
-                Editor
-                <button class="close-btn" onclick="closeEditor()">✕</button>
+                <button class="close-btn" onclick="closeEditor()" aria-label="Close editor" title="Close (Escape)">✕</button>
             </div>
             <div class="editor-content">
                 <div class="editor-main">
@@ -1832,8 +1825,8 @@
                 </div>
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="saveNode()">Save</button>
-                <button class="btn" onclick="deleteNode()">Delete</button>
+                <button class="btn primary" onclick="saveNode()" aria-label="Save message changes" title="Save (Ctrl+S)">Save</button>
+                <button class="btn" onclick="deleteNode()" aria-label="Delete this message" title="Delete (Del)">Delete</button>
             </div>
         </div>
     </div>
@@ -1841,17 +1834,17 @@
     <div class="modal" id="newFolderModal">
         <div class="modal-content">
             <div class="modal-header">
-                New Folder
-                <button class="close-btn" onclick="hideModal('newFolderModal')">&times;</button>
+                <h2>New Folder</h2>
+                <button class="close-btn" onclick="hideModal('newFolderModal')" aria-label="Close new folder dialog" title="Close (Escape)">&times;</button>
             </div>
             <div class="form-group">
-                <label class="form-label">Folder Name</label>
-                <input type="text" class="form-input" id="folderName" placeholder="My Folder">
+                <label class="form-label" for="folderName">Folder Name</label>
+                <input type="text" class="form-input" id="folderName" placeholder="My Folder" aria-label="Folder name">
             </div>
             <div class="form-group">
-                <label class="form-label">Color</label>
-                <div class="color-picker" id="folderColorPicker">
-                    <div class="color-option selected" style="background: #58a6ff;" data-color="#58a6ff"></div>
+                <label class="form-label">Folder Color</label>
+                <div class="color-picker" id="folderColorPicker" role="radiogroup" aria-label="Choose folder color">
+                    <div class="color-option selected" style="background: #58a6ff;" data-color="#58a6ff" role="radio" aria-checked="true" aria-label="Blue color"></div>
                     <div class="color-option" style="background: #238636;" data-color="#238636"></div>
                     <div class="color-option" style="background: #d29922;" data-color="#d29922"></div>
                     <div class="color-option" style="background: #da3633;" data-color="#da3633"></div>
@@ -1860,7 +1853,7 @@
                 </div>
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="createFolder()">Create</button>
+                <button class="btn primary" onclick="createFolder()" aria-label="Create new folder" title="Create (Enter)">Create</button>
             </div>
         </div>
     </div>
@@ -1868,83 +1861,27 @@
     <div class="modal" id="newMessageModal">
         <div class="modal-content">
             <div class="modal-header">
-                New Message
-                <button class="close-btn" onclick="hideModal('newMessageModal')">&times;</button>
+                <h2>Settings</h2>
+                <button class="close-btn" onclick="hideModal('settingsModal')" aria-label="Close settings dialog" title="Close (Escape)">&times;</button>
             </div>
             <div class="form-group">
-                <label class="form-label">Parent Message</label>
-                <select class="form-select" id="parentMessageSelect">
-                    <option value="">None (root message)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Content</label>
-                <textarea class="editor-textarea" id="newMessageContent" placeholder="Enter your content..." style="height: 150px;"></textarea>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Tags (comma-separated)</label>
-                <input type="text" class="form-input" id="newMessageTags" placeholder="tag1, tag2, tag3">
-            </div>
-            <div class="editor-actions">
-                <button class="btn primary" onclick="createMessage()">Create</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="notification" id="notification"></div>
-
-    <div class="modal" id="combineModal">
-        <div class="modal-content combine-modal-content">
-            <div class="modal-header">
-                Combine Messages
-                <button class="close-btn" onclick="hideModal('combineModal')">&times;</button>
-            </div>
-            <div class="combine-container">
-                <div class="combine-list-sidebar">
-                    <div class="sidebar-header">Order</div>
-                    <div class="combine-sort-controls">
-                        <button class="btn" onclick="sortCombineByTime()">Sort by Time</button>
-                        <button class="btn" onclick="sortCombineByType()">Sort by Type</button>
-                        <button class="btn" onclick="sortCombineByFolder()">Sort by Folder</button>
-                    </div>
-                    <div id="combineList" class="combine-list"></div>
-                    <div class="combine-actions">
-                        <button class="btn primary" onclick="copyCombined()">Copy Combined</button>
-                        <button class="btn" onclick="optimizeCombinedPrompts()">Optimize with AI</button>
-                    </div>
-                </div>
-                <div class="combine-preview-sidebar">
-                    <div class="sidebar-header">Preview</div>
-                    <div id="combinedPreview" class="combined-preview"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="settingsModal">
-        <div class="modal-content" style="max-width: 650px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column;">
-            <div class="modal-header" style="flex-shrink: 0;">
-                Settings
-                <button class="close-btn" onclick="hideModal('settingsModal')">&times;</button>
-            </div>
-            <div class="form-group">
-                <label class="form-label">OpenAI API Key</label>
-                <input type="password" class="form-input" id="openaiApiKey" placeholder="sk-...">
+                <label class="form-label" for="openaiApiKey">OpenAI API Key</label>
+                <input type="password" class="form-input" id="openaiApiKey" placeholder="sk-..." aria-label="Enter your OpenAI API key">
                 <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Your API key is stored locally only and in .env file</small>
             </div>
             <div class="form-group">
-                <label class="form-label">OpenAI Base URL (optional)</label>
-                <input type="text" class="form-input" id="openaiBaseUrl" placeholder="https://api.openai.com/v1">
+                <label class="form-label" for="openaiBaseUrl">OpenAI Base URL (optional)</label>
+                <input type="text" class="form-input" id="openaiBaseUrl" placeholder="https://api.openai.com/v1" aria-label="Enter custom OpenAI base URL">
                 <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Custom OpenAI-compatible API endpoint (leave blank for default)</small>
             </div>
             <div class="form-group">
-                <label class="form-label">Anthropic API Key (optional)</label>
-                <input type="password" class="form-input" id="anthropicApiKey" placeholder="sk-ant-...">
+                <label class="form-label" for="anthropicApiKey">Anthropic API Key (optional)</label>
+                <input type="password" class="form-input" id="anthropicApiKey" placeholder="sk-ant-..." aria-label="Enter your Anthropic API key">
                 <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">For Claude models</small>
             </div>
             <div class="form-group">
-                <label class="form-label">AI Provider</label>
-                <select class="form-select" id="aiProvider">
+                <label class="form-label" for="aiProvider">AI Provider</label>
+                <select class="form-select" id="aiProvider" aria-label="Select AI provider">
                     <option value="auto">Auto-select</option>
                     <option value="openai">OpenAI</option>
                     <option value="anthropic">Anthropic</option>
@@ -1952,21 +1889,21 @@
                 <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Auto-select will use OpenAI if available, otherwise Anthropic</small>
             </div>
             <div class="form-group" id="aiModelGroup" style="display: none;">
-                <label class="form-label">AI Model</label>
-                <select class="form-select" id="aiModel">
+                <label class="form-label" for="aiModel">AI Model</label>
+                <select class="form-select" id="aiModel" aria-label="Select AI model">
                 </select>
                 <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Select model for the chosen provider</small>
             </div>
             <div class="form-group" id="modelSelectGroup" style="display: none;">
-                <label class="form-label">Model</label>
+                <label class="form-label" for="openaiModel">Model</label>
                 <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-                    <input type="text" class="form-input" id="openaiModelFilter" placeholder="Filter models..." style="flex: 1;">
-                    <button class="btn" onclick="clearModelFilter()" style="padding: 10px 12px;">✕</button>
+                    <input type="text" class="form-input" id="openaiModelFilter" placeholder="Filter models..." style="flex: 1;" aria-label="Filter model list">
+                    <button class="btn" onclick="clearModelFilter()" style="padding: 10px 12px;" aria-label="Clear model filter" title="Clear filter">✕</button>
                 </div>
-                <select class="form-select" id="openaiModel" style="max-height: 200px;">
+                <select class="form-select" id="openaiModel" style="max-height: 200px;" aria-label="Select OpenAI model">
                     <option value="">Select a model</option>
                 </select>
-                <button class="btn" id="refreshModelsBtn" onclick="fetchModels()" style="margin-top: 8px;">Refresh Models</button>
+                <button class="btn" id="refreshModelsBtn" onclick="fetchModels()" style="margin-top: 8px;" aria-label="Refresh available models" title="Refresh model list (R)">Refresh Models</button>
             </div>
             <div class="form-group">
                 <label class="form-label">Optimization Prompt</label>
@@ -2003,9 +1940,9 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
                 </small>
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="saveSettings()">Save to .env</button>
-                <button class="btn" onclick="testApiKey()">Test Connection</button>
-                <button class="btn" onclick="loadAgentsContent()">View AGENTS.md</button>
+                <button class="btn primary" onclick="saveSettings()" aria-label="Save settings to .env file" title="Save (Ctrl+S)">Save to .env</button>
+                <button class="btn" onclick="testApiKey()" aria-label="Test API key connection" title="Test connection">Test Connection</button>
+                <button class="btn" onclick="loadAgentsContent()" aria-label="View AGENTS.md documentation" title="View documentation">View AGENTS.md</button>
             </div>
         </div>
     </div>
@@ -2013,8 +1950,8 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
     <div class="modal" id="optimizeModal">
         <div class="modal-content optimize-modal" style="width: 900px; max-height: 95vh;">
             <div class="modal-header">
-                Optimize Prompts
-                <button class="close-btn" onclick="hideModal('optimizeModal')">&times;</button>
+                <h2>Optimize Prompts with AI</h2>
+                <button class="close-btn" onclick="hideModal('optimizeModal')" aria-label="Close optimize dialog" title="Close (Escape)">&times;</button>
             </div>
             <div class="optimizer-section" style="flex: 0 0 auto;">
                 <label class="form-label">Template</label>
@@ -2040,8 +1977,8 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
                 </div>
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="optimizePrompts()">Optimize</button>
-                <button class="btn" onclick="copyOptimizedResult()" id="copyOptimizedBtn" style="display: none;">Copy Result</button>
+                <button class="btn primary" onclick="optimizePrompts()" aria-label="Optimize prompts using AI" title="Optimize (Enter)">Optimize</button>
+                <button class="btn" onclick="copyOptimizedResult()" id="copyOptimizedBtn" style="display: none;" aria-label="Copy optimized result to clipboard" title="Copy result (Ctrl+C)">Copy Result</button>
             </div>
         </div>
     </div>
@@ -2049,14 +1986,14 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
     <div class="modal" id="agentsContentModal">
         <div class="modal-content agents-modal-content">
             <div class="modal-header">
-                AGENTS.md Content
-                <button class="close-btn" onclick="hideModal('agentsContentModal')">&times;</button>
+                <h2>AGENTS.md Content</h2>
+                <button class="close-btn" onclick="hideModal('agentsContentModal')" aria-label="Close AGENTS.md viewer" title="Close (Escape)">&times;</button>
             </div>
-            <div class="agents-preview" id="agentsPreview">
+            <div class="agents-preview" id="agentsPreview" role="region" aria-label="AGENTS.md documentation content">
                 <div style="color: var(--text-muted); text-align: center; padding: 40px;">Loading...</div>
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="copyAgentsContent()">Copy to Clipboard</button>
+                <button class="btn primary" onclick="copyAgentsContent()" aria-label="Copy AGENTS.md to clipboard" title="Copy to clipboard (Ctrl+C)">Copy to Clipboard</button>
             </div>
         </div>
     </div>
