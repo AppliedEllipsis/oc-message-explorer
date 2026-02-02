@@ -1127,6 +1127,29 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
+        .modal-body {
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .modal-body::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .modal-body::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 4px;
+        }
+
+        .modal-body::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
         .modal-header {
             margin-bottom: 16px;
             display: flex;
@@ -2310,55 +2333,56 @@
     </div>
 
     <div class="modal" id="settingsModal">
-        <div class="modal-content" style="max-width: 650px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column;">
+        <div class="modal-content" style="max-width: 700px; max-height: 90vh; display: flex; flex-direction: column;">
             <div class="modal-header" style="flex-shrink: 0;">
                 <h2>Settings</h2>
                 <button class="close-btn" onclick="hideModal('settingsModal')" aria-label="Close settings dialog" title="Close (Escape)">&times;</button>
             </div>
-            <div class="form-group">
-                <label class="form-label" for="openaiApiKey">OpenAI API Key</label>
-                <input type="password" class="form-input" id="openaiApiKey" placeholder="sk-..." aria-label="Enter your OpenAI API key">
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Your API key is stored locally only and in .env file</small>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="openaiBaseUrl">OpenAI Base URL (optional)</label>
-                <input type="text" class="form-input" id="openaiBaseUrl" placeholder="https://api.openai.com/v1" aria-label="Enter custom OpenAI base URL">
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Custom OpenAI-compatible API endpoint (leave blank for default)</small>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="anthropicApiKey">Anthropic API Key (optional)</label>
-                <input type="password" class="form-input" id="anthropicApiKey" placeholder="sk-ant-..." aria-label="Enter your Anthropic API key">
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">For Claude models</small>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="aiProvider">AI Provider</label>
-                <select class="form-select" id="aiProvider" aria-label="Select AI provider">
-                    <option value="auto">Auto-select</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
-                </select>
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Auto-select will use OpenAI if available, otherwise Anthropic</small>
-            </div>
-            <div class="form-group" id="aiModelGroup" style="display: none;">
-                <label class="form-label" for="aiModel">AI Model</label>
-                <select class="form-select" id="aiModel" aria-label="Select AI model">
-                </select>
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Select model for the chosen provider</small>
-            </div>
-            <div class="form-group" id="modelSelectGroup" style="display: none;">
-                <label class="form-label" for="openaiModel">Model</label>
-                <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-                    <input type="text" class="form-input" id="openaiModelFilter" placeholder="Filter models..." style="flex: 1;" aria-label="Filter model list">
-                    <button class="btn" onclick="clearModelFilter()" style="padding: 10px 12px;" aria-label="Clear model filter" title="Clear filter">✕</button>
+            <div class="modal-body" style="flex: 1; overflow-y: auto; padding-right: 8px;">
+                <div class="form-group">
+                    <label class="form-label" for="openaiApiKey">OpenAI API Key</label>
+                    <input type="password" class="form-input" id="openaiApiKey" placeholder="sk-..." aria-label="Enter your OpenAI API key">
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Your API key is stored locally only and in .env file</small>
                 </div>
-                <select class="form-select" id="openaiModel" style="max-height: 200px;" aria-label="Select OpenAI model">
-                    <option value="">Select a model</option>
-                </select>
-                <button class="btn" id="refreshModelsBtn" onclick="fetchModels()" style="margin-top: 8px;" aria-label="Refresh available models" title="Refresh model list (R)">Refresh Models</button>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="optimizationPrompt">Optimization Prompt</label>
-                <textarea class="editor-textarea" id="optimizationPrompt" style="height: 180px;" placeholder="Custom prompt for optimization..." aria-label="Custom optimization prompt">First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
+                <div class="form-group">
+                    <label class="form-label" for="openaiBaseUrl">OpenAI Base URL (optional)</label>
+                    <input type="text" class="form-input" id="openaiBaseUrl" placeholder="https://api.openai.com/v1" aria-label="Enter custom OpenAI base URL">
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Custom OpenAI-compatible API endpoint (leave blank for default)</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="anthropicApiKey">Anthropic API Key (optional)</label>
+                    <input type="password" class="form-input" id="anthropicApiKey" placeholder="sk-ant-..." aria-label="Enter your Anthropic API key">
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">For Claude models</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="aiProvider">AI Provider</label>
+                    <select class="form-select" id="aiProvider" aria-label="Select AI provider">
+                        <option value="auto">Auto-select</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                    </select>
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Auto-select will use OpenAI if available, otherwise Anthropic</small>
+                </div>
+                <div class="form-group" id="aiModelGroup" style="display: none;">
+                    <label class="form-label" for="aiModel">AI Model</label>
+                    <select class="form-select" id="aiModel" aria-label="Select AI model">
+                    </select>
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">Select model for the chosen provider</small>
+                </div>
+                <div class="form-group" id="modelSelectGroup" style="display: none;">
+                    <label class="form-label" for="openaiModel">Model</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <input type="text" class="form-input" id="openaiModelFilter" placeholder="Filter models..." style="flex: 1;" aria-label="Filter model list">
+                        <button class="btn" onclick="clearModelFilter()" style="padding: 10px 12px;" aria-label="Clear model filter" title="Clear filter">✕</button>
+                    </div>
+                    <select class="form-select" id="openaiModel" style="max-height: 200px;" aria-label="Select OpenAI model">
+                        <option value="">Select a model</option>
+                    </select>
+                    <button class="btn" id="refreshModelsBtn" onclick="fetchModels()" style="margin-top: 8px;" aria-label="Refresh available models" title="Refresh model list (R)">Refresh Models</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="optimizationPrompt">Optimization Prompt</label>
+                    <textarea class="editor-textarea" id="optimizationPrompt" style="height: 180px;" placeholder="Custom prompt for optimization..." aria-label="Custom optimization prompt">First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
 
 Then, combine these prompts into a single, task-oriented prompt that will direct you to:
 
@@ -2372,25 +2396,26 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
 - Adherence to project conventions
 - Proper documentation and commenting
 - Type safety and error handling</textarea>
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
-                    This prompt is used to combine multiple selected prompts into a single task-oriented prompt for verification and recreation of project components.
-                </small>
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
+                        This prompt is used to combine multiple selected prompts into a single task-oriented prompt for verification and recreation of project components.
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="projectPath">Project Path</label>
+                    <input type="text" class="form-input" id="projectPath" placeholder="Path to project directory" aria-label="Enter project directory path">
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
+                        Absolute or relative path to the project directory. Used for reading AGENTS.md.
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="agentsPath">AGENTS.md Path</label>
+                    <input type="text" class="form-input" id="agentsPath" placeholder="Path to AGENTS.md" aria-label="Enter AGENTS.md file path">
+                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
+                        Path to AGENTS.md file. Can be relative to project path or absolute.
+                    </small>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label" for="projectPath">Project Path</label>
-                <input type="text" class="form-input" id="projectPath" placeholder="Path to project directory" aria-label="Enter project directory path">
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
-                    Absolute or relative path to the project directory. Used for reading AGENTS.md.
-                </small>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="agentsPath">AGENTS.md Path</label>
-                <input type="text" class="form-input" id="agentsPath" placeholder="Path to AGENTS.md" aria-label="Enter AGENTS.md file path">
-                <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
-                    Path to AGENTS.md file. Can be relative to project path or absolute.
-                </small>
-            </div>
-            <div class="editor-actions">
+            <div class="editor-actions" style="flex-shrink: 0; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
                 <button class="btn primary" onclick="saveSettings()" aria-label="Save settings to .env file" title="Save (Ctrl+S)">Save to .env</button>
                 <button class="btn" onclick="testApiKey()" aria-label="Test API key connection" title="Test connection">Test Connection</button>
                 <button class="btn" onclick="loadAgentsContent()" aria-label="View AGENTS.md documentation" title="View documentation">View AGENTS.md</button>
