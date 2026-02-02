@@ -53,41 +53,56 @@ function syncFilterStates() {
 
 function setupSidebarState() {
     const sidebar = document.getElementById('sidebar');
-    if (sidebar && sidebar.classList.contains('collapsed')) {
-        const header = document.querySelector('.app-header');
-        if (!header) return;
-        const toggleBtn = document.createElement('button');
-        toggleBtn.id = 'sidebarToggle';
-        toggleBtn.className = 'sidebar-toggle';
+    if (!sidebar) return;
+
+    const header = document.querySelector('.app-header');
+    if (!header) return;
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'sidebarToggle';
+    toggleBtn.className = 'sidebar-toggle';
+    toggleBtn.onclick = toggleSidebar;
+    header.insertBefore(toggleBtn, header.firstChild);
+
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    if (isCollapsed) {
         toggleBtn.textContent = '☰';
         toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
         toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
-toggleBtn.onclick = toggleSidebar;
-    header.insertBefore(toggleBtn, header.firstChild);
+    } else {
+        toggleBtn.textContent = '◀';
+        toggleBtn.setAttribute('aria-label', 'Hide sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
     }
 }
 
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
-    const existingToggle = document.getElementById('sidebarToggle');
+    let toggleBtn = document.getElementById('sidebarToggle');
 
     const isCollapsed = sidebar.classList.toggle('collapsed');
 
-    if (existingToggle) {
-        existingToggle.remove();
-    } else {
+    if (!toggleBtn) {
         const header = document.querySelector('.app-header');
-        const toggleBtn = document.createElement('button');
+        if (!header) return;
+        toggleBtn = document.createElement('button');
         toggleBtn.id = 'sidebarToggle';
         toggleBtn.className = 'sidebar-toggle';
-        toggleBtn.textContent = '☰';
-        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
-        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
         toggleBtn.onclick = toggleSidebar;
         header.insertBefore(toggleBtn, header.firstChild);
     }
 
-    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+    if (isCollapsed) {
+        toggleBtn.textContent = '☰';
+        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
+    } else {
+        toggleBtn.textContent = '◀';
+        toggleBtn.setAttribute('aria-label', 'Hide sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
+    }
+
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
 }
 
 document.addEventListener('keydown', (e) => {
