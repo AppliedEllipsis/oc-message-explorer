@@ -43,11 +43,11 @@ function init() {
 }
 
 function syncFilterStates() {
-    userOnlyFilter = document.getElementById('userOnlyFilter').checked;
-    sortAscending = document.getElementById('sortAscending').checked;
-    hideEmptyResponses = document.getElementById('hideEmptyResponses').checked;
-    searchModeRaw = document.getElementById('searchRawOnly').checked;
-    displayModeRaw = document.getElementById('displayRawMessages').checked;
+    userOnlyFilter = document.getElementById('userOnlyFilter')?.checked || false;
+    sortAscending = document.getElementById('sortAscending')?.checked || false;
+    hideEmptyResponses = document.getElementById('hideEmptyResponses')?.checked || true;
+    searchModeRaw = document.getElementById('searchRawOnly')?.checked || false;
+    displayModeRaw = document.getElementById('displayRawMessages')?.checked || true;
 }
 
 function setupModelFilter() {
