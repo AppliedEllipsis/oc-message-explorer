@@ -52,7 +52,7 @@
             --text-muted: #6b7178;
             --accent: #4f9cff;
             --accent-hover: #7ab3ff;
-            --accent-soft: rgba(79, 156, 255, 0.08);
+            --accent-soft: rgba(79, 156, 255, 0.12);
             --border: #3a404d;
             --border-light: #2f3542;
             --success: #3ab583;
@@ -63,6 +63,7 @@
             --radius-lg: 12px;
             --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
             --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2);
+           sidebar-width: 240px;
         }
 
         body {
@@ -88,24 +89,57 @@
             border-right: 1px solid var(--border-light);
             flex-shrink: 0;
             overflow-y: auto;
+            transition: width 0.25s ease, opacity 0.25s ease, margin-right 0.25s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            margin-right: -240px;
+            opacity: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 48px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            color: var(--text-secondary);
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.15s ease;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            width: 36px;
+        }
+
+        .sidebar-toggle.expanded {
+            left: 240px;
         }
 
         .sidebar-section-title {
-            padding: 12px 16px 6px;
+            padding: 12px 16px 8px;
             font-size: 11px;
-            font-weight: 600;
-            color: var(--text-muted);
+            font-weight: 700;
+            color: var(--text-secondary);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .sidebar-section-title {
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
+            background: linear-gradient(to right, var(--border-light), transparent);
+            border-bottom: 1px solid var(--border-light);
         }
 
         .folder-list {
@@ -116,15 +150,16 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            padding: 12px 16px;
+            padding: 16px;
         }
 
         .tag-cloud-item {
-            padding: 6px 12px;
+            padding: 8px 14px;
             background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 16px;
+            border: 2px solid var(--border);
+            border-radius: 18px;
             font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.15s ease;
             display: inline-flex;
@@ -134,13 +169,15 @@
 
         .tag-cloud-item:hover {
             background: var(--bg-hover);
-            border-color: var(--accent);
+            border-color: var(--text-secondary);
+            transform: translateY(-1px);
         }
 
         .tag-cloud-item.active {
             background: var(--accent);
-            border-color: var(--accent);
+            border-color: var(--accent-hover);
             color: #ffffff;
+            box-shadow: 0 2px 8px rgba(79, 156, 255, 0.3);
         }
 
         .tag-cloud-item .tag-count {
@@ -193,11 +230,16 @@
         }
 
         .todo-text {
-            font-size: 15px;
+            font-size: 14px;
             color: var(--text-primary);
+            font-weight: 500;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .todo-item:hover .todo-text {
+            color: var(--text-primary);
         }
 
         .todo-priority {
@@ -596,13 +638,14 @@
         .node-content {
             display: flex;
             align-items: center;
-            padding: 12px 14px;
+            padding: 12px 12px 12px 8px;
             background: var(--bg-secondary);
-            border: 1px solid var(--border-light);
+            border: 2px solid var(--border-light);
             border-radius: var(--radius-md);
             cursor: pointer;
             transition: all 0.15s ease;
             margin-bottom: 6px;
+            gap: 8px;
         }
 
         .node-content:hover {
@@ -613,6 +656,54 @@
         .node-content.selected {
             background: var(--accent-soft);
             border-color: var(--accent);
+        }
+
+        .node-actions {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-left: auto;
+            position: relative;
+        }
+
+        .node-action-btn {
+            padding: 6px 8px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+        }
+
+        .node-action-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .node-action-btn.active {
+            color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .node-action-group {
+            display: flex;
+            position: relative;
+            z-index: 1;
+        }
+
+        .node-action-group .node-action-btn:not(:first-child) {
+            margin-left: -8px;
+        }
+
+        .node-action-group .node-action-btn:hover {
+            z-index: 10;
         }
 
         .node-content.prompt-node {
@@ -649,8 +740,9 @@
         .node-checkbox {
             margin-right: 10px;
             cursor: pointer;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
         }
 
         .node-header {
@@ -698,8 +790,12 @@
         }
 
         .checkbox-wrapper:hover {
-            background: var(--bg-tertiary);
+            background: rgba(79, 156, 255, 0.1);
             border-radius: 4px;
+        }
+
+        .checkbox-wrapper:hover .node-checkbox {
+            border-color: var(--accent);
         }
 
 
@@ -740,11 +836,42 @@
 
         .node-meta {
             display: flex;
-            gap: 12px;
             align-items: center;
-            font-size: 13px;
-            color: var(--text-muted);
+            gap: 12px;
             margin-top: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            flex-wrap: wrap;
+        }
+
+        .node-folder {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .node-folder .folder-color {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .node-timestamp {
+            padding: 2px 6px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 11px;
+            color: #7ab3ff;
         }
 
         .node-folder {
@@ -1819,7 +1946,10 @@
     </div>
 
     <div class="container" id="mainContainer" style="display: none;">
-        <div class="sidebar">
+        <button class="sidebar-toggle expanded" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Toggle sidebar" title="Toggle sidebar (Ctrl+B)">
+            ☰
+        </button>
+        <div class="sidebar collapsed" id="sidebar">
             <div class="sidebar-header" aria-label="Folders section">Folders</div>
             <div class="controls">
                 <button class="btn primary" onclick="reloadData()" aria-label="Reload data" title="Reload (R)">Reload</button>

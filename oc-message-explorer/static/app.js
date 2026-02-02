@@ -36,6 +36,7 @@ function init() {
     setupEditorResize();
     setupAIWorkflow();
     setupMoreMenu();
+    setupSidebarState();
 
     syncFilterStates();
 
@@ -528,19 +529,18 @@ function createNodeElement(node, messages, isRoot = false) {
     const folderInfo = getFolderInfo(node.id);
 
     div.innerHTML = `
-        <div class="node-content ${node.type}-node ${node.selected ? 'selected' : ''}" 
-             role="treeitem" 
-             aria-expanded="${node.expanded}" 
+        <div class="node-content ${node.type}-node ${node.selected ? 'selected' : ''}"
+             role="treeitem"
+             aria-expanded="${node.expanded}"
              aria-selected="${node.selected}"
              aria-level="${node.parentId ? 2 : 1}"
-             data-node-id="${node.id}">
+             data-node-id="${node.id}"
+             ondblclick="openEditor('${node.id}')">
             <button class="expand-icon" aria-label="${node.expanded ? 'Collapse' : 'Expand'}" aria-expanded="${node.expanded}">${expandIcon}</button>
             <span class="checkbox-wrapper">
                 <input type="checkbox" class="node-checkbox" ${node.selected ? 'checked' : ''} aria-label="Select message for combination">
             </span>
-            <button class="edit-area edit-btn-${node.id}" title="Edit message" aria-label="Edit message">✏️</button>
             <span class="node-type ${node.type}" role="presentation">${node.type}</span>
-            <button class="lock-icon ${node.locked ? 'locked' : 'unlocked'}" title="${node.locked ? 'Click to unlock' : 'Click to lock'}" aria-pressed="${node.locked}" aria-label="${node.locked ? 'Unlock message' : 'Lock message'}">${node.locked ? '🔒' : '🔓'}</button>
             <div class="node-content-wrapper">
                 <div class="node-header">
                     <span class="node-text">${escapeHtml(displayContent)}</span>
@@ -548,7 +548,13 @@ function createNodeElement(node, messages, isRoot = false) {
                 <div class="node-meta">
                     ${folderInfo ? `<div class="node-folder"><span class="folder-color" style="background: ${folderInfo.color}"></span>${escapeHtml(folderInfo.name)}</div>` : ''}
                     <span class="node-timestamp" aria-label="Timestamp: ${timestamp}">${timestamp}</span>
-                    ${hasChildren ? `<span style="color: var(--text-muted); font-size: 12px; margin-left: 8px;" aria-label="${node.children.length} child message${node.children.length > 1 ? 's' : ''}">${node.children.length} child(ren)</span>` : ''}
+                    ${hasChildren ? `<span style="color: var(--text-secondary); font-size: 12px; margin-left: 8px;" aria-label="${node.children.length} child message${node.children.length > 1 ? 's' : ''}">${node.children.length} child(ren)</span>` : ''}
+                </div>
+            </div>
+            <div class="node-actions">
+                <div class="node-action-group">
+                    <button class="node-action-btn edit-action-btn-${node.id}" title="Edit message" aria-label="Edit message">✏️</button>
+                    <button class="node-action-btn lock-icon-${node.locked ? 'locked' : 'unlocked'}" title="${node.locked ? 'Click to unlock' : 'Click to lock'}" aria-pressed="${node.locked}" aria-label="${node.locked ? 'Unlock message' : 'Lock message'}">${node.locked ? '🔒' : '🔓'}</button>
                 </div>
             </div>
         </div>
@@ -560,29 +566,42 @@ function createNodeElement(node, messages, isRoot = false) {
     const expandIconEl = div.querySelector('.expand-icon');
     const checkbox = div.querySelector('.node-checkbox');
     const checkboxWrapper = div.querySelector('.checkbox-wrapper');
-    const editIcon = div.querySelector('.edit-area');
+    const editIcon = div.querySelector(`.edit-${node.id}`);
     const lockIcon = div.querySelector('.lock-icon');
     const childrenContainer = div.querySelector('.children-container');
     const contentWrapper = div.querySelector('.node-content-wrapper');
+    const nodeActions = div.querySelector('.node-actions');
+    const groupedActions = div.querySelector('.node-action-group');
 
     contentDiv.onclick = (e) => {
-        if (e.target !== checkbox && e.target !== checkboxWrapper && e.target !== expandIconEl && e.target !== editIcon && e.target !== lockIcon) {
-            const editorPanel = document.getElementById('editorPanel');
-            if (editorPanel && editorPanel.style.display === 'flex') {
-                openEditor(node.id);
-            }
+        if (e.target === checkbox ||
+            e.target === checkboxWrapper ||
+            e.target === expandIconEl ||
+            groupedActions?.contains(e.target) ||
+            contentDiv.contains(e.target) && nodeActions?.contains(e.target)) {
+            return;
+        }
+        const editorPanel = document.getElementById('editorPanel');
+        if (editorPanel && editorPanel.style.display === 'flex') {
+            openEditor(node.id);
         }
     };
 
-    editIcon.onclick = (e) => {
-        e.stopPropagation();
-        openEditor(node.id);
-    };
+    const editBtn = div.querySelector(`.edit-action-btn-${node.id}`);
+    if (editBtn) {
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            openEditor(node.id);
+        };
+    }
 
-    lockIcon.onclick = (e) => {
-        e.stopPropagation();
-        toggleLock(node.id);
-    };
+    const lockBtn = div.querySelector(`.lock-icon-${node.locked ? 'locked' : 'unlocked'}`);
+    if (lockBtn) {
+        lockBtn.onclick = (e) => {
+            e.stopPropagation();
+            toggleLock(node.id);
+        };
+    }
 
     expandIconEl.onclick = (e) => {
         e.stopPropagation();
@@ -2396,6 +2415,18 @@ async function initThemeSelector() {
     }
 }
 
+function setupSidebarState() {
+    const sidebarCollapsed = localStorage.getItem('sidebarCollapsed');
+    if (sidebarCollapsed === 'false' || sidebarCollapsed === null) {
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebarToggle');
+        sidebar.classList.remove('collapsed');
+        toggleBtn.classList.add('expanded');
+        toggleBtn.textContent = '×';
+        toggleBtn.setAttribute('aria-label', 'Hide sidebar (Ctrl+B)');
+    }
+}
+
 function setupMoreMenu() {
     document.getElementById('moreBtn').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2508,6 +2539,26 @@ let configManager = {
 };
 
 document.addEventListener('DOMContentLoaded', init);
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    sidebar.classList.toggle('collapsed');
+    toggleBtn.classList.toggle('expanded');
+
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    toggleBtn.textContent = isCollapsed ? '☰' : '×';
+    toggleBtn.setAttribute('aria-label', isCollapsed ? 'Show sidebar (Ctrl+B)' : 'Hide sidebar (Ctrl+B)');
+
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+}
+
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+    }
+});
 
 
 
