@@ -45,8 +45,8 @@ function init() {
     console.log('[INIT] Combine drag and drop setup');
     loadSettings();
     console.log('[INIT] Settings loaded');
-    loadTodos();
-    console.log('[INIT] Todos loaded');
+    // loadTodos(); // Sidebar removed - todos no longer used
+    console.log('[INIT] Todos disabled (sidebar removed)');
     setupModelFilter();
     console.log('[INIT] Model filter setup');
     setupEditorResize();
@@ -215,7 +215,7 @@ function connectWebSocket() {
         if (message.type === 'init' || message.type === 'update') {
             folders = message.data;
             updateAllMessages();
-            renderFolders();
+            // renderFolders(); // Sidebar removed - folders no longer displayed
             renderTree();
             updateGraph();
             updateTagCloud();
@@ -252,6 +252,10 @@ function updateAllMessages() {
 
 function renderFolders() {
     const list = document.getElementById('folderList');
+    if (!list) {
+        console.log('[FOLDERS] folderList not found (sidebar removed)');
+        return;
+    }
     list.innerHTML = `
         <li class="folder-item ${currentFolderId === 'all' ? 'active' : ''}" data-folder="all" onclick="selectFolder('all')">
             <div class="folder-name">All Messages</div>
@@ -279,7 +283,7 @@ function renderFolders() {
 
 function selectFolder(id) {
     currentFolderId = id;
-    renderFolders();
+    // renderFolders(); // Sidebar removed - folders no longer displayed
     renderTree();
     updateGraph();
     updateTagCloud();
@@ -2385,7 +2389,11 @@ function loadTodos() {
 
 function renderTodos() {
     const container = document.getElementById('todoList');
-    
+    if (!container) {
+        console.log('[TODOS] todoList not found (sidebar removed)');
+        return;
+    }
+
     if (!configManager.todos || configManager.todos.length === 0) {
         container.innerHTML = `
             <div style="color: var(--text-muted); text-align: center; padding: 20px; font-size: 13px;">
