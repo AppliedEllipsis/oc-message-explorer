@@ -24,23 +24,58 @@ const DELETED_FOLDERS_MAP = {};
 
 
 function init() {
-    window.themeEngine.init();
+    console.log('[INIT] Starting initialization...');
+
+    if (window.themeEngine && typeof window.themeEngine.init === 'function') {
+        window.themeEngine.init();
+        console.log('[INIT] Theme engine initialized');
+    } else {
+        console.error('[ERROR] theme-engine.js not loaded or window.themeEngine not available');
+    }
+
     initThemeSelector();
+    console.log('[INIT] Theme selector initialized');
     setupColorPicker();
+    console.log('[INIT] Color picker setup');
     setupDragAndDrop();
+    console.log('[INIT] Drag and drop setup');
     setupDateFilter();
+    console.log('[INIT] Date filter setup');
     setupCombineDragAndDrop();
+    console.log('[INIT] Combine drag and drop setup');
     loadSettings();
+    console.log('[INIT] Settings loaded');
     loadTodos();
+    console.log('[INIT] Todos loaded');
     setupModelFilter();
+    console.log('[INIT] Model filter setup');
     setupEditorResize();
+    console.log('[INIT] Editor resize setup');
     setupAIWorkflow();
+    console.log('[INIT] AI workflow setup');
     setupMoreMenu();
+    console.log('[INIT] More menu setup');
     setupSidebarState();
+    console.log('[INIT] Sidebar state setup');
 
     syncFilterStates();
+    console.log('[INIT] Filter states synced');
 
     connectWebSocket();
+    console.log('[INIT] WebSocket initialized');
+
+    const searchBox = document.getElementById('searchBox');
+    if (searchBox) {
+        console.log('[INIT] Found searchBox, adding event listener');
+        searchBox.addEventListener('input', function() {
+            console.log('[SEARCH] Search box input event triggered');
+            filterMessages();
+        });
+    } else {
+        console.error('[ERROR] searchBox element not found during init');
+    }
+
+    console.log('[INIT] All initialization complete!');
 }
 
 function syncFilterStates() {
@@ -409,19 +444,29 @@ function getMessagesToDisplay() {
 }
 
 function filterMessages() {
-    const query = document.getElementById('searchBox').value.trim();
+    console.log('[SEARCH] filterMessages called');
+    const searchBox = document.getElementById('searchBox');
+    if (!searchBox) {
+        console.error('[ERROR] searchBox element not found!');
+        return;
+    }
+    const query = searchBox.value.trim();
+    console.log('[SEARCH] Query:', query);
 
     clearTimeout(searchTimeout);
 
     searchTimeout = setTimeout(() => {
         searchQuery = query;
+        console.log('[SEARCH] Searching for:', query);
 
         if (query.length < 2) {
+            console.log('[SEARCH] Query too short, clearing results');
             searchResults = {};
             renderTree();
             return;
         }
 
+        console.log('[SEARCH] Sending search request to server');
         fetch('/api/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -429,12 +474,17 @@ function filterMessages() {
         })
         .then(res => res.json())
         .then(results => {
-            searchResults = results || {};
-            expandSearchResults(results);
+            console.log('[SEARCH] Got results:', Object.keys(results || {}).length);
+            if (results) {
+                searchResults = results;
+                expandSearchResults(results);
+            } else {
+                searchResults = {};
+            }
             renderTree();
         })
         .catch(err => {
-            console.error('Search error:', err);
+            console.error('[SEARCH] Search error:', err);
             renderTree();
         });
     }, 300);
@@ -474,7 +524,12 @@ function expandSearchResults(results) {
 }
 
 function renderTree() {
+    console.log('[RENDER] renderTree called, searchQuery:', searchQuery, 'length:', searchQuery?.length);
     const container = document.getElementById('treeContainer');
+    if (!container) {
+        console.error('[RENDER] treeContainer not found!');
+        return;
+    }
     let messages;
 
     if (searchQuery && searchQuery.length >= 2) {
@@ -635,15 +690,18 @@ function createNodeElement(node, messages, isRoot = false) {
     const groupedActions = div.querySelector('.node-action-group');
 
     contentDiv.onclick = (e) => {
+        console.log('[CLICK] Node content clicked for node:', node.id, 'target:', e.target.tagName, 'target.className:', e.target.className);
         if (e.target === checkbox ||
             e.target === checkboxWrapper ||
             e.target === expandIconEl ||
             groupedActions?.contains(e.target) ||
             contentDiv.contains(e.target) && nodeActions?.contains(e.target)) {
+            console.log('[CLICK] Node click ignored - click on child element');
             return;
         }
         const editorPanel = document.getElementById('editorPanel');
         if (editorPanel && editorPanel.style.display === 'flex') {
+            console.log('[CLICK] Opening editor for node:', node.id);
             openEditor(node.id);
         }
     };
@@ -651,6 +709,7 @@ function createNodeElement(node, messages, isRoot = false) {
     const editBtn = div.querySelector(`.edit-action-btn-${node.id}`);
     if (editBtn) {
         editBtn.onclick = (e) => {
+            console.log('[CLICK] Edit button clicked for node:', node.id);
             e.stopPropagation();
             openEditor(node.id);
         };
@@ -659,30 +718,32 @@ function createNodeElement(node, messages, isRoot = false) {
     const lockBtn = div.querySelector(`.lock-icon-${node.locked ? 'locked' : 'unlocked'}`);
     if (lockBtn) {
         lockBtn.onclick = (e) => {
+            console.log('[CLICK] Lock button clicked for node:', node.id);
             e.stopPropagation();
             toggleLock(node.id);
         };
     }
 
     expandIconEl.onclick = (e) => {
+        console.log('[CLICK] Expand icon clicked for node:', node.id);
         e.stopPropagation();
         toggleExpand(node.id);
         renderTree();
     };
 
     checkbox.onclick = (e) => {
+        console.log('[CLICK] Checkbox clicked for node:', node.id, 'checked:', checkbox.checked);
         e.stopPropagation();
-        e.preventDefault();
+
         const isChecked = checkbox.checked;
         const originalSelected = node.selected;
 
-        undoRedoManager.pushAction({
+        const action = {
             description: isChecked ? 'Select message' : 'Deselect message',
             execute: async () => {
+                console.log('[CHECKBOX] Executing selection:', isChecked, 'for node:', node.id);
                 node.selected = isChecked;
-                checkbox.checked = isChecked;
-                contentDiv.classList.toggle('selected', isChecked);
-                
+
                 for (const folderId in folders) {
                     if (folders[folderId].nodes[node.id]) {
                         folders[folderId].nodes[node.id] = node;
@@ -691,18 +752,21 @@ function createNodeElement(node, messages, isRoot = false) {
                 }
                 allMessages[node.id] = node;
                 updateGraph();
-                
-                await fetch(`/api/messages/${node.id}`, {
+
+                const response = await fetch(`/api/messages/${node.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(node)
                 });
+                if (!response.ok) {
+                    throw new Error('Failed to update selection');
+                }
+                console.log('[CHECKBOX] Selection saved to server');
             },
             undo: async () => {
+                console.log('[CHECKBOX] Undoing selection for node:', node.id);
                 node.selected = originalSelected;
-                checkbox.checked = originalSelected;
-                contentDiv.classList.toggle('selected', originalSelected);
-                
+
                 for (const folderId in folders) {
                     if (folders[folderId].nodes[node.id]) {
                         folders[folderId].nodes[node.id] = node;
@@ -711,16 +775,24 @@ function createNodeElement(node, messages, isRoot = false) {
                 }
                 allMessages[node.id] = node;
                 updateGraph();
-                
+
                 await fetch(`/api/messages/${node.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(node)
                 });
             }
+        };
+
+        undoRedoManager.pushAction(action);
+
+        action.execute().catch(err => {
+            console.error('[CHECKBOX] Failed to execute:', err);
+            showNotification('Failed to update selection');
         });
-        
+
         updateGraph();
+        console.log('[CHECKBOX] Handler complete for node:', node.id);
     };
 
     if (hasVisibleChildren && node.expanded) {
@@ -1091,9 +1163,10 @@ function saveNode() {
         tags: document.getElementById('nodeTags').value.split(',').map(t => t.trim()).filter(t => t)
     };
 
-    undoRedoManager.pushAction({
+    const action = {
         description: 'Edit message',
         execute: async () => {
+            console.log('[EDIT] Saving message:', currentEditingNodeId);
             for (const folderId in folders) {
                 if (folders[folderId].nodes[currentEditingNodeId]) {
                     folders[folderId].nodes[currentEditingNodeId] = { ...updatedNode };
@@ -1110,8 +1183,10 @@ function saveNode() {
 
             showNotification('Message saved');
             closeEditor();
+            console.log('[EDIT] Message saved successfully');
         },
         undo: async () => {
+            console.log('[EDIT] Undoing edit for:', currentEditingNodeId);
             for (const folderId in folders) {
                 if (folders[folderId].nodes[currentEditingNodeId]) {
                     folders[folderId].nodes[currentEditingNodeId] = { ...originalNode };
@@ -1128,6 +1203,12 @@ function saveNode() {
 
             renderTree();
         }
+    };
+
+    undoRedoManager.pushAction(action);
+    action.execute().catch(err => {
+        console.error('[EDIT] Failed to save message:', err);
+        showNotification('Failed to save message');
     });
 }
 
@@ -1145,9 +1226,10 @@ function deleteNode() {
         DELETED_FOLDERS_MAP[nodeId] = nodeFolderId;
     }
 
-    undoRedoManager.pushAction({
+    const action = {
         description: 'Delete message',
         execute: async () => {
+            console.log('[DELETE] Deleting message:', nodeId);
             await fetch(`/api/messages/${nodeId}`, {
                 method: 'DELETE'
             });
@@ -1160,18 +1242,19 @@ function deleteNode() {
             }
             delete allMessages[nodeId];
 
+            renderTree();
             showNotification('Message deleted');
             closeEditor();
+            console.log('[DELETE] Message deleted successfully');
         },
         undo: async () => {
-            const targetFolderId = DELETED_FOLDERS_MAP[nodeId];
-            if (targetFolderId && folders[targetFolderId]) {
-                if (!folders[targetFolderId].nodes) folders[targetFolderId].nodes = {};
-                folders[targetFolderId].nodes[nodeId] = { ...deletedNode };
+            console.log('[DELETE] Restoring message:', nodeId);
+            if (nodeFolderId) {
+                folders[nodeFolderId].nodes[nodeId] = deletedNode;
             }
-            allMessages[nodeId] = { ...deletedNode };
+            allMessages[nodeId] = deletedNode;
 
-            await fetch(`/api/messages`, {
+            await fetch('/api/messages/restore', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ folderId: targetFolderId, node: deletedNode })
@@ -1180,10 +1263,17 @@ function deleteNode() {
             renderTree();
             showNotification('Message restored');
         }
+    };
+
+    undoRedoManager.pushAction(action);
+    action.execute().catch(err => {
+        console.error('[DELETE] Failed to delete message:', err);
+        showNotification('Failed to delete message');
     });
 }
 
 function expandAll() {
+    console.log('[CLICK] Expand All clicked');
     const originalStates = Object.entries(allMessages).reduce((acc, [id, node]) => {
         if (node.children && node.children.length > 0) {
             acc[id] = node.expanded;
@@ -1191,9 +1281,10 @@ function expandAll() {
         return acc;
     }, {});
 
-    undoRedoManager.pushAction({
+    const action = {
         description: 'Expand all messages',
         execute: async () => {
+            console.log('[EXPAND] Expanding all messages');
             Object.values(allMessages).forEach(node => {
                 if (node.children && node.children.length > 0) {
                     node.expanded = true;
@@ -1203,6 +1294,7 @@ function expandAll() {
             showNotification('All messages expanded');
         },
         undo: async () => {
+            console.log('[EXPAND] Undoing expand all');
             Object.entries(originalStates).forEach(([id, wasExpanded]) => {
                 if (allMessages[id]) {
                     allMessages[id].expanded = wasExpanded;
@@ -1211,10 +1303,17 @@ function expandAll() {
             renderTree();
             showNotification('Expand all undone');
         }
+    };
+
+    undoRedoManager.pushAction(action);
+    action.execute().catch(err => {
+        console.error('[EXPAND] Failed to expand all:', err);
+        showNotification('Failed to expand all');
     });
 }
 
 function collapseAll() {
+    console.log('[CLICK] Collapse All clicked');
     const originalStates = Object.entries(allMessages).reduce((acc, [id, node]) => {
         if (node.children && node.children.length > 0) {
             acc[id] = node.expanded;
@@ -1222,9 +1321,10 @@ function collapseAll() {
         return acc;
     }, {});
 
-    undoRedoManager.pushAction({
+    const action = {
         description: 'Collapse all messages',
         execute: async () => {
+            console.log('[COLLAPSE] Collapsing all messages');
             Object.values(allMessages).forEach(node => {
                 node.expanded = false;
             });
@@ -1232,6 +1332,7 @@ function collapseAll() {
             showNotification('All messages collapsed');
         },
         undo: async () => {
+            console.log('[COLLAPSE] Undoing collapse all');
             Object.entries(originalStates).forEach(([id, wasExpanded]) => {
                 if (allMessages[id]) {
                     allMessages[id].expanded = wasExpanded;
@@ -1240,10 +1341,17 @@ function collapseAll() {
             renderTree();
             showNotification('Collapse all undone');
         }
+    };
+
+    undoRedoManager.pushAction(action);
+    action.execute().catch(err => {
+        console.error('[COLLAPSE] Failed to collapse all:', err);
+        showNotification('Failed to collapse all');
     });
 }
 
 function unselectAll() {
+    console.log('[CLICK] Unselect All clicked');
     const originalSelected = Object.entries(allMessages).reduce((acc, [id, node]) => {
         if (node.selected) {
             acc[id] = true;
@@ -1251,9 +1359,10 @@ function unselectAll() {
         return acc;
     }, {});
 
-    undoRedoManager.pushAction({
+    const action = {
         description: 'Unselect all messages',
         execute: async () => {
+            console.log('[UNSELECT] Unselecting all messages');
             Object.values(allMessages).forEach(node => {
                 node.selected = false;
                 const folderId = Object.keys(folders).find(fid => folders[fid].nodes[node.id]);
@@ -1265,6 +1374,7 @@ function unselectAll() {
             showNotification('All messages unchecked');
         },
         undo: async () => {
+            console.log('[UNSELECT] Undoing unselect all');
             Object.entries(originalSelected).forEach(([id]) => {
                 if (allMessages[id]) {
                     allMessages[id].selected = true;
@@ -1277,6 +1387,12 @@ function unselectAll() {
             renderTree();
             showNotification('Unselect all undone');
         }
+    };
+
+    undoRedoManager.pushAction(action);
+    action.execute().catch(err => {
+        console.error('[UNSELECT] Failed to unselect all:', err);
+        showNotification('Failed to unselect all');
     });
 }
 
@@ -1383,28 +1499,36 @@ function createMessage() {
 }
 
 function copySelected() {
+    console.log('[CLICK] Copy button clicked');
     const messages = getMessagesToDisplay();
     const selectedIds = Object.values(messages).filter(m => m.selected).map(m => m.id);
+    console.log('[COPY] Selected IDs:', selectedIds);
 
     if (selectedIds.length === 0) {
+        console.log('[COPY] No messages selected');
         showNotification('No messages selected');
         return;
     }
 
     const combined = selectedIds.map(id => messages[id].content).join('\n\n');
+    console.log('[COPY] Copying', selectedIds.length, 'messages');
 
     navigator.clipboard.writeText(combined).then(() => {
+        console.log('[COPY] Successfully copied to clipboard');
         showNotification(`Copied ${selectedIds.length} message(s)`);
     }).catch(err => {
-        console.error('Failed to copy:', err);
+        console.error('[COPY] Failed to copy:', err);
         showNotification('Failed to copy messages');
     });
 }
 
 function showCombineModal() {
+    console.log('[CLICK] Combine button clicked');
     const selected = Object.values(allMessages).filter(m => m.selected);
+    console.log('[COMBINE] Selected messages:', selected.length);
 
     if (selected.length === 0) {
+        console.log('[COMBINE] No messages selected');
         showNotification('No messages selected');
         return;
     }
@@ -1413,10 +1537,17 @@ function showCombineModal() {
     renderCombineList();
     updateCombinedPreview();
     document.getElementById('combineModal').classList.add('active');
+    console.log('[COMBINE] Combine modal shown');
 }
+
+
 
 function renderCombineList() {
     const container = document.getElementById('combineList');
+    if (!container) {
+        console.error('[ERROR] combineList element not found');
+        return;
+    }
     container.innerHTML = '';
 
     combineOrder.forEach((node, index) => {
@@ -2053,6 +2184,10 @@ function clearModelFilter() {
 
 function showNotification(message) {
     const notification = document.getElementById('notification');
+    if (!notification) {
+        console.error('[ERROR] notification element not found');
+        return;
+    }
     notification.textContent = message;
     notification.classList.add('show');
 
@@ -2338,11 +2473,18 @@ function copyAgentsContent() {
 }
 
 function toggleOptionsPanel() {
+    console.log('[CLICK] Filters button clicked');
     const panel = document.getElementById('optionsPanel');
+    if (!panel) {
+        console.error('[ERROR] optionsPanel element not found');
+        return;
+    }
     if (panel.style.display === 'none') {
         panel.style.display = 'flex';
+        console.log('[FILTERS] Panel shown');
     } else {
         panel.style.display = 'none';
+        console.log('[FILTERS] Panel hidden');
     }
 }
 
@@ -2383,15 +2525,21 @@ function cancelSync() {
 }
 
 function toggleLock(nodeId) {
+    console.log('[CLICK] Toggle lock for node:', nodeId);
     const node = allMessages[nodeId];
-    if (!node) return;
+    if (!node) {
+        console.error('[ERROR] Node not found:', nodeId);
+        return;
+    }
 
     const originalLockState = node.locked;
     const newLockState = !originalLockState;
+    console.log('[LOCK] Changing from', originalLockState, 'to', newLockState);
 
-    undoRedoManager.pushAction({
+    const action = {
         description: newLockState ? 'Lock message' : 'Unlock message',
         execute: async () => {
+            console.log('[LOCK] Executing lock change:', newLockState, 'for node:', nodeId);
             node.locked = newLockState;
 
             for (const folderId in folders) {
@@ -2414,8 +2562,10 @@ function toggleLock(nodeId) {
             }
             const data = await response.json();
             showNotification(data.locked ? 'Message locked' : 'Message unlocked');
+            console.log('[LOCK] Lock state saved to server');
         },
         undo: async () => {
+            console.log('[LOCK] Undoing lock change for node:', nodeId);
             node.locked = originalLockState;
 
             for (const folderId in folders) {
@@ -2434,6 +2584,13 @@ function toggleLock(nodeId) {
                 body: JSON.stringify({ locked: originalLockState })
             });
         }
+    };
+
+    undoRedoManager.pushAction(action);
+
+    action.execute().catch(err => {
+        console.error('[LOCK] Failed to execute:', err);
+        showNotification('Failed to update lock');
     });
 }
 
@@ -2477,7 +2634,14 @@ async function initThemeSelector() {
 }
 
 function setupMoreMenu() {
-    document.getElementById('moreBtn').addEventListener('click', (e) => {
+    const moreBtn = document.getElementById('moreBtn');
+    if (!moreBtn) {
+        console.error('[ERROR] moreBtn element not found in setupMoreMenu()');
+        return;
+    }
+
+    moreBtn.addEventListener('click', (e) => {
+        console.log('[CLICK] More button clicked (addEventListener)');
         e.stopPropagation();
         toggleMoreMenu();
     });
@@ -2532,13 +2696,26 @@ function setupMoreMenu() {
             }
         }
     });
+    console.log('[INIT] setupMoreMenu() initialized');
 }
 
 function toggleMoreMenu() {
+    console.log('[CLICK] Toggle More Menu called');
     const menu = document.getElementById('moreMenu');
     const btn = document.getElementById('moreBtn');
+
+    if (!menu) {
+        console.error('[ERROR] moreMenu element not found');
+        return;
+    }
+    if (!btn) {
+        console.error('[ERROR] moreBtn element not found');
+        return;
+    }
+
     const isShown = menu.classList.toggle('show');
     btn.setAttribute('aria-expanded', isShown);
+    console.log('[MORE] Menu is now:', isShown ? 'shown' : 'hidden');
 }
 
 async function selectTheme(themeId) {
