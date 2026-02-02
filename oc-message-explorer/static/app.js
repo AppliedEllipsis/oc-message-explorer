@@ -1223,6 +1223,9 @@ async function duplicateNode(nodeId) {
     showNotification('Duplicating message...');
 
     try {
+        // Find which folders the original node is in
+        const folderIds = Object.keys(folders).filter(folderId => folders[folderId].nodes[nodeId]);
+
         const response = await fetch('/api/messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1231,7 +1234,9 @@ async function duplicateNode(nodeId) {
                 content: node.content,
                 tags: node.tags || [],
                 parentId: node.parentId,
-                summary: node.summary
+                summary: node.summary,
+                sessionId: node.sessionId || '',
+                folderIds: folderIds || ['all']
             })
         });
 
@@ -1240,9 +1245,26 @@ async function duplicateNode(nodeId) {
         }
 
         showNotification('✓ Message duplicated');
-        // The WebSocket or next reload will update the UI
-        // But for better UX, we might want to trigger a refresh
-        updateAllMessages();
+        
+        // Update UI
+        await updateAllMessages();
+        
+        // Scroll to and highlight the new message
+        setTimeout(() => {
+            const newNodes = Object.values(allMessages).filter(n => 
+                n.content === node.content && 
+                n.timestamp !== node.timestamp
+            );
+            if (newNodes.length > 0) {
+                const newNode = newNodes[newNodes.length - 1];
+                const nodeEl = document.querySelector(`.node-content[data-node-id="${newNode.id}"]`);
+                if (nodeEl) {
+                    nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    nodeEl.classList.add('highlight');
+                    setTimeout(() => nodeEl.classList.remove('highlight'), 2000);
+                }
+            }
+        }, 500);
     } catch (err) {
         console.error('Failed to duplicate:', err);
         showNotification('Failed to duplicate message');

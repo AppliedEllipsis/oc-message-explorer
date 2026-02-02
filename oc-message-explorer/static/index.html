@@ -759,6 +759,21 @@
             border-color: var(--accent);
         }
 
+        .node-content.highlight {
+            animation: highlightPulse 2s ease-out;
+        }
+
+        @keyframes highlightPulse {
+            0% {
+                background: var(--accent-soft);
+                border-color: var(--accent-hover);
+                transform: scale(1.02);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
         .node-actions {
             display: flex;
             align-items: center;
@@ -2248,7 +2263,7 @@
                     <span>Tags</span>
                 </button>
 
-                <div id="optionsPanel" class="toolbar-panel" style="left: 0;" role="group" aria-label="Filter options">
+                <div id="optionsPanel" class="toolbar-panel" style="left: 0;" role="dialog" aria-label="Filter options" aria-modal="false">
                     <div class="dropdown-menu-header">Quick Filters</div>
                     <label class="filter-toggle" id="filterToggle">
                         <input type="checkbox" id="userOnlyFilter" onchange="toggleUserFilter()">
@@ -2270,7 +2285,7 @@
                     </div>
                 </div>
 
-                <div id="tagsPanel" class="toolbar-panel" style="left: 80px; max-width: 300px; max-height: 400px; overflow-y: auto;" role="group" aria-label="Tag filters">
+                <div id="tagsPanel" class="toolbar-panel" style="left: 80px; max-width: 300px; max-height: 400px; overflow-y: auto;" role="dialog" aria-label="Tag filters" aria-modal="false">
                     <div class="dropdown-menu-header">Filter by Tags</div>
                     <div id="tagCloud" class="tag-cloud" role="group" aria-label="Filter by tags">
                         <button class="tag-cloud-item" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>
