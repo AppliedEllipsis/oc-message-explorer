@@ -1470,6 +1470,23 @@ func main() {
 				themeId = "github-dark"
 			}
 			respondJSON(w, map[string]string{"themeId": themeId})
+		} else if r.Method == "POST" {
+			var data map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+				respondError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+
+			if themeId, ok := data["themeId"]; ok && themeId != "" {
+				configManager.config.ThemeID = themeId
+				if err := configManager.setEnv("THEME_ID", themeId); err != nil {
+					respondError(w, http.StatusInternalServerError, err.Error())
+					return
+				}
+				respondJSON(w, map[string]string{"themeId": themeId})
+			} else {
+				respondError(w, http.StatusBadRequest, "themeId is required")
+			}
 		}
 	})
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

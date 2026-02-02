@@ -2142,11 +2142,11 @@
                 </button>
 
                 <div class="more-menu">
-                    <button class="toolbar-btn" id="moreBtn" onclick="toggleMoreMenu()" aria-expanded="false" aria-haspopup="true" aria-label="More actions" title="More options">
+                    <button class="toolbar-btn" id="moreBtn" onclick="toggleMoreMenu()" aria-expanded="false" aria-haspopup="true" aria-label="Settings" title="Settings">
                         <span class="icon">⚙️</span>
-                        <span class="text">More</span>
+                        <span class="text">Settings</span>
                     </button>
-                    <div class="dropdown-menu" id="moreMenu" role="menu" aria-label="More actions">
+                    <div class="dropdown-menu" id="moreMenu" role="menu" aria-label="Settings">
                         <div class="dropdown-menu-header">Actions</div>
                         <button class="dropdown-menu-item" onclick="expandAll()" role="menuitem">
                             <span class="icon">📂</span>
@@ -2438,7 +2438,7 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
         <div class="modal-content agents-modal-content">
             <div class="modal-header">
                 <h2>AGENTS.md Content</h2>
-                <button class="close-btn" onclick="closeModal('agentsContentModal')" aria-label="Close AGENTS.md viewer" title="Close (Escape)">&times;</button>
+                <button class="close-btn" onclick="hideModal('agentsContentModal')" aria-label="Close AGENTS.md viewer" title="Close (Escape)">&times;</button>
             </div>
             <div class="agents-preview" id="agentsPreview" role="region" aria-label="AGENTS.md documentation content">
                 <div style="color: var(--text-muted); text-align: center; padding: 40px;">Loading...</div>
