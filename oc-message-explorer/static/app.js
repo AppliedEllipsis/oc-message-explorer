@@ -53,8 +53,9 @@ function syncFilterStates() {
 
 function setupSidebarState() {
     const sidebar = document.getElementById('sidebar');
-    if (sidebar.classList.contains('collapsed')) {
+    if (sidebar && sidebar.classList.contains('collapsed')) {
         const header = document.querySelector('.app-header');
+        if (!header) return;
         const toggleBtn = document.createElement('button');
         toggleBtn.id = 'sidebarToggle';
         toggleBtn.className = 'sidebar-toggle';
@@ -65,37 +66,6 @@ function setupSidebarState() {
         header.insertBefore(toggleBtn, header.firstChild);
     }
 }
-
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const existingToggle = document.getElementById('sidebarToggle');
-
-    const isCollapsed = sidebar.classList.contains('collapsed');
-    sidebar.classList.toggle('collapsed');
-
-    if (existingToggle) {
-        existingToggle.remove();
-    } else {
-        const header = document.querySelector('.app-header');
-        const toggleBtn = document.createElement('button');
-        toggleBtn.id = 'sidebarToggle';
-        toggleBtn.className = 'sidebar-toggle';
-        toggleBtn.textContent = '☰';
-        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
-        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
-        toggleBtn.onclick = toggleSidebar;
-        header.insertBefore(toggleBtn, header.firstChild);
-    }
-
-    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
-}
-
-document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-        e.preventDefault();
-        toggleSidebar();
-    }
-});
 
 function setupModelFilter() {
     const filterInput = document.getElementById('openaiModelFilter');
@@ -2458,17 +2428,6 @@ async function initThemeSelector() {
     } catch (error) {
         console.error('Failed to load themes:', error);
         themeList.innerHTML = '<div style="padding: 12px; color: var(--danger);">Failed to load themes</div>';
-    }
-}
-
-function setupSidebarState() {
-    const sidebarCollapsed = localStorage.getItem('sidebarCollapsed');
-    if (sidebarCollapsed === 'true') {
-        const sidebar = document.getElementById('sidebar');
-        const toggleBtn = document.getElementById('sidebarToggle');
-        sidebar.classList.add('collapsed');
-        toggleBtn.textContent = '☰';
-        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
     }
 }
 
