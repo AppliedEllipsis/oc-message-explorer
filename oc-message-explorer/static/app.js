@@ -52,25 +52,30 @@ function syncFilterStates() {
 }
 
 function setupSidebarState() {
-    const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('sidebarToggle');
-    if (sidebar && toggleBtn) {
-        sidebar.classList.remove('collapsed');
-        toggleBtn.style.display = 'none';
-        toggleBtn.style.visibility = 'hidden';
-        toggleBtn.style.position = 'absolute';
-        toggleBtn.style.left = '-9999px';
-    }
+    // Sidebar starts expanded - no toggle button
 }
 
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('sidebarToggle');
-    sidebar.classList.toggle('collapsed');
+    const header = document.querySelector('.app-header');
+    const existingToggle = document.getElementById('sidebarToggle');
 
-    const isCollapsed = sidebar.classList.contains('collapsed');
-    toggleBtn.style.display = isCollapsed ? 'flex' : 'none';
-    toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+
+    if (existingToggle) {
+        existingToggle.remove();
+    }
+
+    if (isCollapsed) {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.id = 'sidebarToggle';
+        toggleBtn.className = 'sidebar-toggle';
+        toggleBtn.textContent = '☰';
+        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
+        toggleBtn.onclick = toggleSidebar;
+        header.insertBefore(toggleBtn, header.firstChild);
+    }
 
     localStorage.setItem('sidebarCollapsed', isCollapsed);
 }
