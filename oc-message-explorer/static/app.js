@@ -1575,6 +1575,9 @@ function copyOptimizedResult() {
 
 function setupCombineDragAndDrop() {
     const container = document.getElementById('combineList');
+    if (!container) {
+        return;
+    }
 
     container.ondragover = (e) => {
         e.preventDefault();
