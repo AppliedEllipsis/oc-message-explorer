@@ -1407,6 +1407,39 @@ document.getElementById('elementId')?.addEventListener('click', handler);
 
 **Cross-Tool Context**: User has provided detailed, specific feedback. Approach: fix bugs first, then improve UX. Always think about systemic impact of changes.
 
+### [2026-02-02 13:15 UTC] - Tool: Opencode - Phase 2 Complete, Partial Phase 3
+
+**Tool**: Opencode
+**Task Type**: Bug Fixes & UX Improvements
+**Status**: Nearly Complete
+
+**Completed Fixes:**
+
+✅ **Phase 1 Blockers (Issues 1, 2, 3)**
+- Tags/More buttons working (removed duplicate event handler)
+- AI provider configuration (added AnthropicAPIKey and AIProvider to backend)
+- Committed: `76aafd6`
+
+✅ **Phase 2 High UX (Issues 5, 6, 7, 8, 10)**
+- Editor panel moved to bottom
+- Close button added to editor header
+- AI summary input changed to textarea with scrollbar
+- Double-click now toggles editor (show/hide)
+- Combine modal uses summary as fallback
+- Viewport loading improved (better error handling, skeleton fix)
+- Committed: `c89a880`
+
+**Remaining Issues:**
+
+⏸️ **Issue 9: Toolbar layout**
+- Status: Deferred (low priority, high risk of breaking dropdown positioning)
+- Description: Right-align all toolbar controls
+- Challenge: Dropdown panels use absolute positioning relative to buttons
+- Can be revisited if needed
+
+**Summary:**
+All major blockers and high-priority UX issues resolved. Application is now fully functional with significant UX improvements. Only optional polish work remains.
+
 ---
 
 ### Version Control

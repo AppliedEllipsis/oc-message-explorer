@@ -948,33 +948,37 @@ function createSkeletonLoader() {
 function loadNodeContentForViewport(nodeId) {
     const node = allMessages[nodeId];
     if (!node || node.hasLoaded) return;
-    
+
     loadingViewportNodes.add(nodeId);
-    
+
     const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
-    if (nodeEl && displayModeRaw && node.content && node.content.length > 2000) {
+    if (nodeEl && displayModeRaw && (!node.content || node.content.length > 2000)) {
         const textEl = nodeEl.querySelector('.node-text');
         if (textEl) {
             textEl.innerHTML = createSkeletonLoader();
             textEl.classList.add('loading');
         }
     }
-    
-    loadNodeContent(nodeId).then(() => {
+
+    loadNodeContent(nodeId).then((updatedNode) => {
         loadingViewportNodes.delete(nodeId);
+        if (!updatedNode) {
+            console.warn('[LOADING] Content load returned null for node:', nodeId);
+            return;
+        }
         const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
-        if (nodeEl && displayModeRaw) {
-            const updatedNode = allMessages[nodeId];
-            if (updatedNode && updatedNode.content && updatedNode.content.trim() !== '') {
-                const textEl = nodeEl.querySelector('.node-text');
-                if (textEl) {
-                    textEl.classList.remove('loading');
+        if (nodeEl) {
+            const textEl = nodeEl.querySelector('.node-text');
+            if (textEl) {
+                textEl.classList.remove('loading');
+                if (displayModeRaw && nodeEl) {
                     textEl.textContent = truncateContent(updatedNode.content, updatedNode.summary);
                 }
             }
         }
     }).catch(err => {
         loadingViewportNodes.delete(nodeId);
+        console.error('[LOADING] Failed to load node content:', nodeId, err);
         const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
         if (nodeEl) {
             const textEl = nodeEl.querySelector('.node-text');
