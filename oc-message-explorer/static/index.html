@@ -1845,11 +1845,11 @@
                 <label class="form-label">Folder Color</label>
                 <div class="color-picker" id="folderColorPicker" role="radiogroup" aria-label="Choose folder color">
                     <div class="color-option selected" style="background: #58a6ff;" data-color="#58a6ff" role="radio" aria-checked="true" aria-label="Blue color"></div>
-                    <div class="color-option" style="background: #238636;" data-color="#238636"></div>
-                    <div class="color-option" style="background: #d29922;" data-color="#d29922"></div>
-                    <div class="color-option" style="background: #da3633;" data-color="#da3633"></div>
-                    <div class="color-option" style="background: #a371f7;" data-color="#a371f7"></div>
-                    <div class="color-option" style="background: #f0883e;" data-color="#f0883e"></div>
+                    <div class="color-option" style="background: #238636;" data-color="#238636" role="radio" aria-checked="false" aria-label="Green color"></div>
+                    <div class="color-option" style="background: #d29922;" data-color="#d29922" role="radio" aria-checked="false" aria-label="Yellow color"></div>
+                    <div class="color-option" style="background: #da3633;" data-color="#da3633" role="radio" aria-checked="false" aria-label="Red color"></div>
+                    <div class="color-option" style="background: #a371f7;" data-color="#a371f7" role="radio" aria-checked="false" aria-label="Purple color"></div>
+                    <div class="color-option" style="background: #f0883e;" data-color="#f0883e" role="radio" aria-checked="false" aria-label="Orange color"></div>
                 </div>
             </div>
             <div class="editor-actions">
@@ -1861,6 +1861,34 @@
     <div class="modal" id="newMessageModal">
         <div class="modal-content">
             <div class="modal-header">
+                <h2>New Message</h2>
+                <button class="close-btn" onclick="hideModal('newMessageModal')" aria-label="Close new message dialog" title="Close (Escape)">&times;</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="parentMessageSelect">Parent Message</label>
+                <select class="form-select" id="parentMessageSelect" aria-label="Select parent message">
+                    <option value="">None (root message)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="newMessageContent">Content</label>
+                <textarea class="editor-textarea" id="newMessageContent" placeholder="Enter your content..." style="height: 150px;" aria-label="Message content"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="newMessageTags">Tags (comma-separated)</label>
+                <input type="text" class="form-input" id="newMessageTags" placeholder="tag1, tag2, tag3" aria-label="Message tags">
+            </div>
+            <div class="editor-actions">
+                <button class="btn primary" onclick="saveSettings()" aria-label="Save settings to .env file" title="Save (Ctrl+S)">Save to .env</button>
+                <button class="btn" onclick="testApiKey()" aria-label="Test API key connection" title="Test connection">Test Connection</button>
+                <button class="btn" onclick="loadAgentsContent()" aria-label="View AGENTS.md documentation" title="View documentation">View AGENTS.md</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="settingsModal">
+        <div class="modal-content" style="max-width: 650px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column;">
+            <div class="modal-header" style="flex-shrink: 0;">
                 <h2>Settings</h2>
                 <button class="close-btn" onclick="hideModal('settingsModal')" aria-label="Close settings dialog" title="Close (Escape)">&times;</button>
             </div>
@@ -1906,8 +1934,8 @@
                 <button class="btn" id="refreshModelsBtn" onclick="fetchModels()" style="margin-top: 8px;" aria-label="Refresh available models" title="Refresh model list (R)">Refresh Models</button>
             </div>
             <div class="form-group">
-                <label class="form-label">Optimization Prompt</label>
-                <textarea class="editor-textarea" id="optimizationPrompt" style="height: 180px;" placeholder="Custom prompt for optimization...">First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices. 
+                <label class="form-label" for="optimizationPrompt">Optimization Prompt</label>
+                <textarea class="editor-textarea" id="optimizationPrompt" style="height: 180px;" placeholder="Custom prompt for optimization..." aria-label="Custom optimization prompt">First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
 
 Then, combine these prompts into a single, task-oriented prompt that will direct you to:
 
@@ -1926,15 +1954,15 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
                 </small>
             </div>
             <div class="form-group">
-                <label class="form-label">Project Path</label>
-                <input type="text" class="form-input" id="projectPath" placeholder="Path to project directory">
+                <label class="form-label" for="projectPath">Project Path</label>
+                <input type="text" class="form-input" id="projectPath" placeholder="Path to project directory" aria-label="Enter project directory path">
                 <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
                     Absolute or relative path to the project directory. Used for reading AGENTS.md.
                 </small>
             </div>
             <div class="form-group">
-                <label class="form-label">AGENTS.md Path</label>
-                <input type="text" class="form-input" id="agentsPath" placeholder="Path to AGENTS.md">
+                <label class="form-label" for="agentsPath">AGENTS.md Path</label>
+                <input type="text" class="form-input" id="agentsPath" placeholder="Path to AGENTS.md" aria-label="Enter AGENTS.md file path">
                 <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
                     Path to AGENTS.md file. Can be relative to project path or absolute.
                 </small>
