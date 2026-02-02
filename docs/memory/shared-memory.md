@@ -1311,6 +1311,104 @@ document.getElementById('elementId')?.addEventListener('click', handler);
 
 ---
 
+### [2026-02-02 12:00 UTC] - Tool: Opencode - Multiple UI/UX Issues Reported by User
+
+**Tool**: Opencode
+**Task Type**: Bug Fixes & UX Improvements
+**Status**: In Progress
+
+**Critical User Notes**:
+- **User uses dictation** - May result in informal phrasing or incomplete sentences. Infer intended meaning but ask clarifying questions when uncertain if text is from dictation vs intentional explanation
+- **Think thoroughly before editing** - Always consider the big picture and how changes impact other parts of the system. User is aware of project documentation and has good memory
+- **Memory retention** - User expects consistent behavior and remembers how things worked
+
+**Issues Reported**:
+
+1. **Tags button not working** - Click doesn't show tag panel
+   - Button exists: `tagsToggleBtn` calls `toggleTagsPanel()`
+   - Function exists in app.js around line 2552
+   - Panel ID: `tagsPanel` initially `style="display: none"`
+   - Need to debug why panel doesn't toggle
+
+2. **More button not working** - Click doesn't show more menu
+   - Button ID: `moreBtn` calls `toggleMoreMenu()`
+   - Function exists in app.js around line 2794
+   - Menu ID: `moreMenu` with class `dropdown-menu`
+   - Need to debug why menu doesn't toggle
+
+3. **AI provider configuration** - "Automation fail. no AI provider configured"
+   - Was working before, should read from ENV file
+   - Need getter/setter in settings for provider configuration
+   - Settings modal has provider selector (line 23114 in HTML)
+   - Need to verify loadSettings() and saveSettings() functions
+
+4. **"More" button** should be "Settings"
+   - Rename button text from "More" to "Settings"
+   - Update icon from ⚙️ to ⚙️ (keep same or use more appropriate icon)
+   - Rename menu from "More actions" to "Settings"
+   - Add default options in settings (already exists in settingsModal)
+   - Could consolidate: "More" menu could become actual settings modal
+
+5. **Editor panel position** - Should be at BOTTOM
+   - Currently: `position: fixed; top: 0;` (at top of page)
+   - Should be: `position: fixed; bottom: 0;` (at bottom)
+   - Original design: was at bottom, needs to go back
+   - CSS at line 909 in index.html needs change
+
+6. **Close button (X) position** - Should be top-right of panel
+   - Currently: In editor-actions-vertical at bottom (line 22226 in HTML)
+   - Should be: In editor-header at top-right
+   - Need to create editor-header with close button, then adjust layout
+
+7. **AI summary scrolling** - Multiple lines need scrollbar
+   - Input is plain text field (line 22207), not textarea
+   - Should be textarea with overflow-y: auto when content exceeds height
+   - Scrollbar should blend with interface but have contrast
+   - Use CSS: `scrollbar-width: thin;` with custom scrollbar colors
+
+8. **Loading forever animation** - Messages stuck in loading state
+   - Some messages show skeleton animation forever
+   - Double-clicking shows full content (message loaded)
+   - Issue: lazy loading viewport observer not detecting some nodes
+   - Solution: Double-click should TOGGLE edit panel (show/hide), not just show
+   - Currently only has closeEditor() for hiding, needs toggle functionality
+
+9. **Toolbar layout** - Move controls to RIGHT side
+   - Current: Search, Filters, Tags on LEFT; Copy, Combine, More on RIGHT
+   - Should be: All controls on RIGHT of message explorer
+   - This saves real estate on left side
+   - Layout restructure needed for toolbar (line 2074 in HTML)
+
+10. **Combine messages "no content"** - Bug?
+    - Some selected messages show "no content" in combine modal
+    - Could be loading issue or data issue
+    - Need to check: are messages properly loaded before combine?
+    - Check combineList rendering around line 2443 in HTML
+
+**Analysis Required**:
+- Test tags button click event in browser console
+- Test more button click event in browser console
+- Check if toggleTagsPanel and toggleMoreMenu are being called
+- Verify API fetch for settings is working
+- Check editor panel CSS positioning
+- Verify textarea overflow behavior
+- Investigate viewport observer logic for loading
+
+**Implementation Priority**:
+1. Debug tags/more button clicks (blocking)
+2. Fix AI provider configuration (blocking)
+3. Move editor panel to bottom (high UX priority)
+4. Add close button to panel header (high UX priority)
+5. Fix combine "no content" bug (data integrity)
+6. Fix loading animation/double-click toggle (UX improvement)
+7. AI summary scrollbar (UX improvement)
+8. Toolbar layout restructure (UX improvement)
+9. Rename "More" to "Settings" (nice to have)
+
+**Cross-Tool Context**: User has provided detailed, specific feedback. Approach: fix bugs first, then improve UX. Always think about systemic impact of changes.
+
+---
+
 ### Version Control
 
 - `docs/memory/` directory is git-tracked
