@@ -52,7 +52,18 @@ function syncFilterStates() {
 }
 
 function setupSidebarState() {
-    // Sidebar starts expanded - no toggle button
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar.classList.contains('collapsed')) {
+        const header = document.querySelector('.app-header');
+        const toggleBtn = document.createElement('button');
+        toggleBtn.id = 'sidebarToggle';
+        toggleBtn.className = 'sidebar-toggle';
+        toggleBtn.textContent = '☰';
+        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
+        toggleBtn.setAttribute('title', 'Show or hide sidebar (Ctrl+B)');
+        toggleBtn.onclick = toggleSidebar;
+        header.insertBefore(toggleBtn, header.firstChild);
+    }
 }
 
 function toggleSidebar() {
