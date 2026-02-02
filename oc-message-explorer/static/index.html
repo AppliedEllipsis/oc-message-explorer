@@ -1701,6 +1701,11 @@
                 <button class="btn primary" onclick="reloadData()" aria-label="Reload data" title="Reload (R)">Reload</button>
                 <button class="btn" onclick="showNewFolderModal()" aria-label="Create new folder" title="New folder (N)">New</button>
             </div>
+            <ul class="folder-list" id="folderList" role="list" aria-label="Folder list">
+                <li class="folder-item active" data-folder="all">
+                    <div class="folder-name">All Messages</div>
+                </li>
+            </ul>
             <div class="sidebar-header" style="margin-top: 24px;" aria-label="Tags section">Tags</div>
             <div class="tag-cloud" id="tagCloud" role="group" aria-label="Filter by tags">
                 <button class="tag-cloud-item" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>

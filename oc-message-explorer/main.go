@@ -1446,7 +1446,15 @@ func main() {
 			respondJSON(w, map[string]string{"content": configManager.readAgentsContent()})
 		}
 	})
-
+	router.HandleFunc("/api/settings/theme", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			themeId := os.Getenv("THEME_ID")
+			if themeId == "" {
+				themeId = "github-dark"
+			}
+			respondJSON(w, map[string]string{"themeId": themeId})
+		}
+	})
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		indexPath := filepath.Join(exeDir, "static", "index.html")
 		http.ServeFile(w, r, indexPath)
