@@ -56,8 +56,7 @@ function setupSidebarState() {
     const toggleBtn = document.getElementById('sidebarToggle');
     if (sidebar && toggleBtn) {
         sidebar.classList.add('collapsed');
-        toggleBtn.textContent = '☰';
-        toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
+        toggleBtn.style.display = 'flex';
     }
 }
 
@@ -67,8 +66,8 @@ function toggleSidebar() {
     sidebar.classList.toggle('collapsed');
 
     const isCollapsed = sidebar.classList.contains('collapsed');
-    toggleBtn.textContent = isCollapsed ? '☰' : '×';
-    toggleBtn.setAttribute('aria-label', isCollapsed ? 'Show sidebar (Ctrl+B)' : 'Hide sidebar (Ctrl+B)');
+    toggleBtn.style.display = isCollapsed ? 'flex' : 'none';
+    toggleBtn.setAttribute('aria-label', 'Show sidebar (Ctrl+B)');
 
     localStorage.setItem('sidebarCollapsed', isCollapsed);
 }
@@ -2567,25 +2566,6 @@ let configManager = {
 };
 
 document.addEventListener('DOMContentLoaded', init);
-
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('sidebarToggle');
-    sidebar.classList.toggle('collapsed');
-
-    const isCollapsed = sidebar.classList.contains('collapsed');
-    toggleBtn.textContent = isCollapsed ? '☰' : '×';
-    toggleBtn.setAttribute('aria-label', isCollapsed ? 'Show sidebar (Ctrl+B)' : 'Hide sidebar (Ctrl+B)');
-
-    localStorage.setItem('sidebarCollapsed', isCollapsed);
-}
-
-document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-        e.preventDefault();
-        toggleSidebar();
-    }
-});
 
 
 
