@@ -470,7 +470,7 @@ function filterMessages() {
         fetch('/api/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query, searchRaw: searchModeRaw })
+            body: JSON.stringify({ query })
         })
         .then(res => res.json())
         .then(results => {
