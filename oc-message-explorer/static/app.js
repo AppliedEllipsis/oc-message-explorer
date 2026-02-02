@@ -2551,13 +2551,23 @@ function toggleOptionsPanel() {
         console.error('[ERROR] optionsPanel element not found');
         return;
     }
+    const optionsToggleBtn = document.getElementById('optionsToggleBtn');
     if (panel.style.display === 'none') {
         panel.style.display = 'flex';
+        if (optionsToggleBtn) {
+            optionsToggleBtn.setAttribute('aria-expanded', 'true');
+            optionsToggleBtn.classList.add('active');
+        }
         document.getElementById('tagsPanel').style.display = 'none';
         document.getElementById('tagsToggleBtn').setAttribute('aria-expanded', 'false');
+        document.getElementById('tagsToggleBtn').classList.remove('active');
         console.log('[FILTERS] Panel shown');
     } else {
         panel.style.display = 'none';
+        if (optionsToggleBtn) {
+            optionsToggleBtn.setAttribute('aria-expanded', 'false');
+            optionsToggleBtn.classList.remove('active');
+        }
         console.log('[FILTERS] Panel hidden');
     }
 }
@@ -2574,14 +2584,17 @@ function toggleTagsPanel() {
         panel.style.display = 'flex';
         if (tagsToggleBtn) {
             tagsToggleBtn.setAttribute('aria-expanded', 'true');
+            tagsToggleBtn.classList.add('active');
         }
         document.getElementById('optionsPanel').style.display = 'none';
         document.getElementById('optionsToggleBtn').setAttribute('aria-expanded', 'false');
+        document.getElementById('optionsToggleBtn').classList.remove('active');
         console.log('[TAGS] Panel shown');
     } else {
         panel.style.display = 'none';
         if (tagsToggleBtn) {
             tagsToggleBtn.setAttribute('aria-expanded', 'false');
+            tagsToggleBtn.classList.remove('active');
         }
         console.log('[TAGS] Panel hidden');
     }
