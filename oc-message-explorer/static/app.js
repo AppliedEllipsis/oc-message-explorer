@@ -766,7 +766,11 @@ function renderTree() {
 
     const messagesKeys = Object.keys(messages);
     console.log(`[RENDER] Processing ${messagesKeys.length} messages from ${Object.keys(folders).length} folders:`, Object.keys(folders));
-    console.log(`[RENDER] Folder counts:`, Object.fromEntries(Object.entries(folders).map(([k,v]) => [k, Object.keys(v.nodes || {}).length])));
+    const folderCounts = {};
+    for (const [fid, folder] of Object.entries(folders)) {
+        folderCounts[fid] = Object.keys(folder.nodes || {}).length;
+    }
+    console.log(`[RENDER] Folder counts:`, folderCounts);
 
     const validMessages = {};
     let invalidCount = 0;
@@ -802,6 +806,19 @@ function renderTree() {
         const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return sortAscending ? dateA - dateB : dateB - dateA;
     });
+
+    if (rootNodes.length > 0 && rootNodes.length <= 50) {
+        console.log('[RENDER] First 5 node timestamps:', rootNodes.slice(0, 5).map(n => ({
+            id: n.id,
+            timestamp: n.timestamp,
+            date: n.timestamp ? new Date(n.timestamp).toISOString() : 'no-time'
+        })));
+        console.log('[RENDER] Last 5 node timestamps:', rootNodes.slice(-5).map(n => ({
+            id: n.id,
+            timestamp: n.timestamp,
+            date: n.timestamp ? new Date(n.timestamp).toISOString() : 'no-time'
+        })));
+    }
 
     if (rootNodes.length === 0) {
         const firstNode = Object.values(messages)[0];
