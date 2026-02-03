@@ -38,9 +38,11 @@ async function fetchWithRetry(url, options = {}, retryConfig = {}) {
             console.log(`[FETCH] ${context} Abort signal received`);
             controller.abort();
         };
+        let abortListenerAdded = false;
 
         if (abortSignal) {
             abortSignal.addEventListener('abort', onAbort);
+            abortListenerAdded = true;
         }
 
         const timeoutId = setTimeout(() => {
@@ -58,7 +60,7 @@ async function fetchWithRetry(url, options = {}, retryConfig = {}) {
             });
 
             clearTimeout(timeoutId);
-            if (abortSignal) abortSignal.removeEventListener('abort', onAbort);
+            if (abortListenerAdded) abortSignal.removeEventListener('abort', onAbort);
 
             const elapsed = Date.now() - attemptTime;
             console.log(`[FETCH] ${context} ← STATUS ${response.status} (${elapsed}ms) ${url}`);
@@ -72,7 +74,7 @@ async function fetchWithRetry(url, options = {}, retryConfig = {}) {
             return response;
         } catch (err) {
             clearTimeout(timeoutId);
-            if (abortSignal) abortSignal.removeEventListener('abort', onAbort);
+            if (abortListenerAdded) abortSignal.removeEventListener('abort', onAbort);
 
             lastError = err;
             const elapsed = Date.now() - startTime;
@@ -88,7 +90,7 @@ async function fetchWithRetry(url, options = {}, retryConfig = {}) {
             }
 
             if (attempt < maxRetries && !abortSignal?.aborted) {
-                const backoffDelay = backoffBase * Math.pow(2, attempt);
+                const backoffDelay = Math.min(backoffBase * Math.pow(2, attempt), 30000);
                 console.log(`[FETCH] ${context} ⏳ RETRYING ${url} after ${backoffDelay}ms delay...`);
 
                 // Wait for delay or until aborted
@@ -1173,8 +1175,8 @@ function unloadNodeContentForViewport(nodeId) {
 }
 
 function createSkeletonLoader(nodeId) {
-    if (!nodeId || nodeId === 'undefined' || nodeId === 'null') {
-        console.error(`[SKELETON] Cannot create skeleton loader - nodeId is invalid: "${nodeId}"`);
+    if (!nodeId || typeof nodeId === 'undefined' || nodeId === 'null') {
+        console.error(`[SKELETON] Invalid nodeId: "${nodeId}"`);
         return `
             <div class="skeleton skeleton-text long"></div>
             <div class="skeleton skeleton-text medium"></div>
@@ -1193,11 +1195,13 @@ function createSkeletonLoader(nodeId) {
         `;
     }
 
+    const escapedNodeId = nodeId.replace(/'/g, '\\\'').replace(/"/g, '&quot;');
+
     return `
         <div class="skeleton skeleton-text long"></div>
         <div class="skeleton skeleton-text medium"></div>
         <div class="skeleton skeleton-text short"></div>
-        <button class="skeleton-refresh" onclick="reloadNodeContent('${nodeId}')"
+        <button class="skeleton-refresh" onclick="reloadNodeContent('${escapedNodeId}')"
                 title="Click to retry loading this message"
                 aria-label="Retry loading message">
             🔄 Retry
@@ -1213,9 +1217,10 @@ function loadNodeContent(nodeId) {
         return Promise.reject(new Error('Invalid node ID'));
     }
 
-    if (pendingNodeLoads.has(nodeId)) {
+    let existingPromise = pendingNodeLoads.get(nodeId);
+    if (existingPromise) {
         console.log(`[${context}] Load already in progress, returning existing promise`);
-        return pendingNodeLoads.get(nodeId);
+        return existingPromise;
     }
 
     const controller = new AbortController();
@@ -1228,19 +1233,12 @@ function loadNodeContent(nodeId) {
         abortSignal: controller.signal
     })
         .then(res => res.json())
-        .then(updatedNode => {
-            pendingNodeLoads.delete(nodeId);
+        .then(data => {
             nodeLoadControllers.delete(nodeId);
-            if (updatedNode && updatedNode.id) {
-                allMessages[nodeId] = updatedNode;
-                console.log(`[${context}] ✓ Loaded and updated node`);
-            } else {
-                console.warn(`[${context}] ⚠ Received invalid node data`);
-            }
-            return updatedNode;
+            pendingNodeLoads.delete(nodeId);
+            return data;
         })
         .catch(err => {
-            pendingNodeLoads.delete(nodeId);
             nodeLoadControllers.delete(nodeId);
             if (err.name !== 'AbortError') {
                 console.error(`[${context}] ✗ Failed:`, err);
@@ -1248,7 +1246,10 @@ function loadNodeContent(nodeId) {
             return null;
         });
 
-    pendingNodeLoads.set(nodeId, loadPromise);
+    if (!pendingNodeLoads.has(nodeId)) {
+        pendingNodeLoads.set(nodeId, loadPromise);
+    }
+
     return loadPromise;
 }
 
@@ -1299,9 +1300,8 @@ function loadNodeContentForViewport(nodeId) {
         const textEl = nodeEl?.querySelector('.node-text');
 
         if (!updatedNode) {
-            // Check if it was aborted
             const controller = nodeLoadControllers.get(nodeId);
-            if (controller && controller.signal.aborted) {
+            if (controller?.signal.aborted) {
                 console.log(`[VIEWPORT] Node load was aborted for ${nodeId}, cleaning up UI`);
                 if (textEl) textEl.classList.remove('loading');
                 return;
