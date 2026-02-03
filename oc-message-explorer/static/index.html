@@ -469,51 +469,51 @@
         .toolbar-panel {
             display: none;
             position: absolute;
-            top: calc(100% + 12px);
-            background: rgba(22, 24, 29, 0.85);
+            top: calc(100% + 8px);
+            left: 0;
+            background: rgba(22, 24, 29, 0.95);
             -webkit-backdrop-filter: blur(24px) saturate(180%);
             backdrop-filter: blur(24px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--radius-lg);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: var(--radius-md);
             box-shadow: 
                 0 4px 6px -1px rgba(0, 0, 0, 0.1),
                 0 20px 40px -4px rgba(0, 0, 0, 0.4),
                 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
             z-index: 1100;
             overflow: hidden;
-            animation: dropdownFade 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-origin: top;
+            animation: dropdownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transform-origin: top left;
         }
 
         .dropdown-menu {
-            left: 0;
-            right: auto;
-            min-width: 240px;
-            padding: 8px;
+            min-width: 200px;
+            padding: 6px;
             flex-direction: column;
         }
 
         .dropdown-menu.align-right {
             left: auto;
             right: 0;
+            transform-origin: top right;
         }
 
         /* Active/Show state */
         .dropdown-menu.show,
         .toolbar-panel.show {
             display: flex;
-            border: 1px solid rgba(107, 138, 253, 0.3);
+            border: 1px solid rgba(107, 138, 253, 0.4);
             box-shadow: 
                 0 10px 40px -10px rgba(0, 0, 0, 0.5),
-                0 0 20px -5px rgba(107, 138, 253, 0.2),
+                0 0 20px -5px rgba(107, 138, 253, 0.25),
                 0 0 0 1px rgba(107, 138, 253, 0.2) inset;
         }
 
         .toolbar-panel {
-            padding: 16px;
-            min-width: 340px;
+            padding: 12px;
+            min-width: 300px;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
         }
 
         @keyframes dropdownFade {
@@ -2270,42 +2270,46 @@
                     <option value="all">All Folders</option>
                 </select>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search..." oninput="filterMessages()" aria-label="Search messages" aria-controls="treeContainer">
-                <button class="toolbar-btn" onclick="toggleOptionsPanel()" id="optionsToggleBtn" aria-expanded="false" aria-controls="optionsPanel" aria-label="Filter options" title="Filters">
-                    <span class="icon">🔍</span>
-                    <span>Filters</span>
-                </button>
-
-                <button class="toolbar-btn" onclick="toggleTagsPanel()" id="tagsToggleBtn" aria-expanded="false" aria-controls="tagsPanel" aria-label="Tag filters" title="Tags">
-                    <span class="icon">🏷️</span>
-                    <span>Tags</span>
-                </button>
-
-                <div id="optionsPanel" class="toolbar-panel" style="left: 0;" role="dialog" aria-label="Filter options" aria-modal="false">
-                    <div class="dropdown-menu-header">Quick Filters</div>
-                    <label class="filter-toggle" id="filterToggle">
-                        <input type="checkbox" id="userOnlyFilter" onchange="toggleUserFilter()">
-                        <span>User messages only</span>
-                    </label>
-                    <label class="filter-toggle active" id="emptyToggle">
-                        <input type="checkbox" id="hideEmptyResponses" checked onchange="toggleHideEmptyResponses()">
-                        <span>Hide empty responses</span>
-                    </label>
-                    <label class="filter-toggle" id="sortToggle">
-                        <input type="checkbox" id="sortAscending" onchange="toggleSortOrder()">
-                        <span>Newest first</span>
-                    </label>
-                    <div class="dropdown-menu-divider"></div>
-                    <div class="dropdown-menu-header">Date Range</div>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="date" class="form-input" id="startDate" style="flex: 1;" title="Start date" aria-label="Start date">
-                        <input type="date" class="form-input" id="endDate" style="flex: 1;" title="End date" aria-label="End date">
+                <div style="position: relative;">
+                    <button class="toolbar-btn" onclick="toggleOptionsPanel()" id="optionsToggleBtn" aria-expanded="false" aria-controls="optionsPanel" aria-label="Filter options" title="Filters">
+                        <span class="icon">🔍</span>
+                        <span>Filters</span>
+                    </button>
+    
+                    <div id="optionsPanel" class="toolbar-panel" role="dialog" aria-label="Filter options" aria-modal="false">
+                        <div class="dropdown-menu-header">Quick Filters</div>
+                        <label class="filter-toggle" id="filterToggle">
+                            <input type="checkbox" id="userOnlyFilter" onchange="toggleUserFilter()">
+                            <span>User messages only</span>
+                        </label>
+                        <label class="filter-toggle active" id="emptyToggle">
+                            <input type="checkbox" id="hideEmptyResponses" checked onchange="toggleHideEmptyResponses()">
+                            <span>Hide empty responses</span>
+                        </label>
+                        <label class="filter-toggle" id="sortToggle">
+                            <input type="checkbox" id="sortAscending" checked onchange="toggleSortOrder()">
+                            <span>Newest first</span>
+                        </label>
+                        <div class="dropdown-menu-divider"></div>
+                        <div class="dropdown-menu-header">Date Range</div>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="date" class="form-input" id="startDate" style="flex: 1;" title="Start date" aria-label="Start date">
+                            <input type="date" class="form-input" id="endDate" style="flex: 1;" title="End date" aria-label="End date">
+                        </div>
                     </div>
                 </div>
 
-                <div id="tagsPanel" class="toolbar-panel" style="left: 80px; max-width: 300px; max-height: 400px; overflow-y: auto;" role="dialog" aria-label="Tag filters" aria-modal="false">
-                    <div class="dropdown-menu-header">Filter by Tags</div>
-                    <div id="tagCloud" class="tag-cloud" role="group" aria-label="Filter by tags">
-                        <button class="tag-cloud-item" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>
+                <div style="position: relative;">
+                    <button class="toolbar-btn" onclick="toggleTagsPanel()" id="tagsToggleBtn" aria-expanded="false" aria-controls="tagsPanel" aria-label="Tag filters" title="Tags">
+                        <span class="icon">🏷️</span>
+                        <span>Tags</span>
+                    </button>
+    
+                    <div id="tagsPanel" class="toolbar-panel" style="max-width: 340px; max-height: 400px; overflow-y: auto;" role="dialog" aria-label="Tag filters" aria-modal="false">
+                        <div class="dropdown-menu-header">Filter by Tags</div>
+                        <div id="tagCloud" class="tag-cloud" role="group" aria-label="Filter by tags">
+                            <button class="tag-cloud-item" onclick="clearTagFilter()" role="menuitem" aria-label="Clear all tag filters">Clear All</button>
+                        </div>
                     </div>
                 </div>
 

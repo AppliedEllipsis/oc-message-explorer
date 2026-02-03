@@ -845,7 +845,7 @@ function renderTree() {
     rootNodes.sort((a, b) => {
         const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-        return sortAscending ? dateA - dateB : dateB - dateA;
+        return sortAscending ? dateB - dateA : dateA - dateB;
     });
 
     if (rootNodes.length > 0) {
@@ -3489,58 +3489,98 @@ function deleteTodo(id) {
 }
 
 
+function positionPanel(btn, panel, align = 'left') {
+    if (!btn || !panel) return;
+
+    const btnRect = btn.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Reset styles
+    panel.style.left = '';
+    panel.style.right = '';
+    panel.style.top = '';
+    panel.style.bottom = '';
+    panel.style.transformOrigin = 'top ' + align;
+
+    // Horizontal alignment (if not already handled by relative parent)
+    // For toolbar-panels, we expect relative parent, so we only handle vertical flipping here
+    // unless it's the right-aligned more menu
+
+    if (align === 'right') {
+        panel.style.left = 'auto';
+        panel.style.right = '0';
+    } else {
+        panel.style.left = '0';
+        panel.style.right = 'auto';
+    }
+
+    // Vertical safety check - if it would go off bottom, flip to top
+    const spaceBelow = viewportHeight - btnRect.bottom;
+    const padding = 20;
+
+    if (spaceBelow < panelRect.height + padding && btnRect.top > panelRect.height + padding) {
+        panel.style.top = 'auto';
+        panel.style.bottom = 'calc(100% + 8px)';
+        panel.style.transformOrigin = 'bottom ' + align;
+    } else {
+        panel.style.top = 'calc(100% + 8px)';
+        panel.style.bottom = 'auto';
+        panel.style.transformOrigin = 'top ' + align;
+    }
+}
+
 function toggleOptionsPanel() {
     console.log('[CLICK] Filters button clicked');
     const panel = document.getElementById('optionsPanel');
-    const tagsPanel = document.getElementById('tagsPanel');
-    const themePanel = document.getElementById('themePanel');
-    const moreMenu = document.getElementById('moreMenu');
+    const btn = document.getElementById('optionsToggleBtn');
 
     if (!panel) return;
 
     // Close others
-    if (tagsPanel) tagsPanel.classList.remove('show');
-    if (themePanel) themePanel.classList.remove('show');
-    if (moreMenu) moreMenu.classList.remove('show');
+    document.querySelectorAll('.toolbar-panel.show, .dropdown-menu.show').forEach(p => {
+        if (p !== panel) p.classList.remove('show');
+    });
+    document.querySelectorAll('.toolbar-btn.active').forEach(b => {
+        if (b !== btn) {
+            b.classList.remove('active');
+            b.setAttribute('aria-expanded', 'false');
+        }
+    });
 
     const isShown = panel.classList.toggle('show');
-    const btn = document.getElementById('optionsToggleBtn');
     if (btn) {
         btn.setAttribute('aria-expanded', isShown);
         btn.classList.toggle('active', isShown);
+        if (isShown) positionPanel(btn, panel);
     }
-
-    // Reset other buttons
-    document.getElementById('tagsToggleBtn')?.classList.remove('active');
-    document.getElementById('themeToggleBtn')?.classList.remove('active');
-    document.getElementById('moreBtn')?.classList.remove('active');
 }
 
 function toggleTagsPanel() {
     console.log('[CLICK] Tags button clicked');
     const panel = document.getElementById('tagsPanel');
-    const optionsPanel = document.getElementById('optionsPanel');
-    const themePanel = document.getElementById('themePanel');
-    const moreMenu = document.getElementById('moreMenu');
+    const btn = document.getElementById('tagsToggleBtn');
 
     if (!panel) return;
 
     // Close others
-    if (optionsPanel) optionsPanel.classList.remove('show');
-    if (themePanel) themePanel.classList.remove('show');
-    if (moreMenu) moreMenu.classList.remove('show');
+    document.querySelectorAll('.toolbar-panel.show, .dropdown-menu.show').forEach(p => {
+        if (p !== panel) p.classList.remove('show');
+    });
+    document.querySelectorAll('.toolbar-btn.active').forEach(b => {
+        if (b !== btn) {
+            b.classList.remove('active');
+            b.setAttribute('aria-expanded', 'false');
+        }
+    });
 
     const isShown = panel.classList.toggle('show');
-    const btn = document.getElementById('tagsToggleBtn');
     if (btn) {
         btn.setAttribute('aria-expanded', isShown);
         btn.classList.toggle('active', isShown);
+        if (isShown) positionPanel(btn, panel);
     }
-
-    // Reset other buttons
-    document.getElementById('optionsToggleBtn')?.classList.remove('active');
-    document.getElementById('themeToggleBtn')?.classList.remove('active');
-    document.getElementById('moreBtn')?.classList.remove('active');
 }
 
 function startSync() {
@@ -3651,28 +3691,16 @@ function toggleLock(nodeId) {
 
 function toggleThemePanel() {
     const panel = document.getElementById('themePanel');
-    const optionsPanel = document.getElementById('optionsPanel');
-    const tagsPanel = document.getElementById('tagsPanel');
-    const moreMenu = document.getElementById('moreMenu');
+    const btn = document.getElementById('moreBtn'); // Parent for theme panel is Actions menu
 
     if (!panel) return;
 
-    // Close others
-    if (optionsPanel) optionsPanel.classList.remove('show');
-    if (tagsPanel) tagsPanel.classList.remove('show');
-    if (moreMenu) moreMenu.classList.remove('show');
-
+    // Close sibling panels in more-menu if any (currently just themePanel)
     const isShown = panel.classList.toggle('show');
-    const btn = document.getElementById('themeToggleBtn');
     if (btn) {
-        btn.setAttribute('aria-expanded', isShown);
         btn.classList.toggle('active', isShown);
+        if (isShown) positionPanel(btn, panel, 'right');
     }
-
-    // Reset other buttons
-    document.getElementById('optionsToggleBtn')?.classList.remove('active');
-    document.getElementById('tagsToggleBtn')?.classList.remove('active');
-    document.getElementById('moreBtn')?.classList.remove('active');
 }
 
 async function initThemeSelector() {
@@ -3780,37 +3808,23 @@ function toggleMoreMenu() {
         return;
     }
 
+    // Close others
+    document.querySelectorAll('.toolbar-panel.show, .dropdown-menu.show').forEach(p => {
+        if (p !== menu) p.classList.remove('show');
+    });
+    document.querySelectorAll('.toolbar-btn.active').forEach(b => {
+        if (b !== btn) {
+            b.classList.remove('active');
+            b.setAttribute('aria-expanded', 'false');
+        }
+    });
+
     const isShown = menu.classList.toggle('show');
     btn.setAttribute('aria-expanded', isShown);
     btn.classList.toggle('active', isShown);
 
     if (isShown) {
-        const btnRect = btn.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-
-        // Use a temporary show for measurement if needed, but it's already shown
-        const menuRect = menu.getBoundingClientRect();
-
-        // Horizontal alignment
-        if (btnRect.left + menuRect.width > viewportWidth - 20) {
-            menu.style.left = 'auto';
-            menu.style.right = '0';
-        } else {
-            menu.style.left = '0';
-            menu.style.right = 'auto';
-        }
-
-        // Vertical safety check - if it would go off bottom, flip to top
-        if (btnRect.bottom + menuRect.height > viewportHeight - 20) {
-            menu.style.top = 'auto';
-            menu.style.bottom = 'calc(100% + 12px)';
-            menu.style.transformOrigin = 'bottom';
-        } else {
-            menu.style.top = 'calc(100% + 12px)';
-            menu.style.bottom = 'auto';
-            menu.style.transformOrigin = 'top';
-        }
+        positionPanel(btn, menu, 'right');
     }
 
     console.log('[MORE] Menu is now:', isShown ? 'shown' : 'hidden');
