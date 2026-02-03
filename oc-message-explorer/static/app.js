@@ -2636,6 +2636,10 @@ function importData(event) {
     reader.readAsText(file);
 }
 
+function triggerSync() {
+    startSync();
+}
+
 function reloadData() {
     location.reload();
 }
