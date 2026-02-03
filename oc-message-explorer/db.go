@@ -905,6 +905,13 @@ func (sm *SyncManager) syncPromptHistory() error {
 	}
 	defer file.Close()
 
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	baseTime := fileInfo.ModTime()
+
 	scanner := bufio.NewScanner(file)
 	promptNodes := make(map[string]*MessageNode)
 	count := 0
@@ -929,7 +936,7 @@ func (sm *SyncManager) syncPromptHistory() error {
 			summary = summary[:97] + "..."
 		}
 
-		timestamp := time.Now().Format(time.RFC3339)
+		timestamp := baseTime.Add(time.Duration(-count) * time.Minute).Format(time.RFC3339)
 
 		content := entry.Input
 		if len(entry.Parts) > 0 {

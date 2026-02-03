@@ -883,7 +883,7 @@ function createNodeElement(node, messages, isRoot = false) {
         displayContent = node.summary ? node.summary : (node.content ? node.content : '(No content)');
     }
 
-    const folderInfo = getFolderInfo(node.id);
+	const folderInfo = currentFolderId === 'all' ? null : getFolderInfo(node.id);
 
     div.innerHTML = `
         <div class="node-content ${node.type}-node ${node.selected ? 'selected' : ''}"
