@@ -807,14 +807,19 @@ function renderTree() {
         return sortAscending ? dateA - dateB : dateB - dateA;
     });
 
-    if (rootNodes.length > 0 && rootNodes.length <= 50) {
-        console.log('[RENDER] First 5 node timestamps:', rootNodes.slice(0, 5).map(n => ({
+    if (rootNodes.length > 0) {
+        console.log(`[RENDER] Sample timestamps (first 3 newest, last 3 oldest):`);
+        const first3 = rootNodes.slice(0, 3);
+        const last3 = rootNodes.slice(-3);
+        console.log('[RENDER] First 3:', first3.map(n => ({
             id: n.id,
+            folder: getFolderInfo(n.id)?.name || 'unknown',
             timestamp: n.timestamp,
             date: n.timestamp ? new Date(n.timestamp).toISOString() : 'no-time'
         })));
-        console.log('[RENDER] Last 5 node timestamps:', rootNodes.slice(-5).map(n => ({
+        console.log('[RENDER] Last 3:', last3.map(n => ({
             id: n.id,
+            folder: getFolderInfo(n.id)?.name || 'unknown',
             timestamp: n.timestamp,
             date: n.timestamp ? new Date(n.timestamp).toISOString() : 'no-time'
         })));
