@@ -1530,10 +1530,28 @@ function formatTimestamp(timestamp) {
     const now = new Date();
     const diff = now - date;
 
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    let relativeTime = '';
+    if (diff < 60000) {
+        relativeTime = 'Just now';
+    } else if (diff < 3600000) {
+        relativeTime = `${Math.floor(diff / 60000)}m ago`;
+    } else if (diff < 86400000) {
+        relativeTime = `${Math.floor(diff / 3600000)}h ago`;
+    } else {
+        relativeTime = date.toLocaleDateString();
+    }
+
+    // Add full timestamp for precision
+    const fullTime = date.toLocaleString([], {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+
+    return `${relativeTime} [${fullTime}]`;
 }
 
 function escapeHtml(text) {

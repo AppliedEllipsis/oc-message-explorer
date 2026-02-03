@@ -508,17 +508,25 @@ type SyncProgress struct {
 	Error         string `json:"error,omitempty"`
 }
 
+type HistorySource struct {
+	Path     string
+	FolderID string
+	Name     string
+	Color    string
+	Format   string // "jsonl" or "raw"
+}
+
 type SyncManager struct {
-	db                *Database
-	store             *Store
-	dataPath          string
-	msgPath           string
-	partPath          string
-	promptHistoryPath string
-	progressCallback  func(SyncProgress)
-	cancelChan        chan struct{}
-	running           bool
-	mu                sync.RWMutex
+	db               *Database
+	store            *Store
+	dataPath         string
+	msgPath          string
+	partPath         string
+	historySources   []HistorySource
+	progressCallback func(SyncProgress)
+	cancelChan       chan struct{}
+	running          bool
+	mu               sync.RWMutex
 }
 
 func NewSyncManager(db *Database, store *Store, dataPath string, progressCallback func(SyncProgress)) *SyncManager {
@@ -526,17 +534,33 @@ func NewSyncManager(db *Database, store *Store, dataPath string, progressCallbac
 	partPath := filepath.Join(dataPath, "storage", "part")
 
 	localPath := filepath.Dir(filepath.Dir(dataPath))
-	promptHistoryPath := filepath.Join(localPath, "state", "opencode", "prompt-history.jsonl")
+	
+	historySources := []HistorySource{
+		{
+			Path:     filepath.Join(localPath, "state", "opencode", "prompt-history.jsonl"),
+			FolderID: "webui",
+			Name:     "Web UI History",
+			Color:    "#6b8afd",
+			Format:   "jsonl",
+		},
+		{
+			Path:     filepath.Join(localPath, "share", "amp", "history.jsonl"),
+			FolderID: "amp",
+			Name:     "AMP History",
+			Color:    "#4ade80",
+			Format:   "jsonl",
+		},
+	}
 
 	return &SyncManager{
-		db:                db,
-		store:             store,
-		dataPath:          dataPath,
-		msgPath:           msgPath,
-		partPath:          partPath,
-		promptHistoryPath: promptHistoryPath,
-		progressCallback:  progressCallback,
-		cancelChan:        make(chan struct{}),
+		db:               db,
+		store:            store,
+		dataPath:         dataPath,
+		msgPath:          msgPath,
+		partPath:         partPath,
+		historySources:   historySources,
+		progressCallback: progressCallback,
+		cancelChan:       make(chan struct{}),
 	}
 }
 
@@ -756,14 +780,16 @@ func (sm *SyncManager) performSync() {
 	}
 
 	sm.reportProgress(SyncProgress{
-		Phase:         "reading_prompt_history",
-		Message:       "Reading web UI prompt history...",
+		Phase:         "reading_histories",
+		Message:       "Reading prompt histories...",
 		Processed:     len(messageNodes),
 		TotalMessages: len(messageNodes),
 	})
 
-	if err := sm.syncPromptHistory(); err != nil {
-		log.Printf("Failed to sync prompt history: %v", err)
+	for _, source := range sm.historySources {
+		if err := sm.syncHistorySource(source); err != nil {
+			log.Printf("Failed to sync history from %s: %v", source.Name, err)
+		}
 	}
 
 	sm.reportProgress(SyncProgress{
@@ -893,15 +919,15 @@ type PromptHistoryEntry struct {
 	Mode string `json:"mode"`
 }
 
-func (sm *SyncManager) syncPromptHistory() error {
-	if _, err := os.Stat(sm.promptHistoryPath); os.IsNotExist(err) {
-		log.Printf("Prompt history file not found, skipping: %s", sm.promptHistoryPath)
+func (sm *SyncManager) syncHistorySource(source HistorySource) error {
+	if _, err := os.Stat(source.Path); os.IsNotExist(err) {
+		log.Printf("History file not found, skipping: %s", source.Path)
 		return nil
 	}
 
-	file, err := os.Open(sm.promptHistoryPath)
+	file, err := os.Open(source.Path)
 	if err != nil {
-		return fmt.Errorf("failed to open prompt history file: %w", err)
+		return fmt.Errorf("failed to open history file: %w", err)
 	}
 	defer file.Close()
 
@@ -918,24 +944,55 @@ func (sm *SyncManager) syncPromptHistory() error {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.TrimSpace(line) == "" {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
 			continue
 		}
 
 		var entry PromptHistoryEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			log.Printf("Failed to parse prompt history entry: %v", err)
+		if strings.HasPrefix(trimmed, "{") {
+			// Try standard jsonl format
+			if err := json.Unmarshal([]byte(trimmed), &entry); err != nil {
+				// Fallback for different key names like "text" instead of "input"
+				var raw map[string]interface{}
+				if err2 := json.Unmarshal([]byte(trimmed), &raw); err2 == nil {
+					if txt, ok := raw["text"].(string); ok {
+						entry.Input = txt
+					} else if txt, ok := raw["input"].(string); ok {
+						entry.Input = txt
+					}
+					if mode, ok := raw["mode"].(string); ok {
+						entry.Mode = mode
+					}
+				} else {
+					log.Printf("Failed to parse history line: %v", err)
+					continue
+				}
+			}
+		} else {
+			// Try unquoting if it's a JSON string, otherwise raw
+			var txt string
+			if err := json.Unmarshal([]byte(trimmed), &txt); err == nil {
+				entry.Input = txt
+			} else {
+				entry.Input = trimmed
+			}
+			entry.Mode = "normal"
+		}
+
+		if entry.Input == "" {
 			continue
 		}
 
 		count++
-		nodeId := fmt.Sprintf("webui_%d", count)
+		nodeId := fmt.Sprintf("%s_%d", source.FolderID, count)
 
 		summary := entry.Input
 		if len(summary) > 100 {
 			summary = summary[:97] + "..."
 		}
 
+		// Ensure unique timestamps but close to file time
 		timestamp := baseTime.Add(time.Duration(-count) * time.Minute).Format(time.RFC3339)
 
 		content := entry.Input
@@ -954,7 +1011,7 @@ func (sm *SyncManager) syncPromptHistory() error {
 			Content:   content,
 			Summary:   summary,
 			Timestamp: timestamp,
-			Tags:      []string{"web-ui", entry.Mode},
+			Tags:      []string{source.FolderID, entry.Mode},
 			HasLoaded: true,
 		}
 
@@ -962,73 +1019,73 @@ func (sm *SyncManager) syncPromptHistory() error {
 
 		if count%50 == 0 {
 			sm.reportProgress(SyncProgress{
-				Phase:     "reading_prompt_history",
-				Message:   fmt.Sprintf("Read %d web UI prompts...", count),
+				Phase:     "reading_history",
+				Message:   fmt.Sprintf("Read %d %s entries...", count, source.Name),
 				Processed: count,
 			})
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading prompt history: %w", err)
+		return fmt.Errorf("error reading history: %w", err)
 	}
 
-	log.Printf("Loaded %d prompts from web UI history", count)
+	log.Printf("Loaded %d entries from %s", count, source.Name)
 
 	if len(promptNodes) == 0 {
 		return nil
 	}
 
-	return sm.writePromptHistoryToDB(promptNodes, count)
+	return sm.writeHistoryToDB(source, promptNodes, count)
 }
 
-func (sm *SyncManager) writePromptHistoryToDB(promptNodes map[string]*MessageNode, count int) error {
-	existingFolder, err := sm.db.GetFolder("webui")
+func (sm *SyncManager) writeHistoryToDB(source HistorySource, promptNodes map[string]*MessageNode, count int) error {
+	existingFolder, err := sm.db.GetFolder(source.FolderID)
 	folderExists := (err == nil && existingFolder != nil)
 
 	if !folderExists {
 		folder := &Folder{
-			ID:        "webui",
-			Name:      "Web UI History",
-			Color:     "#6b8afd",
+			ID:        source.FolderID,
+			Name:      source.Name,
+			Color:     source.Color,
 			CreatedAt: time.Now().Format(time.RFC3339),
 			Nodes:     promptNodes,
 		}
 
 		if err := sm.db.InsertFolder(folder); err != nil {
-			return fmt.Errorf("failed to create webui folder: %w", err)
+			return fmt.Errorf("failed to create folder %s: %w", source.FolderID, err)
 		}
 
 		processed := 0
 		for _, node := range promptNodes {
-			if err := sm.db.InsertNode("webui", node); err != nil {
-				log.Printf("Failed to insert webui prompt %s: %v", node.ID, err)
+			if err := sm.db.InsertNode(source.FolderID, node); err != nil {
+				log.Printf("Failed to insert %s entry %s: %v", source.FolderID, node.ID, err)
 				continue
 			}
 			processed++
 		}
-		log.Printf("Wrote %d web UI prompts to database (new folder)", processed)
+		log.Printf("Wrote %d %s entries to database (new folder)", processed, source.Name)
 		return nil
 	}
 
-	existingNodes, err := sm.db.GetNodesForFolder("webui")
+	existingNodes, err := sm.db.GetNodesForFolder(source.FolderID)
 	if err != nil {
-		return fmt.Errorf("failed to get existing webui nodes: %w", err)
+		return fmt.Errorf("failed to get existing %s nodes: %w", source.FolderID, err)
 	}
 
 	newCount := 0
 	for id, newNode := range promptNodes {
 		if _, exists := existingNodes[id]; !exists {
-			if err := sm.db.InsertNode("webui", newNode); err != nil {
-				log.Printf("Failed to insert webui prompt %s: %v", id, err)
+			if err := sm.db.InsertNode(source.FolderID, newNode); err != nil {
+				log.Printf("Failed to insert %s entry %s: %v", source.FolderID, id, err)
 				continue
 			}
 			newCount++
 
 			if newCount%20 == 0 {
 				sm.reportProgress(SyncProgress{
-					Phase:         "writing_prompt_history",
-					Message:       fmt.Sprintf("Writing %d/%d new web UI prompts...", newCount, count),
+					Phase:         "writing_history",
+					Message:       fmt.Sprintf("Writing %d/%d new %s entries...", newCount, count, source.Name),
 					Processed:     newCount,
 					TotalMessages: count,
 				})
@@ -1036,6 +1093,6 @@ func (sm *SyncManager) writePromptHistoryToDB(promptNodes map[string]*MessageNod
 		}
 	}
 
-	log.Printf("Added %d new web UI prompts to database", newCount)
+	log.Printf("Added %d new %s entries to database", newCount, source.Name)
 	return nil
 }
