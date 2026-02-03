@@ -500,6 +500,15 @@ func NewStore() *Store {
 		} else if isEmpty && store.dataPath != "" {
 			log.Printf("Database is empty, starting initial sync...")
 			store.syncManager = NewSyncManager(db, store, store.dataPath, func(progress SyncProgress) {
+				if progress.Phase == "complete" {
+					log.Printf("Initial sync completed, loading data from database...")
+					if err := store.loadFromDatabase(); err != nil {
+						log.Printf("Failed to load from database after initial sync: %v", err)
+					} else {
+						log.Printf("Loaded data from database after initial sync")
+						store.broadcast(WSMessage{Type: MessageTypeInit, Data: store.toJSON()})
+					}
+				}
 				store.broadcast(WSMessage{Type: MessageTypeProgress, Data: progress})
 			})
 			go func() {
@@ -519,6 +528,15 @@ func NewStore() *Store {
 
 					if store.dataPath != "" {
 						store.syncManager = NewSyncManager(db, store, store.dataPath, func(progress SyncProgress) {
+							if progress.Phase == "complete" {
+								log.Printf("Sync completed, reloading data from database...")
+								if err := store.loadFromDatabase(); err != nil {
+									log.Printf("Failed to reload from database after sync: %v", err)
+								} else {
+									log.Printf("Reloaded data from database after sync")
+									store.broadcast(WSMessage{Type: MessageTypeUpdate, Data: store.toJSON()})
+								}
+							}
 							store.broadcast(WSMessage{Type: MessageTypeProgress, Data: progress})
 						})
 						log.Printf("Starting background sync...")

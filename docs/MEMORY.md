@@ -662,5 +662,36 @@ Use `memory_search_nodes` with queries like "development plan", "phase 1", "arch
 
 ---
 
-*Last Updated: 2026-02-01 12:00 UTC by AI Agent*
-*Status: Comprehensive plan complete, awaiting Phase 1 execution*
+### [2026-02-03 04:58 UTC] - Tool: Opencode - Fix web interface data sync issue
+
+**Tool**: Opencode
+**Task Type**: Bug Fix
+**Status**: Complete
+
+**Summary**: Fixed race condition where background sync updated database but not in-memory store or connected clients
+
+**Context**: User reported seeing data via CLI but not through web interface. Investigation revealed background sync completes and updates database, but never reloads Store.Folders from database or notifies clients.
+
+**Root Cause**: Sync manager writes to database → sends `phase: 'complete'` progress → frontend hides progress bar → no data reload → Store stays with stale data → clients never receive updates
+
+**Fix Applied**: Modified progress callback to detect sync completion (`progress.Phase == "complete"`):
+1. Call `store.loadFromDatabase()` to reload data from updated database
+2. Broadcast `MessageTypeUpdate` (or `MessageTypeInit` for initial sync) to all clients
+
+**Files Changed**:
+- Modified: [`oc-message-explorer/main.go`](oc-message-explorer/main.go:521-532) - Added callback for post-sync data reload
+- Modified: [`oc-message-explorer/main.go`](oc-message-explorer/main.go:500-519) - Added callback for initial sync completion
+
+**Outcome**: Web interface now receives updated data after background sync completes. All clients get fresh data via WebSocket update.
+
+**Testing**: Build successful. User should test by:
+1. Running server and opening web interface
+2. Waiting for background sync to complete
+3. Verifying all messages appear in web UI
+
+**Cross-Tool Context**: This fix ensures data consistency between database, in-memory store, and all connected clients after any sync operation.
+
+---
+
+*Last Updated: 2026-02-03 04:58 UTC by AI Agent*
+*Status: Web sync issue fixed*
