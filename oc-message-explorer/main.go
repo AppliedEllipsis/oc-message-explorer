@@ -728,7 +728,7 @@ func (s *Store) loadFromDatabase() error {
 
 func (s *Store) loadMessageContent(nodeID string) *MessageNode {
 	s.mu.RLock()
-	if folder, exists := s.Folders["openchat"]; exists {
+	for _, folder := range s.Folders {
 		if node, exists := folder.Nodes[nodeID]; exists {
 			if node.HasLoaded {
 				s.mu.RUnlock()
@@ -776,6 +776,9 @@ func (s *Store) loadMessageContent(nodeID string) *MessageNode {
 					node.Content = strings.Join(partContents, "\n")
 					node.HasLoaded = true
 				}
+
+				s.db.UpdateNode("openchat", node)
+				return node
 			}
 
 			return node

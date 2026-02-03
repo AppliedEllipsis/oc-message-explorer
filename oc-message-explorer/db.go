@@ -948,6 +948,7 @@ func (sm *SyncManager) syncPromptHistory() error {
 			Summary:   summary,
 			Timestamp: timestamp,
 			Tags:      []string{"web-ui", entry.Mode},
+			HasLoaded: true,
 		}
 
 		promptNodes[nodeId] = node
