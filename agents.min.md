@@ -280,6 +280,19 @@ read(filePath, offset=500, limit=500)  // Next 500 lines
 - URLs → `[SENSITIVE_URL]`
 - Paths → `[PERSONAL_PATH]`
 
+### Memory & State Optimizations
+
+**UI & Async Patterns**:
+- **State Cleanup on Abort**: Always remove loading indicators/skeletons in `.catch()` blocks for `AbortError` or when returning early. Never leave UI in a transitive state.
+- **Request Deduplication**: Use a `Map` to track active promises (e.g., `pendingNodeLoads`) and return existing ones for redundant requests.
+- **Defensive Storage**: Wrap `localStorage` in `try-catch` blocks and provide silent fallbacks for restricted environments.
+- **Merge State**: When updating objects (e.g., `allMessages`), use `{...existing, ...updated}` to preserve properties not included in partial API responses.
+
+**Logic & Reliability**:
+- **Data Validation**: Validate IDs and types *before* generating UI elements or background tasks to prevent "undefined"/"null" string pollution in DOM/state.
+- **Backoff Limits**: Cap exponential backoff delays at a reasonable maximum (e.g., 30s) to prevent the application from appearing unresponsive.
+- **Event Delegation**: Prefer document-level delegation for dynamic elements (like retry buttons in skeletons) to reduce memory overhead and simplify lifecycle.
+
 ---
 
 ## Security Guidelines
