@@ -11,7 +11,12 @@ class ThemeEngine {
 
   async init() {
     try {
-      const savedTheme = localStorage.getItem(this.STORAGE_KEY);
+      let savedTheme = null;
+      try {
+        savedTheme = localStorage.getItem(this.STORAGE_KEY);
+      } catch (e) {
+        console.warn('[STORAGE] Failed to load theme from localStorage:', e);
+      }
       const themeId = savedTheme || await this.fetchDefaultTheme();
       await this.loadTheme(themeId);
     } catch (error) {
@@ -179,7 +184,11 @@ class ThemeEngine {
   reset() {
     this.currentTheme = null;
     this.themeCache.clear();
-    localStorage.removeItem(this.STORAGE_KEY);
+    try {
+      localStorage.removeItem(this.STORAGE_KEY);
+    } catch (e) {
+      console.warn('[STORAGE] Failed to remove theme from localStorage:', e);
+    }
   }
 }
 

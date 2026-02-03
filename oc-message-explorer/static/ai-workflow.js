@@ -135,6 +135,46 @@ const promptTemplates = {
     user: 'Translate the following to {language}:\n\n{content}',
     temperature: 0.3,
     maxTokens: 2000
+  },
+  'override_latest': {
+    name: 'Override Latest (Latest is Truth)',
+    description: 'Latest message is the primary source, resolve conflicts using it',
+    system: 'You are a message consolidation expert. The latest message is considered the authoritative source of truth. Use earlier messages only as context.',
+    user: 'Combine these messages into a single coherent output. The LAST message is the primary source and should override any conflicting information from earlier messages:\n\n{prompt}',
+    temperature: 0.3,
+    maxTokens: 2000
+  },
+  'smart_merge': {
+    name: 'Smart Merge',
+    description: 'Intelligently combine conflicting information with clear decisions',
+    system: 'You are a message consolidation expert. Analyze all messages and intelligently merge information, explicitly documenting how you resolved conflicts.',
+    user: 'Combine these messages into a single coherent output. Where messages conflict, make intelligent decisions and clearly document your reasoning:\n\n{prompt}',
+    temperature: 0.5,
+    maxTokens: 3000
+  },
+  'summary': {
+    name: 'Multi-Message Summary',
+    description: 'Create a concise summary combining all messages',
+    system: 'You are an expert at summarizing complex multi-message conversations. Create clear, concise summaries.',
+    user: 'Summarize these multiple messages into a single cohesive summary:\n\n{prompt}',
+    temperature: 0.3,
+    maxTokens: 1500
+  },
+  'expand': {
+    name: 'Expand (Elaborate)',
+    description: 'Expand and elaborate on the combined messages',
+    system: 'You are an expert at expanding and elaborating on content. Add relevant details, examples, and context.',
+    user: 'Take these combined messages and expand on them, adding relevant details and elaboration:\n\n{prompt}',
+    temperature: 0.5,
+    maxTokens: 3000
+  },
+  'code_optimized': {
+    name: 'Optimize for Coding AI',
+    description: 'Format as technical prompt optimized for coding AI tools',
+    system: 'You are a technical prompt engineer. Create clear, well-formatted prompts optimized for AI coding assistants and development tools.',
+    user: 'Combine these messages into a single technical prompt optimized for AI coding assistants. Structure the output with clear requirements, context, and specifications:\n\n{prompt}',
+    temperature: 0.3,
+    maxTokens: 2500
   }
 };
 
@@ -144,6 +184,7 @@ class AIWorkflowManager {
     this.currentModel = 'gpt-4o';
     this.selectedTemplate = 'optimize';
     this.customModel = null;
+    this.customTemplates = {};
   }
 
   initialize(config) {
@@ -151,6 +192,23 @@ class AIWorkflowManager {
       this.customModel = config.openaiModel;
       this.currentModel = config.openaiModel;
     }
+
+    if (config.customPrompts) {
+      try {
+        this.customTemplates = JSON.parse(config.customPrompts);
+      } catch (e) {
+        console.error('Failed to parse custom prompts:', e);
+        this.customTemplates = {};
+      }
+    }
+  }
+
+  getPromptTemplates() {
+    return { ...promptTemplates, ...this.customTemplates };
+  }
+
+  getTemplate(templateId) {
+    return this.customTemplates[templateId] || promptTemplates[templateId] || null;
   }
 
   autoSelectProvider() {
@@ -181,14 +239,6 @@ class AIWorkflowManager {
 
   getAvailableModels(providerName = null) {
     return ['gpt-4o', 'gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'];
-  }
-
-  getPromptTemplates() {
-    return promptTemplates;
-  }
-
-  getTemplate(templateId) {
-    return promptTemplates[templateId];
   }
 
   applyTemplate(templateId, variables) {

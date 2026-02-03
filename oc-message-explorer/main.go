@@ -115,6 +115,7 @@ type EnvConfig struct {
 	OpenAIBaseURL      string `json:"openaiBaseUrl"`
 	OpenAIModel        string `json:"openaiModel"`
 	OptimizationPrompt string `json:"optimizationPrompt"`
+	CustomPrompts      string `json:"customPrompts"`
 	ProjectPath        string `json:"projectPath"`
 	AgentsPath         string `json:"agentsPath"`
 	AnthropicAPIKey    string `json:"anthropicAPIKey"`
@@ -165,6 +166,7 @@ func (cm *ConfigManager) loadEnv() {
 	cm.config.OpenAIBaseURL = getEnvWithDefault("OPENAI_BASE_URL", "")
 	cm.config.OpenAIModel = getEnvWithDefault("OPENAI_MODEL", "gpt-4")
 	cm.config.OptimizationPrompt = getEnvWithDefault("OPTIMIZATION_PROMPT", "")
+	cm.config.CustomPrompts = getEnvWithDefault("CUSTOM_PROMPTS", "")
 	cm.config.ProjectPath = getEnvWithDefault("PROJECT_PATH", "")
 	cm.config.AgentsPath = getEnvWithDefault("AGENTS_PATH", "")
 	cm.config.AnthropicAPIKey = getEnvWithDefault("ANTHROPIC_API_KEY", "")
@@ -217,6 +219,8 @@ func (cm *ConfigManager) setEnv(key, value string) error {
 		cm.config.OpenAIModel = value
 	case "OPTIMIZATION_PROMPT", "optimizationPrompt":
 		cm.config.OptimizationPrompt = value
+	case "CUSTOM_PROMPTS", "customPrompts":
+		cm.config.CustomPrompts = value
 	case "PROJECT_PATH", "projectPath":
 		cm.config.ProjectPath = value
 	case "AGENTS_PATH", "agentsPath":
@@ -254,6 +258,9 @@ func (cm *ConfigManager) saveEnvFile() error {
 	}
 	if cm.config.OptimizationPrompt != "" {
 		lines = append(lines, fmt.Sprintf(`OPTIMIZATION_PROMPT="%s"`, strings.Replace(cm.config.OptimizationPrompt, "\n", "\\n", -1)))
+	}
+	if cm.config.CustomPrompts != "" {
+		lines = append(lines, fmt.Sprintf(`CUSTOM_PROMPTS="%s"`, strings.Replace(cm.config.CustomPrompts, "\n", "\\n", -1)))
 	}
 	if cm.config.ProjectPath != "" {
 		lines = append(lines, fmt.Sprintf(`PROJECT_PATH="%s"`, cm.config.ProjectPath))
