@@ -1477,3 +1477,15 @@ All major blockers and high-priority UX issues resolved. Application is now full
 
 **Cross-Tool Context**: Core sync working (prompts/messages confirmed up-to-date).
 
+### [2026-02-03 05:25 UTC] - Tool: Opencode - Add web UI prompt history sync
+
+**Prompt messages from web UI**: Now being synced
+- Source: `C:\Users\User\.local\share\opencode\state/opencode/prompt-history.jsonl`
+- Format: JSONL (one JSON per line)
+- New folder: 'Web UI History' created
+- Prompts tagged with mode used
+
+**Result**: Both CLI and web UI prompts now visible in message explorer.
+
+**Cross-Tool Context**: All user prompts across OpenCode now synced.
+

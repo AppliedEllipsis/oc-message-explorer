@@ -778,8 +778,49 @@ The issue might be:
 
 **Enhancements Made**:
 - Added "Sync Messages" button to Actions menu for manual sync trigger
+- ✅ **NEW**: Web UI prompt history sync - prompts typed in web UI now sync automatically
 
 **Cross-Tool Context**: Timestamp format improved, data sources documented, manual sync added for recent messages.
+
+---
+
+### [2026-02-03 05:20 UTC] - Tool: Opencode - Add web UI prompt history sync
+
+**Tool**: Opencode
+**Task Type**: Feature Addition
+**Status**: Complete
+
+**Summary**: Added synchronization for web UI prompt history from prompt-history.jsonl
+
+**Context**: User reported that prompts typed in the OpenCode web interface were not showing up. These prompts are stored in `C:\Users\User\.local\state\opencode\prompt-history.jsonl` in JSONL format.
+
+**Implementation**:
+1. Added `promptHistoryPath` to Store and SyncManager structs
+2. Added `PromptHistoryEntry` struct for parsing JSONL format
+3. Created `syncPromptHistory()` function to read and parse the file
+4. Created `writePromptHistoryToDB()` function for database storage
+5. New folder created: "Web UI History" with blue color (#6b8afd)
+6. Web UI prompts tagged with mode used (normal, build, etc.)
+
+**Files Changed**:
+- Modified: [`main.go`](oc-message-explorer/main.go:74-88) - Added promptHistoryPath to Store struct
+- Modified: [`main.go`](oc-message-explorer/main.go:481-492) - Construct promptHistoryPath from dataPath
+- Modified: [`db.go`](oc-message-explorer/db.go:1-15) - Added bufio import
+- Modified: [`db.go`](oc-message-explorer/db.go:508-520) - Added promptHistoryPath to SyncManager
+- Modified: [`db.go`](oc-message-explorer/db.go:523-540) - Construct promptHistoryPath in NewSyncManager
+- Modified: [`db.go`](oc-message-explorer/db.go:757-772) - Call syncPromptHistory during sync
+- Modified: [`db.go`](oc-message-explorer/db.go:888-1024) - Add syncPromptHistory and related functions
+
+**Features**:
+- Web UI prompts appear in new "Web UI History" folder
+- Incremental sync - only new prompts added to database
+- Progress reporting for web UI history sync
+- Prompts tagged with AI mode used (e.g., "web-ui", "build", "normal")
+- File attachments noted in prompt content
+
+**Outcome**: All prompts typed in OpenCode web interface now sync and appear in message explorer.
+
+**Cross-Tool Context**: Web UI prompts now synced alongside session-based messages, covering all user prompts across the OpenCode environment.
 
 ---
 
