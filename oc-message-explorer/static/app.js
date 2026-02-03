@@ -1982,7 +1982,7 @@ function optimizeCombinedPrompts() {
                 '<div style="font-size: 13px; color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">How to fix:</div>' +
                 '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">' +
                 '1. Click the ⋮ <strong>Actions</strong> button in the toolbar<br>' +
-                '2. Click <strong>🤖 AI Configuration</strong> from the dropdown menu<br>' +
+                '2. Click <strong>Model Settings</strong> from the dropdown menu<br>' +
                 '3. Enter your OpenAI API key in the API Key field<br>' +
                 '4. Click <strong>Save to .env</strong><br>' +
                 '5. Try optimizing again' +
@@ -2156,7 +2156,7 @@ function optimizePrompts() {
                 '<div style="font-size: 13px; color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">How to fix:</div>' +
                 '<div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">' +
                 '1. Click the ⋮ <strong>Actions</strong> button in the toolbar<br>' +
-                '2. Click <strong>🤖 AI Configuration</strong> from the dropdown menu<br>' +
+                '2. Click <strong>Model Settings</strong> from the dropdown menu<br>' +
                 '3. Enter your OpenAI API key in the API Key field<br>' +
                 '4. Click <strong>Save to .env</strong><br>' +
                 '5. Try optimizing again' +
