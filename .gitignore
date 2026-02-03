@@ -162,3 +162,4 @@ release/
 *.pid
 *.seed
 *.pid.lock
+config.json
