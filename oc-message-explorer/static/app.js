@@ -1,6 +1,7 @@
 let ws;
 let folders = {};
 let allMessages = {};
+let nodeFolderMap = new Map();
 let currentFolderId = 'all';
 let currentEditingNodeId = null;
 let selectedFolderColor = '#58a6ff';
@@ -379,14 +380,49 @@ function connectWebSocket() {
 
 function updateAllMessages() {
     allMessages = {};
+    nodeFolderMap.clear();
+
+    // First pass: collect all messages and track their original folder
     for (const folderId in folders) {
         const folder = folders[folderId];
         for (const nodeId in folder.nodes) {
             if (!allMessages[nodeId]) {
-                allMessages[nodeId] = folder.nodes[nodeId];
+                const node = folder.nodes[nodeId];
+                allMessages[nodeId] = node;
+                nodeFolderMap.set(nodeId, folderId);
             }
         }
     }
+
+    // Second pass: rebuild children links globally
+    for (const nodeId in allMessages) {
+        allMessages[nodeId].children = [];
+    }
+
+    for (const nodeId in allMessages) {
+        const node = allMessages[nodeId];
+        if (node.parentId && allMessages[node.parentId]) {
+            const parent = allMessages[node.parentId];
+            if (!parent.children.includes(nodeId)) {
+                parent.children.push(nodeId);
+            }
+        }
+    }
+
+    // Sort children of each node chronologically (ascending)
+    for (const nodeId in allMessages) {
+        const node = allMessages[nodeId];
+        if (node.children && node.children.length > 1) {
+            node.children.sort((aId, bId) => {
+                const a = allMessages[aId];
+                const b = allMessages[bId];
+                const timeA = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
+                const timeB = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
+                return (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB);
+            });
+        }
+    }
+
     console.log(`[UPDATE] allMessages now has ${Object.keys(allMessages).length} messages from folders:`, Object.keys(folders));
 }
 
@@ -799,12 +835,22 @@ function renderTree() {
         return;
     }
 
-    let rootNodes = Object.values(validMessages).filter(n => !n.parentId);
+    // A node is a root if it has no parentId OR if its parent is not in the currently filtered messages set (orphan)
+    let rootNodes = Object.values(validMessages).filter(n => !n.parentId || !validMessages[n.parentId]);
 
     rootNodes.sort((a, b) => {
-        const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-        const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-        return sortAscending ? dateA - dateB : dateB - dateA;
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+
+        const valA = isNaN(timeA) ? 0 : timeA;
+        const valB = isNaN(timeB) ? 0 : timeB;
+
+        if (valA !== valB) {
+            return sortAscending ? valA - valB : valB - valA;
+        }
+
+        // Secondary sort by ID for stability
+        return a.id.localeCompare(b.id);
     });
 
     if (rootNodes.length > 0) {
@@ -907,7 +953,7 @@ function createNodeElement(node, messages, isRoot = false) {
         displayContent = node.summary ? node.summary : (node.content ? node.content : '(No content)');
     }
 
-	const folderInfo = currentFolderId === 'all' ? null : getFolderInfo(node.id);
+    const folderInfo = getFolderInfo(node.id);
 
     div.innerHTML = `
         <div class="node-content ${node.type}-node ${node.selected ? 'selected' : ''}"
@@ -1123,11 +1169,20 @@ function createNodeElement(node, messages, isRoot = false) {
 }
 
 function getFolderInfo(nodeId) {
-    for (const folderId in folders) {
-        if (folders[folderId].nodes[nodeId]) {
+    const folderId = nodeFolderMap.get(nodeId);
+    if (folderId && folders[folderId]) {
+        return {
+            name: folders[folderId].name,
+            color: folders[folderId].color
+        };
+    }
+
+    // Fallback search if map is not ready
+    for (const fid in folders) {
+        if (folders[fid].nodes[nodeId]) {
             return {
-                name: folders[folderId].name,
-                color: folders[folderId].color
+                name: folders[fid].name,
+                color: folders[fid].color
             };
         }
     }
