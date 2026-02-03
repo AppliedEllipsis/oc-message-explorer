@@ -843,18 +843,9 @@ function renderTree() {
     let rootNodes = Object.values(validMessages).filter(n => !n.parentId || !validMessages[n.parentId]);
 
     rootNodes.sort((a, b) => {
-        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-
-        const valA = isNaN(timeA) ? 0 : timeA;
-        const valB = isNaN(timeB) ? 0 : timeB;
-
-        if (valA !== valB) {
-            return sortAscending ? valA - valB : valB - valA;
-        }
-
-        // Secondary sort by ID for stability
-        return a.id.localeCompare(b.id);
+        const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return !sortAscending ? dateB - dateA : dateA - dateB;
     });
 
     if (rootNodes.length > 0) {
