@@ -387,6 +387,7 @@ function updateAllMessages() {
             }
         }
     }
+    console.log(`[UPDATE] allMessages now has ${Object.keys(allMessages).length} messages from folders:`, Object.keys(folders));
 }
 
 function renderFolders() {
@@ -764,7 +765,8 @@ function renderTree() {
     }
 
     const messagesKeys = Object.keys(messages);
-    console.log(`[RENDER] Processing ${messagesKeys.length} messages`);
+    console.log(`[RENDER] Processing ${messagesKeys.length} messages from ${Object.keys(folders).length} folders:`, Object.keys(folders));
+    console.log(`[RENDER] Folder counts:`, Object.fromEntries(Object.entries(folders).map(([k,v]) => [k, Object.keys(v.nodes || {}).length])));
 
     const validMessages = {};
     let invalidCount = 0;
