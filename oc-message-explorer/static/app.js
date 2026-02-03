@@ -845,7 +845,7 @@ function renderTree() {
     rootNodes.sort((a, b) => {
         const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-        return !sortAscending ? dateB - dateA : dateA - dateB;
+        return sortAscending ? dateA - dateB : dateB - dateA;
     });
 
     if (rootNodes.length > 0) {
