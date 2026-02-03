@@ -787,8 +787,11 @@ func (sm *SyncManager) performSync() {
 	})
 
 	for _, source := range sm.historySources {
+		log.Printf("[SYNC] Syncing history source: %s (folder: %s) from path: %s", source.Name, source.FolderID, source.Path)
 		if err := sm.syncHistorySource(source); err != nil {
-			log.Printf("Failed to sync history from %s: %v", source.Name, err)
+			log.Printf("[SYNC] Failed to sync history from %s: %v", source.Name, err)
+		} else {
+			log.Printf("[SYNC] Successfully synced history source: %s", source.Name)
 		}
 	}
 

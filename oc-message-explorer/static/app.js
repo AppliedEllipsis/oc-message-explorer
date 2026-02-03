@@ -383,13 +383,16 @@ function updateAllMessages() {
     nodeFolderMap.clear();
 
     // First pass: collect all messages and track their original folder
+    const folderBreakdown = {};
     for (const folderId in folders) {
         const folder = folders[folderId];
+        folderBreakdown[folderId] = { name: folder.name, count: 0 };
         for (const nodeId in folder.nodes) {
             if (!allMessages[nodeId]) {
                 const node = folder.nodes[nodeId];
                 allMessages[nodeId] = node;
                 nodeFolderMap.set(nodeId, folderId);
+                folderBreakdown[folderId].count++;
             }
         }
     }
@@ -423,7 +426,8 @@ function updateAllMessages() {
         }
     }
 
-    console.log(`[UPDATE] allMessages now has ${Object.keys(allMessages).length} messages from folders:`, Object.keys(folders));
+    console.log(`[UPDATE] allMessages now has ${Object.keys(allMessages).length} messages`);
+    console.log(`[UPDATE] Folder breakdown:`, folderBreakdown);
 }
 
 function renderFolders() {

@@ -1067,45 +1067,38 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            padding: 2px 8px;
+            padding: 3px 10px;
             background: var(--bg-tertiary);
-            border: 1px solid var(--border-light);
-            border-radius: 12px;
-            font-weight: 500;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            font-weight: 600;
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            color: var(--text-primary);
+            transition: all 0.15s ease;
+        }
+
+        .node-folder:hover {
+            background: var(--bg-hover);
+            border-color: var(--text-muted);
         }
 
         .node-folder .folder-color {
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
+            flex-shrink: 0;
         }
 
         .node-timestamp {
-            padding: 2px 6px;
+            padding: 3px 8px;
             background: rgba(59, 130, 246, 0.1);
             border: 1px solid rgba(59, 130, 246, 0.2);
             border-radius: 12px;
             font-weight: 500;
             font-size: 11px;
             color: #7ab3ff;
-        }
-
-        .node-folder {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .node-folder .folder-color {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-        }
-
-        .node-timestamp {
             flex-shrink: 0;
         }
 
