@@ -1299,6 +1299,10 @@ function loadNodeContentForViewport(nodeId) {
         const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
         const textEl = nodeEl?.querySelector('.node-text');
 
+        if (updatedNode) {
+            allMessages[nodeId] = { ...allMessages[nodeId], ...updatedNode };
+        }
+
         if (!updatedNode) {
             const controller = nodeLoadControllers.get(nodeId);
             if (controller?.signal.aborted) {
@@ -1499,7 +1503,10 @@ function openEditor(nodeId) {
     const shouldLoad = !node.hasLoaded;
     const loadPromise = shouldLoad ? loadNodeContent(node.id) : Promise.resolve(node);
 
-    loadPromise.then(() => {
+    loadPromise.then((loadedData) => {
+        if (loadedData) {
+            allMessages[nodeId] = { ...allMessages[nodeId], ...loadedData };
+        }
         currentEditingNodeId = nodeId;
         const updatedNode = allMessages[nodeId];
         document.getElementById('nodeType').value = updatedNode.type;
