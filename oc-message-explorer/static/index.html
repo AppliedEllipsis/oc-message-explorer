@@ -745,6 +745,31 @@
             color: var(--text-muted);
         }
 
+        .folder-selector {
+            padding: 9px 12px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            width: 180px;
+            outline: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .folder-selector:focus {
+            border-color: var(--accent);
+            background: var(--bg-hover);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        .folder-selector option {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: 8px 12px;
+        }
+
         .filter-toggle {
             display: flex;
             align-items: center;
@@ -2248,6 +2273,9 @@
 
 
             <div class="toolbar" role="toolbar" aria-label="Main toolbar">
+                <select class="folder-selector" id="folderSelector" onchange="selectFolder(this.value)" aria-label="Select folder">
+                    <option value="all">All Folders</option>
+                </select>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search..." oninput="filterMessages()" aria-label="Search messages" aria-controls="treeContainer">
                 <button class="toolbar-btn" onclick="toggleOptionsPanel()" id="optionsToggleBtn" aria-expanded="false" aria-controls="optionsPanel" aria-label="Filter options" title="Filters">
                     <span class="icon">🔍</span>

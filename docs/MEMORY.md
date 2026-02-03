@@ -693,5 +693,41 @@ Use `memory_search_nodes` with queries like "development plan", "phase 1", "arch
 
 ---
 
-*Last Updated: 2026-02-03 04:58 UTC by AI Agent*
-*Status: Web sync issue fixed*
+### [2026-02-03 05:05 UTC] - Tool: Opencode - Add folder selector dropdown
+
+**Tool**: Opencode
+**Task Type**: UI Enhancement
+**Status**: Complete
+
+**Summary**: Added folder selector dropdown to the left of search input for filtering by folder
+
+**Context**: User requested a selector to the left of the search box that lets users pick "All Folders" by default or individual folders and paths.
+
+**Implementation**:
+1. Added `<select>` element with ID `folderSelector` to the left of search input
+2. Created CSS styling for `.folder-selector` matching the toolbar aesthetic
+3. Added `updateFolderSelector()` function to populate dropdown with available folders
+4. Modified `selectFolder()` to keep dropdown synced with `currentFolderId`
+5. Added `updateFolderSelector()` call to WebSocket message handler for updates
+
+**Files Changed**:
+- Modified: [`static/index.html`](oc-message-explorer/static/index.html:2251) - Added folder selector HTML
+- Modified: [`static/index.html`](oc-message-explorer/static/index.html:747-764) - Added CSS styling
+- Modified: [`static/app.js`](oc-message-explorer/static/app.js:422-436) - Added updateFolderSelector() function
+- Modified: [`static/app.js`](oc-message-explorer/static/app.js:351-363) - Call updateFolderSelector on data update
+
+**Features**:
+- Default option "All Folders"
+- Dynamically populated with available folders
+- Styled to match toolbar aesthetic
+- Kept in sync with current folder selection
+- FilterMessages already respects `currentFolderId`
+
+**Outcome**: Toolbar now has folder selector dropdown that filters messages by folder selection.
+
+**Cross-Tool Context**: Folder selector integrates with existing filterMessages() function that already supports folder-based filtering.
+
+---
+
+*Last Updated: 2026-02-03 05:05 UTC by AI Agent*
+*Status: Web sync issue fixed, folder selector added*

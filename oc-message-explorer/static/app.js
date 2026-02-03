@@ -353,6 +353,7 @@ function connectWebSocket() {
         if (message.type === 'init' || message.type === 'update') {
             folders = message.data;
             updateAllMessages();
+            updateFolderSelector();
             // renderFolders(); // Sidebar removed - folders no longer displayed
             renderTree();
             updateGraph();
@@ -421,10 +422,35 @@ function renderFolders() {
 
 function selectFolder(id) {
     currentFolderId = id;
+    updateFolderSelector();
     // renderFolders(); // Sidebar removed - folders no longer displayed
     renderTree();
     updateGraph();
     updateTagCloud();
+}
+
+function updateFolderSelector() {
+    const selector = document.getElementById('folderSelector');
+    if (!selector) return;
+
+    const currentValue = selector.value;
+
+    selector.innerHTML = '<option value="all">All Folders</option>';
+
+    for (const folderId in folders) {
+        const folder = folders[folderId];
+        const option = document.createElement('option');
+        option.value = folderId;
+        option.textContent = folder.name || folderId;
+        selector.appendChild(option);
+    }
+
+    if (currentFolderId && folders[currentFolderId]) {
+        selector.value = currentFolderId;
+    } else {
+        selector.value = 'all';
+        currentFolderId = 'all';
+    }
 }
 
 function updateTagCloud() {
