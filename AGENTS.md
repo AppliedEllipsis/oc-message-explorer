@@ -450,7 +450,63 @@ private async initialize(): Promise<void> {
 
 ---
 
-## Memory and Decision Logic
+## Memory and State Optimizations
+
+This project implements specific patterns to ensure the application remains responsive, handles high-concurrency async operations safely, and manages state efficiently.
+
+### UI & Async Resilience
+
+#### 1. State Cleanup on Abort
+When using `AbortController` or cancellation logic (like checking for query changes), you **MUST** ensure that UI loading states (skeletons, spinners, `.loading` classes) are cleared in the terminal `finally` or `catch` blocks.
+- **Why**: Prevents "infinite loading" UI when requests are cancelled by user input or navigation.
+- **Pattern**:
+```javascript
+loadNodeContent(nodeId).then(data => {
+    // update UI
+}).catch(err => {
+    if (err.name === 'AbortError') return cleanupLoading(nodeId);
+    handleError(err);
+}).finally(() => {
+    removeLoadingState(nodeId);
+});
+```
+
+#### 2. Request Deduplication
+Never spawn multiple identical requests for the same resource simultaneously. Use a tracking `Map` to return existing promises.
+- **Why**: Reduces server load and prevents race conditions where late responses overwrite early ones.
+- **Pattern**:
+```javascript
+const pendingNodeLoads = new Map();
+function loadNode(id) {
+    if (pendingNodeLoads.has(id)) return pendingNodeLoads.get(id);
+    const p = fetch(...).finally(() => pendingNodeLoads.delete(id));
+    pendingNodeLoads.set(id, p);
+    return p;
+}
+```
+
+#### 3. Defensive Storage
+Wrap all `localStorage` and `sessionStorage` access in `try-catch` blocks.
+- **Why**: Prevents app crashes in Private Browsing modes or restricted environments where storage access throws exceptions.
+
+#### 4. Immutable State Merging
+When updating a large state object from a partial API response, always merge instead of overwriting.
+- **Why**: Preserves properties (like UI state, flags, or local-only data) that aren't provided by the API.
+- **Pattern**: `allMessages[id] = { ...allMessages[id], ...updatedNode };`
+
+### Logic & Performance
+
+#### 1. Proactive Data Validation
+Validate data types and existence (especially IDs) **before** generating DOM elements or triggering background logic.
+- **Why**: Prevent "undefined" or "null" strings from appearing in the DOM or being sent as API parameters (e.g., `/api/messages/undefined`).
+
+#### 2. Backoff Delay Caps
+In `fetchWithRetry` implementations, always cap the exponential backoff at a reasonable maximum (e.g., 30,000ms).
+- **Why**: Prevents requests from waiting for minutes to retry, which appears to the user as a frozen application.
+
+#### 3. High-Frequency Event Delegation
+Prefer document-level event delegation for elements created dynamically (skeletons, list items).
+- **Why**: Reduces memory overhead of attaching thousands of listeners and avoids listener lifecycle bugs during re-renders.
 
 ### Documenting Architectural Decisions
 
