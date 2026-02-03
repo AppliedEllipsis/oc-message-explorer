@@ -163,3 +163,7 @@ release/
 *.seed
 *.pid.lock
 config.json
+.refact/vecdb/vecdb_model_thenlper_gte-base_esize_768.sqlite
+.refact/vecdb/vecdb_model_thenlper_gte-base_esize_768.sqlite-shm
+.refact/vecdb/vecdb_model_thenlper_gte-base_esize_768.sqlite-wal
+.vscode/settings.json
