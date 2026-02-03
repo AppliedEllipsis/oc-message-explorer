@@ -7,8 +7,109 @@ let selectedFolderColor = '#58a6ff';
 let draggedNodeId = null;
 let searchQuery = '';
 let searchTimeout = null;
+let lastRenderQuery = '';
 let searchResults = {};
+let searchAbortController = null;
+let lastErrorAlertTime = 0;
 let userOnlyFilter = false;
+const pendingNodeLoads = new Map();
+const nodeLoadControllers = new Map();
+
+async function fetchWithRetry(url, options = {}, retryConfig = {}) {
+    const {
+        maxRetries = 3,
+        timeout = 30000,
+        backoffBase = 1000,
+        abortSignal = null,
+        context = ''
+    } = retryConfig;
+
+    let lastError = null;
+    const startTime = Date.now();
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        if (abortSignal?.aborted) {
+            console.log(`[FETCH] ${context} Request aborted before attempt ${attempt + 1}`);
+            throw new DOMException('Aborted', 'AbortError');
+        }
+
+        const controller = new AbortController();
+        const onAbort = () => {
+            console.log(`[FETCH] ${context} Abort signal received`);
+            controller.abort();
+        };
+
+        if (abortSignal) {
+            abortSignal.addEventListener('abort', onAbort);
+        }
+
+        const timeoutId = setTimeout(() => {
+            console.log(`[FETCH] ${context} Timeout (${timeout}ms) on attempt ${attempt + 1}`);
+            controller.abort();
+        }, timeout);
+
+        try {
+            const attemptTime = Date.now();
+            console.log(`[FETCH] ${context} → START ${url} (attempt ${attempt + 1}/${maxRetries + 1})`);
+
+            const response = await fetch(url, {
+                ...options,
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+            if (abortSignal) abortSignal.removeEventListener('abort', onAbort);
+
+            const elapsed = Date.now() - attemptTime;
+            console.log(`[FETCH] ${context} ← STATUS ${response.status} (${elapsed}ms) ${url}`);
+
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status} ${response.statusText}`);
+            }
+
+            const totalTime = Date.now() - startTime;
+            console.log(`[FETCH] ${context} ✓ SUCCESS ${url} (total time: ${totalTime}ms, retries: ${attempt})`);
+            return response;
+        } catch (err) {
+            clearTimeout(timeoutId);
+            if (abortSignal) abortSignal.removeEventListener('abort', onAbort);
+
+            lastError = err;
+            const elapsed = Date.now() - startTime;
+
+            if (err.name === 'AbortError') {
+                if (abortSignal?.aborted) {
+                    console.log(`[FETCH] ${context} ✗ CANCELED ${url} (by user, ${elapsed}ms)`);
+                    throw err;
+                }
+                console.log(`[FETCH] ${context} ✗ TIMEOUT ${url} on attempt ${attempt + 1} (after ${timeout}ms)`);
+            } else {
+                console.log(`[FETCH] ${context} ✗ ERROR ${url} on attempt ${attempt + 1}:`, err.message);
+            }
+
+            if (attempt < maxRetries && !abortSignal?.aborted) {
+                const backoffDelay = backoffBase * Math.pow(2, attempt);
+                console.log(`[FETCH] ${context} ⏳ RETRYING ${url} after ${backoffDelay}ms delay...`);
+
+                // Wait for delay or until aborted
+                await new Promise((resolve, reject) => {
+                    const tId = setTimeout(resolve, backoffDelay);
+                    if (abortSignal) {
+                        abortSignal.addEventListener('abort', () => {
+                            clearTimeout(tId);
+                            reject(new DOMException('Aborted', 'AbortError'));
+                        }, { once: true });
+                    }
+                });
+            } else {
+                const totalTime = Date.now() - startTime;
+                console.log(`[FETCH] ${context} ✗ FAILED ${url} after ${maxRetries + 1} attempts (total time: ${totalTime}ms)`);
+            }
+        }
+    }
+
+    throw lastError || new Error('Fetch failed after retries');
+}
 let dateRangeFilter = { start: null, end: null };
 let combineOrder = [];
 let combineDraggedIndex = null;
@@ -66,10 +167,19 @@ function init() {
 
     const searchBox = document.getElementById('searchBox');
     if (searchBox) {
-        console.log('[INIT] Found searchBox, adding event listener');
+        console.log('[INIT] Found searchBox, adding event listeners');
+
         searchBox.addEventListener('input', function () {
             console.log('[SEARCH] Search box input event triggered');
-            filterMessages();
+            filterMessages(false); // false = not immediate, use debounce
+        });
+
+        searchBox.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                console.log('[SEARCH] Enter key pressed, immediate search');
+                e.preventDefault();
+                filterMessages(true); // true = immediate search, skip debounce
+            }
         });
     } else {
         console.error('[ERROR] searchBox element not found during init');
@@ -157,6 +267,16 @@ document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
         e.preventDefault();
         toggleSidebar();
+    }
+
+    if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target;
+        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+        if (!isInput) {
+            e.preventDefault();
+            focusSearchBox();
+        }
     }
 });
 
@@ -463,8 +583,8 @@ function getMessagesToDisplay() {
     return filtered;
 }
 
-function filterMessages() {
-    console.log('[SEARCH] filterMessages called');
+function filterMessages(immediate = false) {
+    console.log('[SEARCH] filterMessages called, immediate:', immediate);
     const searchBox = document.getElementById('searchBox');
     if (!searchBox) {
         console.error('[ERROR] searchBox element not found!');
@@ -475,24 +595,50 @@ function filterMessages() {
 
     clearTimeout(searchTimeout);
 
-    searchTimeout = setTimeout(() => {
-        searchQuery = query;
-        console.log('[SEARCH] Searching for:', query);
+    const performSearch = () => {
+        console.log('[SEARCH] Performing search for query:', query);
 
         if (query.length < 2) {
-            console.log('[SEARCH] Query too short, clearing results');
+            console.log('[SEARCH] Query too short, clearing results and canceling loads');
+            searchQuery = '';
             searchResults = {};
+            cancelAllNodeLoads();
+            loadingViewportNodes.clear();
+            if (viewportObserver) {
+                viewportObserver.disconnect();
+            }
             renderTree();
             return;
         }
 
-        console.log('[SEARCH] Sending search request to server');
-        fetch('/api/search', {
+        searchQuery = query;
+        console.log('[SEARCH] Searching for:', query);
+
+        const currentUrl = window.location.origin;
+        const searchUrl = `${currentUrl}/api/search`;
+        console.log('[SEARCH] Sending search request to:', searchUrl);
+
+        if (searchAbortController) {
+            console.log('[SEARCH] Canceling previous search request');
+            searchAbortController.abort();
+        }
+
+        searchAbortController = new AbortController();
+
+        fetchWithRetry(searchUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query })
+            body: JSON.stringify({ query, searchRaw: false })
+        }, {
+            maxRetries: 3,
+            timeout: 30000,
+            abortSignal: searchAbortController.signal,
+            context: `SEARCH[${query}]`
         })
-            .then(res => res.json())
+            .then(res => {
+                console.log('[SEARCH] Response status:', res.status);
+                return res.json();
+            })
             .then(results => {
                 console.log('[SEARCH] Got results:', Object.keys(results || {}).length);
                 if (results) {
@@ -504,10 +650,29 @@ function filterMessages() {
                 renderTree();
             })
             .catch(err => {
+                if (err.name === 'AbortError') {
+                    console.log('[SEARCH] Search request was canceled');
+                    return;
+                }
                 console.error('[SEARCH] Search error:', err);
+                searchResults = {};
                 renderTree();
+
+                const now = Date.now();
+                const errorMessage = err.message || 'Search failed. Make sure the server is running.';
+
+                if (now - lastErrorAlertTime > 5000) {
+                    lastErrorAlertTime = now;
+                    alert(errorMessage);
+                }
             });
-    }, 300);
+    };
+
+    if (immediate) {
+        performSearch();
+    } else {
+        searchTimeout = setTimeout(performSearch, 300);
+    }
 }
 
 function expandSearchResults(results) {
@@ -534,17 +699,25 @@ function expandSearchResults(results) {
     nodeIdsToExpand.forEach(nodeId => {
         if (allMessages[nodeId]) {
             allMessages[nodeId].expanded = true;
-            fetch(`/api/messages/${nodeId}`, {
+            fetchWithRetry(`/api/messages/${nodeId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(allMessages[nodeId])
-            }).catch(err => console.error('Failed to save expanded state:', err));
+            }, { maxRetries: 2, timeout: 5000 })
+                .catch(err => console.error('Failed to save expanded state:', err));
         }
     });
 }
 
 function renderTree() {
     console.log('[RENDER] renderTree called, searchQuery:', searchQuery, 'length:', searchQuery?.length);
+
+    if (lastRenderQuery !== searchQuery) {
+        console.log(`[RENDER] Search query changed from "${lastRenderQuery}" to "${searchQuery}", canceling all pending loads`);
+        cancelAllNodeLoads();
+    }
+    lastRenderQuery = searchQuery;
+
     const container = document.getElementById('treeContainer');
     if (!container) {
         console.error('[RENDER] treeContainer not found!');
@@ -562,7 +735,27 @@ function renderTree() {
         messages = getMessagesToDisplay();
     }
 
-    if (Object.keys(messages).length === 0) {
+    const messagesKeys = Object.keys(messages);
+    console.log(`[RENDER] Processing ${messagesKeys.length} messages`);
+
+    const validMessages = {};
+    let invalidCount = 0;
+
+    for (const id of messagesKeys) {
+        const node = messages[id];
+        if (!id || id === 'undefined' || id === 'null' || !node || !node.id) {
+            console.error(`[RENDER] Skipping invalid message - id: "${id}", has node: !!node, node.id: ${node?.id}`);
+            invalidCount++;
+            continue;
+        }
+        validMessages[id] = node;
+    }
+
+    if (invalidCount > 0) {
+        console.warn(`[RENDER] Filtered out ${invalidCount} invalid messages from ${messagesKeys.length} total`);
+    }
+
+    if (Object.keys(validMessages).length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <h3>${searchQuery || selectedTags.length > 0 ? 'No messages match your filters' : 'No messages yet'}</h3>
@@ -572,7 +765,7 @@ function renderTree() {
         return;
     }
 
-    let rootNodes = Object.values(messages).filter(n => !n.parentId);
+    let rootNodes = Object.values(validMessages).filter(n => !n.parentId);
 
     rootNodes.sort((a, b) => {
         const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
@@ -795,11 +988,11 @@ function createNodeElement(node, messages, isRoot = false) {
                 allMessages[node.id] = node;
                 updateGraph();
 
-                const response = await fetch(`/api/messages/${node.id}`, {
+                const response = await fetchWithRetry(`/api/messages/${node.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(node)
-                });
+                }, { maxRetries: 3, timeout: 10000 });
                 if (!response.ok) {
                     throw new Error('Failed to update selection');
                 }
@@ -818,11 +1011,11 @@ function createNodeElement(node, messages, isRoot = false) {
                 allMessages[node.id] = node;
                 updateGraph();
 
-                await fetch(`/api/messages/${node.id}`, {
+                await fetchWithRetry(`/api/messages/${node.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(node)
-                });
+                }, { maxRetries: 2, timeout: 5000 });
             }
         };
 
@@ -944,6 +1137,9 @@ function observeVisibleNodes() {
         setupViewportObserver();
     }
 
+    viewportObserver.disconnect();
+    loadingViewportNodes.clear();
+
     document.querySelectorAll('.node-content[data-node-id]').forEach(el => {
         viewportObserver.observe(el);
     });
@@ -970,21 +1166,117 @@ function unloadNodeContentForViewport(nodeId) {
     if (displayModeRaw) {
         const textEl = nodeEl.querySelector('.node-text');
         if (textEl) {
-            textEl.innerHTML = createSkeletonLoader();
+            textEl.innerHTML = createSkeletonLoader(nodeId);
             textEl.classList.add('loading');
         }
     }
 }
 
-function createSkeletonLoader() {
+function createSkeletonLoader(nodeId) {
+    if (!nodeId || nodeId === 'undefined' || nodeId === 'null') {
+        console.error(`[SKELETON] Cannot create skeleton loader - nodeId is invalid: "${nodeId}"`);
+        return `
+            <div class="skeleton skeleton-text long"></div>
+            <div class="skeleton skeleton-text medium"></div>
+            <div class="skeleton skeleton-text short"></div>
+            <div class="load-error">Error: Invalid node ID</div>
+        `;
+    }
+
+    if (typeof nodeId !== 'string') {
+        console.error(`[SKELETON] Invalid nodeId type: ${typeof nodeId}, value:`, nodeId);
+        return `
+            <div class="skeleton skeleton-text long"></div>
+            <div class="skeleton skeleton-text medium"></div>
+            <div class="skeleton skeleton-text short"></div>
+            <div class="load-error">Error: Invalid node ID type</div>
+        `;
+    }
+
     return `
         <div class="skeleton skeleton-text long"></div>
         <div class="skeleton skeleton-text medium"></div>
         <div class="skeleton skeleton-text short"></div>
+        <button class="skeleton-refresh" onclick="reloadNodeContent('${nodeId}')"
+                title="Click to retry loading this message"
+                aria-label="Retry loading message">
+            🔄 Retry
+        </button>
     `;
 }
 
+function loadNodeContent(nodeId) {
+    const context = `NODE_LOAD[${nodeId}]`;
+
+    if (!nodeId || nodeId === 'undefined' || nodeId === 'null') {
+        console.error(`[${context}] Invalid nodeId: "${nodeId}"`);
+        return Promise.reject(new Error('Invalid node ID'));
+    }
+
+    if (pendingNodeLoads.has(nodeId)) {
+        console.log(`[${context}] Load already in progress, returning existing promise`);
+        return pendingNodeLoads.get(nodeId);
+    }
+
+    const controller = new AbortController();
+    nodeLoadControllers.set(nodeId, controller);
+
+    const loadPromise = fetchWithRetry(`/api/messages/${nodeId}`, {}, {
+        maxRetries: 3,
+        timeout: 15000,
+        context: context,
+        abortSignal: controller.signal
+    })
+        .then(res => res.json())
+        .then(updatedNode => {
+            pendingNodeLoads.delete(nodeId);
+            nodeLoadControllers.delete(nodeId);
+            if (updatedNode && updatedNode.id) {
+                allMessages[nodeId] = updatedNode;
+                console.log(`[${context}] ✓ Loaded and updated node`);
+            } else {
+                console.warn(`[${context}] ⚠ Received invalid node data`);
+            }
+            return updatedNode;
+        })
+        .catch(err => {
+            pendingNodeLoads.delete(nodeId);
+            nodeLoadControllers.delete(nodeId);
+            if (err.name !== 'AbortError') {
+                console.error(`[${context}] ✗ Failed:`, err);
+            }
+            return null;
+        });
+
+    pendingNodeLoads.set(nodeId, loadPromise);
+    return loadPromise;
+}
+
+function cancelAllNodeLoads() {
+    console.log(`[CANCEL_ALL] Canceling ${nodeLoadControllers.size} pending node loads and clearing ${pendingNodeLoads.size} pending promises`);
+    nodeLoadControllers.forEach((controller, nodeId) => {
+        controller.abort();
+        console.log(`[CANCEL] Aborted load for: ${nodeId}`);
+    });
+    nodeLoadControllers.clear();
+    pendingNodeLoads.clear();
+}
+
+function focusSearchBox() {
+    const searchBox = document.getElementById('searchBox');
+    if (searchBox) {
+        searchBox.focus();
+        searchBox.select();
+        console.log('[FOCUS] Search box focused and selected');
+    }
+}
+
 function loadNodeContentForViewport(nodeId) {
+    if (!nodeId || nodeId === 'undefined' || nodeId === 'null') {
+        console.error(`[VIEWPORT] Cannot load node - invalid nodeId: "${nodeId}"`);
+        return;
+    }
+
     const node = allMessages[nodeId];
     if (!node || node.hasLoaded) return;
 
@@ -994,36 +1286,59 @@ function loadNodeContentForViewport(nodeId) {
     if (nodeEl && displayModeRaw && (!node.content || node.content.length > 2000)) {
         const textEl = nodeEl.querySelector('.node-text');
         if (textEl) {
-            textEl.innerHTML = createSkeletonLoader();
+            textEl.innerHTML = createSkeletonLoader(nodeId);
             textEl.classList.add('loading');
         }
     }
 
+
     loadNodeContent(nodeId).then((updatedNode) => {
         loadingViewportNodes.delete(nodeId);
+
+        const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
+        const textEl = nodeEl?.querySelector('.node-text');
+
         if (!updatedNode) {
-            console.warn('[LOADING] Content load returned null for node:', nodeId);
+            // Check if it was aborted
+            const controller = nodeLoadControllers.get(nodeId);
+            if (controller && controller.signal.aborted) {
+                console.log(`[VIEWPORT] Node load was aborted for ${nodeId}, cleaning up UI`);
+                if (textEl) textEl.classList.remove('loading');
+                return;
+            }
+
+            console.warn(`[NODE_LOAD[${nodeId}]] Content load returned null`);
+            if (textEl) {
+                textEl.innerHTML = createSkeletonLoader(nodeId) + '<div class="load-error">Failed to load content</div>';
+                textEl.classList.add('loading-failed');
+                textEl.classList.remove('loading');
+            }
             return;
         }
-        const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
-        if (nodeEl) {
-            const textEl = nodeEl.querySelector('.node-text');
-            if (textEl) {
-                textEl.classList.remove('loading');
-                if (displayModeRaw && nodeEl) {
-                    textEl.textContent = truncateContent(updatedNode.content, updatedNode.summary);
-                }
+
+        if (textEl) {
+            textEl.classList.remove('loading', 'loading-failed');
+            if (displayModeRaw) {
+                textEl.textContent = truncateContent(updatedNode.content, updatedNode.summary);
             }
         }
     }).catch(err => {
         loadingViewportNodes.delete(nodeId);
-        console.error('[LOADING] Failed to load node content:', nodeId, err);
+
         const nodeEl = document.querySelector(`.node-content[data-node-id="${nodeId}"]`);
-        if (nodeEl) {
-            const textEl = nodeEl.querySelector('.node-text');
-            if (textEl) {
-                textEl.classList.remove('loading');
-            }
+        const textEl = nodeEl?.querySelector('.node-text');
+
+        if (err.name === 'AbortError') {
+            console.log(`[VIEWPORT] Node load aborted for ${nodeId}, cleaning up UI`);
+            if (textEl) textEl.classList.remove('loading');
+            return;
+        }
+
+        console.error(`[NODE_LOAD[${nodeId}]] Failed:`, err);
+        if (textEl) {
+            textEl.innerHTML = createSkeletonLoader(nodeId) + '<div class="load-error">Load failed: ' + err.message + '</div>';
+            textEl.classList.add('loading-failed');
+            textEl.classList.remove('loading');
         }
     });
 }
@@ -1134,19 +1449,32 @@ function toggleSelection(nodeId) {
     updateMessage(nodeId, node);
 }
 
-function loadNodeContent(nodeId) {
-    return fetch(`/api/messages/${nodeId}`)
-        .then(res => res.json())
-        .then(updatedNode => {
-            if (updatedNode && updatedNode.id) {
-                allMessages[nodeId] = updatedNode;
-            }
-            return updatedNode;
-        })
-        .catch(err => {
-            console.error('Failed to load node content:', err);
-            return null;
-        });
+function reloadNodeContent(nodeId) {
+    console.log(`[RELOAD] Manually reloading node: ${nodeId}`);
+
+    const node = allMessages[nodeId];
+    if (!node) {
+        console.error(`[RELOAD] Node not found: ${nodeId}`);
+        return Promise.reject(new Error('Node not found'));
+    }
+
+    if (searchQuery && searchQuery.length >= 2) {
+        const inResults = searchResults[nodeId];
+        if (!inResults) {
+            console.log(`[RELOAD] Node ${nodeId} not in current search results, skipping reload`);
+            return Promise.reject(new Error('Node not in search results'));
+        }
+    }
+
+    cancelNodeLoad(nodeId);
+    return loadNodeContent(nodeId);
+}
+
+function cancelNodeLoad(nodeId) {
+    if (pendingNodeLoads.has(nodeId)) {
+        console.log(`[CANCEL] Canceling load for node: ${nodeId}`);
+        pendingNodeLoads.delete(nodeId);
+    }
 }
 
 function loadNodeAndChildren(nodeId) {
