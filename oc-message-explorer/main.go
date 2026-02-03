@@ -741,47 +741,48 @@ func (s *Store) loadMessageContent(nodeID string) *MessageNode {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if folder, exists := s.Folders["openchat"]; exists {
+	for _, folder := range s.Folders {
 		if node, exists := folder.Nodes[nodeID]; exists {
-			if node.HasLoaded {
+			if node.HasLoaded || folder.ID != "openchat" {
 				return node
 			}
 
-			msgPartPath := filepath.Join(s.partPath, nodeID)
-			partFiles, err := os.ReadDir(msgPartPath)
-			if err == nil {
-				var partContents []string
-				for _, partFile := range partFiles {
-					if !strings.HasSuffix(partFile.Name(), ".json") {
-						continue
+			if folder.ID == "openchat" {
+				msgPartPath := filepath.Join(s.partPath, nodeID)
+				partFiles, err := os.ReadDir(msgPartPath)
+				if err == nil {
+					var partContents []string
+					for _, partFile := range partFiles {
+						if !strings.HasSuffix(partFile.Name(), ".json") {
+							continue
+						}
+
+						partFilePath := filepath.Join(msgPartPath, partFile.Name())
+						partData, err := os.ReadFile(partFilePath)
+						if err != nil {
+							continue
+						}
+
+						var ocPart OpenCodePart
+						if err := json.Unmarshal(partData, &ocPart); err != nil {
+							continue
+						}
+
+						if ocPart.Type == "text" && ocPart.Text != "" {
+							partContents = append(partContents, ocPart.Text)
+						}
 					}
 
-					partFilePath := filepath.Join(msgPartPath, partFile.Name())
-					partData, err := os.ReadFile(partFilePath)
-					if err != nil {
-						continue
+					if len(partContents) > 0 {
+						node.Content = strings.Join(partContents, "\n")
+						node.HasLoaded = true
 					}
 
-					var ocPart OpenCodePart
-					if err := json.Unmarshal(partData, &ocPart); err != nil {
-						continue
-					}
-
-					if ocPart.Type == "text" && ocPart.Text != "" {
-						partContents = append(partContents, ocPart.Text)
-					}
+					s.db.UpdateNode("openchat", node)
 				}
 
-				if len(partContents) > 0 {
-					node.Content = strings.Join(partContents, "\n")
-					node.HasLoaded = true
-				}
-
-				s.db.UpdateNode("openchat", node)
 				return node
 			}
-
-			return node
 		}
 	}
 
