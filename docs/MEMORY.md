@@ -725,9 +725,41 @@ Use `memory_search_nodes` with queries like "development plan", "phase 1", "arch
 
 **Outcome**: Toolbar now has folder selector dropdown that filters messages by folder selection.
 
-**Cross-Tool Context**: Folder selector integrates with existing filterMessages() function that already supports folder-based filtering.
+**Cross-Tool Context**: Folder selector integrates with existing filterMessages() function for folder-based filtering.
 
 ---
 
-*Last Updated: 2026-02-03 05:05 UTC by AI Agent*
-*Status: Web sync issue fixed, folder selector added*
+### [2026-02-03 05:10 UTC] - Tool: Opencode - Fix timestamp display format
+
+**Tool**: Opencode
+**Task Type**: UI Fix
+**Status**: Complete
+
+**Summary**: Changed timestamp format to show date and time instead of just date
+
+**Context**: User reported timestamps on prompts only showing date, not time. The `formatTimestamp` function was showing relative time for recent messages (Just now, Xm ago) but only `toLocaleDateString()` for older messages.
+
+**Fix Applied**: Changed line 1457 from:
+```javascript
+return date.toLocaleDateString();
+```
+to:
+```javascript
+return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+```
+
+**Files Changed**:
+- Modified: [`static/app.js`](oc-message-explorer/static/app.js:1457) - Added time to timestamp format
+
+**Folder Structure Note**: Currently all OpenChat messages are synced into a single folder called "OpenChat History" (ID: "openchat"). Sessions are not organized as separate folders.
+
+**Data Availability Note**: User reports not seeing messages past Jan 30th. This is likely because their OpenChat data directory only contains sessions through that date, not due to filtering. Background sync loads all available sessions from the OpenChat storage.
+
+**Potential Enhancement**: Could organize OpenChat sessions as separate folders (one folder per session or grouped by date range) if user wants better categorization.
+
+**Cross-Tool Context**: Timestamp format improved while maintaining relative time display for recent messages.
+
+---
+
+*Last Updated: 2026-02-03 05:10 UTC by AI Agent*
+*Status: Web sync issue fixed, folder selector added, timestamp format improved*
