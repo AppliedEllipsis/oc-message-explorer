@@ -1195,13 +1195,13 @@ function createSkeletonLoader(nodeId) {
         `;
     }
 
-    const escapedNodeId = nodeId.replace(/'/g, '\\\'').replace(/"/g, '&quot;');
+    const escapedNodeId = encodeURIComponent(nodeId);
 
     return `
         <div class="skeleton skeleton-text long"></div>
         <div class="skeleton skeleton-text medium"></div>
         <div class="skeleton skeleton-text short"></div>
-        <button class="skeleton-refresh" onclick="reloadNodeContent('${escapedNodeId}')"
+        <button class="skeleton-refresh" data-node-id="${escapedNodeId}"
                 title="Click to retry loading this message"
                 aria-label="Retry loading message">
             🔄 Retry
@@ -1723,8 +1723,8 @@ function deleteNode() {
         },
         undo: async () => {
             console.log('[DELETE] Restoring message:', nodeId);
-            if (nodeFolderId) {
-                folders[nodeFolderId].nodes[nodeId] = deletedNode;
+            if (targetFolderId) {
+                folders[targetFolderId].nodes[nodeId] = deletedNode;
             }
             allMessages[nodeId] = deletedNode;
 
@@ -3603,6 +3603,16 @@ function setupMoreMenu() {
                 btn?.setAttribute('aria-expanded', 'false');
             }
         });
+
+        // Handle skeleton-refresh button clicks via event delegation
+        if (e.target.classList.contains('skeleton-refresh')) {
+            const nodeId = e.target.getAttribute('data-node-id');
+            if (nodeId) {
+                e.preventDefault();
+                e.stopPropagation();
+                reloadNodeContent(decodeURIComponent(nodeId));
+            }
+        }
     });
 
     document.addEventListener('keydown', (e) => {
