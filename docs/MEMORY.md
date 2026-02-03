@@ -753,13 +753,65 @@ return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
 
 **Folder Structure Note**: Currently all OpenChat messages are synced into a single folder called "OpenChat History" (ID: "openchat"). Sessions are not organized as separate folders.
 
-**Data Availability Note**: User reports not seeing messages past Jan 30th. This is likely because their OpenChat data directory only contains sessions through that date, not due to filtering. Background sync loads all available sessions from the OpenChat storage.
+**Data Availability Note**: User reports not seeing messages past Jan 30th or in this month. However, investigation confirms there ARE recent messages in the OpenChat storage:
+- Latest message: Feb 3, 2026 at 5:03 AM (today)
+- Messages are synced from: `C:\Users\User\.local\share\opencode\storage\message`
+- All 156 sessions with ~7835 messages are in the database
 
-**Potential Enhancement**: Could organize OpenChat sessions as separate folders (one folder per session or grouped by date range) if user wants better categorization.
+The issue might be:
+1. Need to trigger manual sync via Actions → Sync Messages button
+2. Date filter might be active (check Filters → Date Range)
+3. Folder filter might be restricting view (check folder selector)
 
-**Cross-Tool Context**: Timestamp format improved while maintaining relative time display for recent messages.
+**OpenCode Data Sources Currently Synced**:
+- `storage/message/` - Session message metadata (title, timestamp, type, etc.)
+- `storage/part/` - Message content (full prompt/response text)
+
+**Potential Additional Data Sources** (not yet synced):
+- `storage/session/` - Session metadata
+- `storage/session_diff/` - Session diffs
+- `storage/project/` - Project data
+- `storage/todo/` - Todo items
+- `badges` - No definitive location found yet
+
+**Question for User**: Should the app also sync sessions, projects, orTodos? Where are "badges" stored?
+
+**Enhancements Made**:
+- Added "Sync Messages" button to Actions menu for manual sync trigger
+
+**Cross-Tool Context**: Timestamp format improved, data sources documented, manual sync added for recent messages.
 
 ---
 
-*Last Updated: 2026-02-03 05:10 UTC by AI Agent*
-*Status: Web sync issue fixed, folder selector added, timestamp format improved*
+### [2026-02-03 05:15 UTC] - Tool: Opencode - Add manual sync trigger
+
+**Tool**: Opencode
+**Task Type**: UI Enhancement
+**Status**: Complete
+
+**Summary**: Added "Sync Messages" button to Actions menu for manual sync trigger
+
+**Context**: User has recent messages in OpenChat storage (Feb 3, 2026) but may not be seeing them in UI. Added manual sync trigger to reload newest messages on demand.
+
+**Implementation**:
+1. Added menu item in Actions > System section
+2. Created `triggerSync()` function that calls existing `startSync()`
+3. Sync completion now triggers data reload via earlier fix
+
+**Files Changed**:
+- Modified: [`static/index.html`](oc-message-explorer/static/index.html:2371-2377) - Added sync menu item
+- Modified: [`static/app.js`](oc-message-explorer/static/app.js:2638-2641) - Added triggerSync() function
+
+**Usage**: Actions → Sync Messages
+- Triggers sync with OpenChat message storage
+- Automatically reloads data after sync completes
+- Shows notification on success/error
+
+**Outcome**: Users can manually trigger sync to get latest messages without waiting for background sync or restarting app.
+
+**Cross-Tool Context**: Manual sync complements auto-sync for getting newest messages.
+
+---
+
+*Last Updated: 2026-02-03 05:15 UTC by AI Agent*
+*Status: All fixes complete, manual sync added, looking for additional data sources*
