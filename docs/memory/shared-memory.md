@@ -1450,3 +1450,30 @@ All major blockers and high-priority UX issues resolved. Application is now full
 - Example: `docs(memory): shared memory - add tool registry entry for Roocode`
 
 ---
+### [2026-02-03 05:20 UTC] - Tool: Opencode - Document OpenCode data sources
+
+**Tool**: Opencode
+**Task Type**: Documentation
+**Status**: Complete
+
+**Summary**: Documented which OpenCode data sources are synced and where they're stored
+
+**Prompt messages location**: `C:\Users\User\.local\share\opencode\storage\message`
+- Session folders: `ses_*.json` containing message metadata
+- 156 sessions, ~7835 messages
+- Latest: Feb 3, 2026 at 5:03 AM (confirmed in storage)
+
+**Message content location**: `C:\Users\User\.local\share\opencode\storage\part`
+- Full prompt/response text
+- Stored by message ID
+
+**To get latest messages**: Actions → Sync Messages
+
+**Other data** (not yet synced):
+- storage/session/ - Session metadata
+- storage/project/ - Project data
+- storage/todo/ - Todo items
+- Badges location not yet identified
+
+**Cross-Tool Context**: Core sync working (prompts/messages confirmed up-to-date).
+
