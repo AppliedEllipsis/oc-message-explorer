@@ -1489,3 +1489,10 @@ All major blockers and high-priority UX issues resolved. Application is now full
 
 **Cross-Tool Context**: All user prompts across OpenCode now synced.
 
+### [2026-02-03 05:30 UTC] - Tool: Opencode - Fix web UI content loading
+
+**Issue**: Web UI prompts returned 404 errors when loading content.
+**Fix**: webUI nodes are stored with content in database, not part files.
+- Check all folders for HasLoaded nodes
+- webUI nodes marked HasLoaded: true during sync
+
