@@ -1875,77 +1875,6 @@
             padding: 0;
         }
 
-        .agents-modal-content {
-            width: 95%;
-            max-width: 900px;
-            max-height: 85vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .agents-preview {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            background: var(--bg-primary);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            font-size: 15px;
-            line-height: 1.6;
-            margin: 0 12px 12px;
-            min-height: 300px;
-        }
-
-        .agents-preview h1,
-        .agents-preview h2,
-        .agents-preview h3,
-        .agents-preview h4,
-        .agents-preview h5,
-        .agents-preview h6 {
-            font-size: 1.3em;
-            margin: 1em 0 0.5em;
-            font-weight: 600;
-        }
-
-        .agents-preview h1 { font-size: 2em; }
-        .agents-preview h2 { font-size: 1.5em; }
-        .agents-preview h3 { font-size: 1.25em; }
-
-        .agents-preview p {
-            margin: 0.5em 0;
-            line-height: 1.7;
-        }
-
-        .agents-preview code {
-            background: var(--bg-tertiary);
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 14px;
-        }
-
-        .agents-preview pre {
-            background: var(--bg-tertiary);
-            padding: 12px;
-            border-radius: 6px;
-            overflow-x: auto;
-            margin: 0.75em 0;
-        }
-
-        .agents-preview pre code {
-            background: none;
-            padding: 0;
-        }
-
-        .agents-preview ul,
-        .agents-preview ol {
-            margin: 0.5em 0;
-            padding-left: 24px;
-        }
-
-        .agents-preview li {
-            margin: 0.3em 0;
-        }
 
         .sync-status {
             background: var(--bg-tertiary);
@@ -2530,9 +2459,7 @@
                 <input type="text" class="form-input" id="newMessageTags" placeholder="tag1, tag2, tag3" aria-label="Message tags">
             </div>
             <div class="editor-actions">
-                <button class="btn primary" onclick="saveSettings()" aria-label="Save settings to .env file" title="Save (Ctrl+S)">Save to .env</button>
-                <button class="btn" onclick="testApiKey()" aria-label="Test API key connection" title="Test connection">Test Connection</button>
-                <button class="btn" onclick="loadAgentsContent()" aria-label="View AGENTS.md documentation" title="View documentation">View AGENTS.md</button>
+                <button class="btn primary" onclick="createMessage()" aria-label="Create new message" title="Create (Enter)">Create Message</button>
             </div>
         </div>
     </div>
@@ -2585,40 +2512,7 @@
                     </select>
                     <button class="btn" id="refreshModelsBtn" onclick="fetchModels()" style="margin-top: 8px;" aria-label="Refresh available models" title="Refresh model list (R)">Refresh Models</button>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="optimizationPrompt">Optimization Prompt</label>
-                    <textarea class="editor-textarea" id="optimizationPrompt" style="height: 180px;" placeholder="Custom prompt for optimization..." aria-label="Custom optimization prompt">First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
 
-Then, combine these prompts into a single, task-oriented prompt that will direct you to:
-
-1. Verify the existence of the components described in the prompts within the project codebase
-2. If any component does not exist, recreate it following the guidelines from AGENTS.md
-3. Ensure all code follows the project's coding conventions and best practices
-4. Maintain consistency with the existing project structure and patterns
-
-Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
-- Code quality and maintainability
-- Adherence to project conventions
-- Proper documentation and commenting
-- Type safety and error handling</textarea>
-                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
-                        This prompt is used to combine multiple selected prompts into a single task-oriented prompt for verification and recreation of project components.
-                    </small>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="projectPath">Project Path</label>
-                    <input type="text" class="form-input" id="projectPath" placeholder="Path to project directory" aria-label="Enter project directory path">
-                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
-                        Absolute or relative path to the project directory. Used for reading AGENTS.md.
-                    </small>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="agentsPath">AGENTS.md Path</label>
-                    <input type="text" class="form-input" id="agentsPath" placeholder="Path to AGENTS.md" aria-label="Enter AGENTS.md file path">
-                    <small style="color: var(--text-muted); font-size: 13px; margin-top: 6px; display: block;">
-                        Path to AGENTS.md file. Can be relative to project path or absolute.
-                    </small>
-                </div>
                 <div class="form-group">
                     <label class="form-label" for="promptTemplateSelector">AI Prompt Templates</label>
                     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
@@ -2667,7 +2561,6 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
             <div class="editor-actions" style="flex-shrink: 0; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
                 <button class="btn primary" onclick="saveSettings()" aria-label="Save settings to .env file" title="Save (Ctrl+S)">Save to .env</button>
                 <button class="btn" onclick="testApiKey()" aria-label="Test API key connection" title="Test connection">Test Connection</button>
-                <button class="btn" onclick="loadAgentsContent()" aria-label="View AGENTS.md documentation" title="View documentation">View AGENTS.md</button>
             </div>
         </div>
     </div>
@@ -2701,20 +2594,6 @@ Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
         </div>
     </div>
 
-    <div class="modal" id="agentsContentModal">
-        <div class="modal-content agents-modal-content">
-            <div class="modal-header">
-                <h2>AGENTS.md Content</h2>
-                <button class="close-btn" onclick="hideModal('agentsContentModal')" aria-label="Close AGENTS.md viewer" title="Close (Escape)">&times;</button>
-            </div>
-            <div class="agents-preview" id="agentsPreview" role="region" aria-label="AGENTS.md documentation content">
-                <div style="color: var(--text-muted); text-align: center; padding: 40px;">Loading...</div>
-            </div>
-            <div class="editor-actions">
-                <button class="btn primary" onclick="copyAgentsContent()" aria-label="Copy AGENTS.md to clipboard" title="Copy to clipboard (Ctrl+C)">Copy to Clipboard</button>
-            </div>
-        </div>
-    </div>
 
     <div class="modal" id="combineModal">
         <div class="modal-content combine-modal-content" style="width: 900px; max-height: 95vh;">

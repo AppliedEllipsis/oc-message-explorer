@@ -2288,24 +2288,6 @@ function showSettingsModal() {
             document.getElementById('openaiApiKey').value = config.openAIAPIKey || '';
             document.getElementById('openaiBaseUrl').value = config.openaiBaseUrl || '';
             document.getElementById('openaiModel').value = config.openaiModel || '';
-            document.getElementById('optimizationPrompt').value = config.optimizationPrompt ||
-                `First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
-
-Then, combine these prompts into a single, task-oriented prompt that will direct you to:
-
-1. Verify the existence of the components described in the prompts within the project codebase
-2. If any component does not exist, recreate it following the guidelines from AGENTS.md
-3. Ensure all code follows the project's coding conventions and best practices
-4. Maintain consistency with the existing project structure and patterns
-
-Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
-- Code quality and maintainability
-- Adherence to project conventions
-- Proper documentation and commenting
-- Type safety and error handling`;
-            document.getElementById('projectPath').value = config.projectPath || '';
-            document.getElementById('agentsPath').value = config.agentsPath || '';
-
             if (config.openAIAPIKey) {
                 document.getElementById('modelSelectGroup').style.display = 'block';
                 fetchModels(false);
@@ -2336,9 +2318,6 @@ function saveSettings() {
     const apiKey = document.getElementById('openaiApiKey').value.trim();
     const baseUrl = document.getElementById('openaiBaseUrl').value.trim();
     const model = document.getElementById('openaiModel').value;
-    const optimizationPrompt = document.getElementById('optimizationPrompt').value.trim();
-    const projectPath = document.getElementById('projectPath').value.trim();
-    const agentsPath = document.getElementById('agentsPath').value.trim();
     const anthropicApiKey = document.getElementById('anthropicApiKey').value.trim();
     const aiProvider = document.getElementById('aiProvider').value;
 
@@ -2346,9 +2325,6 @@ function saveSettings() {
         openAIAPIKey: apiKey,
         openaiBaseUrl: baseUrl,
         openaiModel: model,
-        optimizationPrompt: optimizationPrompt,
-        projectPath: projectPath,
-        agentsPath: agentsPath,
         anthropicAPIKey: anthropicApiKey,
         aiProvider: aiProvider
     };
@@ -2399,23 +2375,6 @@ function loadSettings() {
             document.getElementById('openaiApiKey').value = config.openAIAPIKey || '';
             document.getElementById('openaiBaseUrl').value = config.openaiBaseUrl || '';
             document.getElementById('openaiModel').value = config.openaiModel || '';
-            document.getElementById('optimizationPrompt').value = config.optimizationPrompt ||
-                `First, read and understand the AGENTS.md file which contains project-specific guidelines, coding conventions, and development practices.
- 
-Then, combine these prompts into a single, task-oriented prompt that will direct you to:
-
-1. Verify the existence of the components described in the prompts within the project codebase
-2. If any component does not exist, recreate it following the guidelines from AGENTS.md
-3. Ensure all code follows the project's coding conventions and best practices
-4. Maintain consistency with the existing project structure and patterns
-
-Base your implementation decisions on the guidance in AGENTS.md, prioritizing:
-- Code quality and maintainability
-- Adherence to project conventions
-- Proper documentation and commenting
-- Type safety and error handling`;
-            document.getElementById('projectPath').value = config.projectPath || '';
-            document.getElementById('agentsPath').value = config.agentsPath || '';
             document.getElementById('anthropicApiKey').value = config.anthropicAPIKey || '';
             document.getElementById('aiProvider').value = config.aiProvider || 'auto';
 
@@ -3072,36 +3031,6 @@ function deleteTodo(id) {
         });
 }
 
-function loadAgentsContent() {
-    fetch('/api/agents-content')
-        .then(res => res.json())
-        .then(data => {
-            const preview = document.getElementById('agentsPreview');
-
-            if (window.marked) {
-                preview.innerHTML = window.marked.parse(data.content);
-            } else {
-                preview.textContent = data.content;
-            }
-
-            document.getElementById('agentsContentModal').classList.add('active');
-        })
-        .catch(err => {
-            console.error('Failed to load agents content:', err);
-            showNotification('Failed to load AGENTS.md');
-        });
-}
-
-function copyAgentsContent() {
-    const preview = document.getElementById('agentsPreview').textContent;
-
-    navigator.clipboard.writeText(preview).then(() => {
-        showNotification('AGENTS.md content copied');
-    }).catch(err => {
-        console.error('Failed to copy:', err);
-        showNotification('Failed to copy');
-    });
-}
 
 function toggleOptionsPanel() {
     console.log('[CLICK] Filters button clicked');
