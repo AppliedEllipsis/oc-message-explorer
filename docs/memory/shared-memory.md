@@ -1496,3 +1496,11 @@ All major blockers and high-priority UX issues resolved. Application is now full
 - Check all folders for HasLoaded nodes
 - webUI nodes marked HasLoaded: true during sync
 
+### [2026-02-03 05:35 UTC] - Tool: Opencode - Interleave folders by timestamp
+
+**Change**: Messages now interleave chronologically across folders.
+- webUI prompts base timestamp on file mod time (minus count * minute)
+- Folder badges hidden when 'All Folders' selected
+- Proper interleaving of OpenChat and WebUI history
+
+
