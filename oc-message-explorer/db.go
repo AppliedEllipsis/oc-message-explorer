@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -508,29 +509,34 @@ type SyncProgress struct {
 }
 
 type SyncManager struct {
-	db               *Database
-	store            *Store
-	dataPath         string
-	msgPath          string
-	partPath         string
-	progressCallback func(SyncProgress)
-	cancelChan       chan struct{}
-	running          bool
-	mu               sync.RWMutex
+	db                *Database
+	store             *Store
+	dataPath          string
+	msgPath           string
+	partPath          string
+	promptHistoryPath string
+	progressCallback  func(SyncProgress)
+	cancelChan        chan struct{}
+	running           bool
+	mu                sync.RWMutex
 }
 
 func NewSyncManager(db *Database, store *Store, dataPath string, progressCallback func(SyncProgress)) *SyncManager {
 	msgPath := filepath.Join(dataPath, "storage", "message")
 	partPath := filepath.Join(dataPath, "storage", "part")
 
+	localPath := filepath.Dir(filepath.Dir(dataPath))
+	promptHistoryPath := filepath.Join(localPath, "state", "opencode", "prompt-history.jsonl")
+
 	return &SyncManager{
-		db:               db,
-		store:            store,
-		dataPath:         dataPath,
-		msgPath:          msgPath,
-		partPath:         partPath,
-		progressCallback: progressCallback,
-		cancelChan:       make(chan struct{}),
+		db:                db,
+		store:             store,
+		dataPath:          dataPath,
+		msgPath:           msgPath,
+		partPath:          partPath,
+		promptHistoryPath: promptHistoryPath,
+		progressCallback:  progressCallback,
+		cancelChan:        make(chan struct{}),
 	}
 }
 
@@ -750,6 +756,17 @@ func (sm *SyncManager) performSync() {
 	}
 
 	sm.reportProgress(SyncProgress{
+		Phase:         "reading_prompt_history",
+		Message:       "Reading web UI prompt history...",
+		Processed:     len(messageNodes),
+		TotalMessages: len(messageNodes),
+	})
+
+	if err := sm.syncPromptHistory(); err != nil {
+		log.Printf("Failed to sync prompt history: %v", err)
+	}
+
+	sm.reportProgress(SyncProgress{
 		Phase:         "complete",
 		Message:       fmt.Sprintf("Sync complete: %d messages from %d sessions", len(messageNodes), totalSessions),
 		Processed:     len(messageNodes),
@@ -863,4 +880,154 @@ func (sm *SyncManager) IsRunning() bool {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 	return sm.running
+}
+
+type PromptHistoryEntry struct {
+	Input string `json:"input"`
+	Parts []struct {
+		Type     string `json:"type"`
+		Text     string `json:"text,omitempty"`
+		Filename string `json:"filename,omitempty"`
+		URL      string `json:"url,omitempty"`
+	} `json:"parts,omitempty"`
+	Mode string `json:"mode"`
+}
+
+func (sm *SyncManager) syncPromptHistory() error {
+	if _, err := os.Stat(sm.promptHistoryPath); os.IsNotExist(err) {
+		log.Printf("Prompt history file not found, skipping: %s", sm.promptHistoryPath)
+		return nil
+	}
+
+	file, err := os.Open(sm.promptHistoryPath)
+	if err != nil {
+		return fmt.Errorf("failed to open prompt history file: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	promptNodes := make(map[string]*MessageNode)
+	count := 0
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		var entry PromptHistoryEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			log.Printf("Failed to parse prompt history entry: %v", err)
+			continue
+		}
+
+		count++
+		nodeId := fmt.Sprintf("webui_%d", count)
+
+		summary := entry.Input
+		if len(summary) > 100 {
+			summary = summary[:97] + "..."
+		}
+
+		timestamp := time.Now().Format(time.RFC3339)
+
+		content := entry.Input
+		if len(entry.Parts) > 0 {
+			content += "\n\nAttachments:\n"
+			for _, part := range entry.Parts {
+				if part.Type == "file" {
+					content += fmt.Sprintf("- %s\n", part.Filename)
+				}
+			}
+		}
+
+		node := &MessageNode{
+			ID:        nodeId,
+			Type:      "prompt",
+			Content:   content,
+			Summary:   summary,
+			Timestamp: timestamp,
+			Tags:      []string{"web-ui", entry.Mode},
+		}
+
+		promptNodes[nodeId] = node
+
+		if count%50 == 0 {
+			sm.reportProgress(SyncProgress{
+				Phase:     "reading_prompt_history",
+				Message:   fmt.Sprintf("Read %d web UI prompts...", count),
+				Processed: count,
+			})
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading prompt history: %w", err)
+	}
+
+	log.Printf("Loaded %d prompts from web UI history", count)
+
+	if len(promptNodes) == 0 {
+		return nil
+	}
+
+	return sm.writePromptHistoryToDB(promptNodes, count)
+}
+
+func (sm *SyncManager) writePromptHistoryToDB(promptNodes map[string]*MessageNode, count int) error {
+	existingFolder, err := sm.db.GetFolder("webui")
+	folderExists := (err == nil && existingFolder != nil)
+
+	if !folderExists {
+		folder := &Folder{
+			ID:        "webui",
+			Name:      "Web UI History",
+			Color:     "#6b8afd",
+			CreatedAt: time.Now().Format(time.RFC3339),
+			Nodes:     promptNodes,
+		}
+
+		if err := sm.db.InsertFolder(folder); err != nil {
+			return fmt.Errorf("failed to create webui folder: %w", err)
+		}
+
+		processed := 0
+		for _, node := range promptNodes {
+			if err := sm.db.InsertNode("webui", node); err != nil {
+				log.Printf("Failed to insert webui prompt %s: %v", node.ID, err)
+				continue
+			}
+			processed++
+		}
+		log.Printf("Wrote %d web UI prompts to database (new folder)", processed)
+		return nil
+	}
+
+	existingNodes, err := sm.db.GetNodesForFolder("webui")
+	if err != nil {
+		return fmt.Errorf("failed to get existing webui nodes: %w", err)
+	}
+
+	newCount := 0
+	for id, newNode := range promptNodes {
+		if _, exists := existingNodes[id]; !exists {
+			if err := sm.db.InsertNode("webui", newNode); err != nil {
+				log.Printf("Failed to insert webui prompt %s: %v", id, err)
+				continue
+			}
+			newCount++
+
+			if newCount%20 == 0 {
+				sm.reportProgress(SyncProgress{
+					Phase:         "writing_prompt_history",
+					Message:       fmt.Sprintf("Writing %d/%d new web UI prompts...", newCount, count),
+					Processed:     newCount,
+					TotalMessages: count,
+				})
+			}
+		}
+	}
+
+	log.Printf("Added %d new web UI prompts to database", newCount)
+	return nil
 }

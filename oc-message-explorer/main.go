@@ -72,15 +72,16 @@ type Folder struct {
 }
 
 type Store struct {
-	mu          sync.RWMutex
-	Folders     map[string]*Folder
-	clients     map[*websocket.Conn]bool
-	broadcastCh chan WSMessage
-	dataPath    string
-	partPath    string
-	msgPath     string
-	db          *Database
-	syncManager *SyncManager
+	mu                sync.RWMutex
+	Folders           map[string]*Folder
+	clients           map[*websocket.Conn]bool
+	broadcastCh       chan WSMessage
+	dataPath          string
+	partPath          string
+	msgPath           string
+	promptHistoryPath string
+	db                *Database
+	syncManager       *SyncManager
 }
 
 type OpenCodeMessage struct {
@@ -483,8 +484,12 @@ func NewStore() *Store {
 	if store.dataPath != "" {
 		store.msgPath = filepath.Join(store.dataPath, "storage", "message")
 		store.partPath = filepath.Join(store.dataPath, "storage", "part")
+
+		localPath := filepath.Dir(filepath.Dir(store.dataPath))
+		store.promptHistoryPath = filepath.Join(localPath, "state", "opencode", "prompt-history.jsonl")
 		log.Printf("Message path: %s", store.msgPath)
 		log.Printf("Part path: %s", store.partPath)
+		log.Printf("Prompt history path: %s", store.promptHistoryPath)
 	}
 
 	dbPath := getDatabasePath()
